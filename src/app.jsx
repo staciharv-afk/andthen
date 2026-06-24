@@ -3,8 +3,11 @@ import { useState, useEffect, useRef, useCallback } from "react";
 /* ─────────────────────────────────────────────────────────────
    SUPABASE CLIENT
    ───────────────────────────────────────────────────────────── */
-const SUPABASE_URL = "https://zwwlyqcwpqenzpfezohv.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp3d2x5cWN3cHFlbnpwZmV6b2h2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzMzc5OTMsImV4cCI6MjA4ODkxMzk5M30.jA4ODcyNzQwMn0.xNMM7y_iFnejlbqCDhrGmw1szp1PAIHJhAqYbaj0IaA";
+// Config comes from environment (.env, gitignored) — never hard-code Supabase
+// credentials in source again. See .env.example for the required variables.
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const CONFIG_OK = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
 
 function createClient(url, anonKey) {
   const headers = {
@@ -105,26 +108,19 @@ function createClient(url, anonKey) {
       _url: url,
       _anonKey: anonKey,
 
-      async signUp(email, password, metadata = {}) {
-        const res = await fetch(`${url}/auth/v1/signup`, {
+      // Magic-link sign-in: emails the user a link. On click, GoTrue
+      // redirects back to `redirectTo` with the session tokens in the URL
+      // hash fragment (handled on app load). No password is ever used.
+      async signInWithOtp(email, redirectTo) {
+        const qs = redirectTo ? `?redirect_to=${encodeURIComponent(redirectTo)}` : "";
+        const res = await fetch(`${url}/auth/v1/otp${qs}`, {
           method: "POST",
           headers: { apikey: anonKey, "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password, data: metadata }),
+          body: JSON.stringify({ email, create_user: true }),
         });
-        const data = await res.json();
-        if (!res.ok) return { data: null, error: data };
-        return { data, error: null };
-      },
-
-      async signInWithPassword(email, password) {
-        const res = await fetch(`${url}/auth/v1/token?grant_type=password`, {
-          method: "POST",
-          headers: { apikey: anonKey, "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password }),
-        });
-        const data = await res.json();
-        if (!res.ok) return { data: null, error: data };
-        return { data, error: null };
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) return { error: data };
+        return { error: null };
       },
 
       async getUser(token) {
@@ -202,6 +198,29 @@ function loadSession() {
 
 function clearSession() {
   localStorage.removeItem(SESSION_KEY);
+}
+
+/* ─────────────────────────────────────────────────────────────
+   ROUTING — URL <-> route, so the browser Back button works.
+   Contributor deep-links use ?memorial=CODE (unchanged); app
+   views use ?view=login|create|dashboard. Home is the bare path.
+   ───────────────────────────────────────────────────────────── */
+const APP_VIEWS = ["login", "create", "dashboard"];
+
+function parseLocation() {
+  const params = new URLSearchParams(window.location.search);
+  const memorialCode = params.get("memorial");
+  if (memorialCode) return { page: "memorial", param: memorialCode };
+  const view = params.get("view");
+  if (APP_VIEWS.includes(view)) return { page: view, param: null };
+  return { page: "home", param: null };
+}
+
+function routeToUrl(page, param) {
+  const url = new URL(window.location.origin + window.location.pathname);
+  if (page === "memorial" && param) url.searchParams.set("memorial", param);
+  else if (page !== "home") url.searchParams.set("view", page);
+  return url.toString();
 }
 
 /* ─────────────────────────────────────────────────────────────
@@ -523,43 +542,22 @@ function Nav({ currentUser, onSignOut, onNavigate }) {
 /* ─────────────────────────────────────────────────────────────
    AUTH PAGE
    ───────────────────────────────────────────────────────────── */
-function AuthPage({ onSuccess, showToast }) {
-  const [mode, setMode] = useState("signin"); // signin | signup
+function AuthPage({ showToast }) {
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
+  const [sent, setSent] = useState(false);
   const [error, setError] = useState("");
 
-  const handleSubmit = async () => {
+  const handleSend = async () => {
     setError("");
-    if (!email || !password) { setError("Please fill in all fields."); return; }
-    if (mode === "signup" && !name) { setError("Please enter your name."); return; }
+    const trimmed = email.trim();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(trimmed)) { setError("Please enter a valid email address."); return; }
+    if (!CONFIG_OK) { setError("Sign-in is unavailable until the backend is configured."); return; }
     setLoading(true);
     try {
-      if (mode === "signup") {
-        const { data, error: err } = await client.auth.signUp(email, password, { name });
-        if (err) { setError(err.msg || err.message || "Sign up failed."); return; }
-        const token = data?.access_token || data?.session?.access_token;
-        if (!token) { setError("Account created! Please check your email to confirm, then sign in."); return; }
-        client.setAccessToken(token);
-        client.storage._accessToken = token;
-        saveSession(token, { id: data.user?.id, email, name });
-        showToast("Welcome! Let's build your first memorial.");
-        onSuccess({ id: data.user?.id, email, name }, token);
-      } else {
-        const { data, error: err } = await client.auth.signInWithPassword(email, password);
-        if (err) { setError(err.error_description || err.msg || "Invalid email or password."); return; }
-        const token = data?.access_token;
-        if (!token) { setError("Sign in failed. Please try again."); return; }
-        client.setAccessToken(token);
-        client.storage._accessToken = token;
-        const { data: userData } = await client.auth.getUser(token);
-        const user = { id: userData?.user?.id, email, name: userData?.user?.user_metadata?.name || email.split("@")[0] };
-        saveSession(token, user);
-        showToast("Welcome back!");
-        onSuccess(user, token);
-      }
+      const { error: err } = await client.auth.signInWithOtp(trimmed, window.location.origin);
+      if (err) { setError(err.msg || err.message || err.error_description || "Couldn't send the link. Please try again."); return; }
+      setSent(true);
     } catch (e) {
       setError("Something went wrong. Please try again.");
     } finally {
@@ -572,40 +570,31 @@ function AuthPage({ onSuccess, showToast }) {
       <style>{STYLES}</style>
       <div className="auth-card fade-up">
         <div className="auth-logo">And Then<em>...</em></div>
-        <p className="auth-tagline">
-          {mode === "signup"
-            ? "Create an account to start gathering their stories."
-            : "Welcome back. Sign in to your account."}
-        </p>
 
-        <div className="create-form">
-          {mode === "signup" && (
-            <div className="form-group">
-              <label className="form-label">Your name</label>
-              <input className="form-input" placeholder="How should we address you?" value={name} onChange={(e) => setName(e.target.value)} />
+        {sent ? (
+          <>
+            <p className="auth-tagline">
+              Check your email — we sent a sign-in link to <strong>{email.trim()}</strong>. Open it on this device and you'll be signed in.
+            </p>
+            <button className="btn btn-ghost btn-lg" style={{ justifyContent: "center", width: "100%" }} onClick={() => { setSent(false); setEmail(""); }}>
+              Use a different email
+            </button>
+          </>
+        ) : (
+          <>
+            <p className="auth-tagline">Enter your email and we'll send you a link to sign in. No password to remember.</p>
+            <div className="create-form">
+              <div className="form-group">
+                <label className="form-label">Email</label>
+                <input className="form-input" type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleSend()} autoFocus />
+              </div>
+              {error && <div className="form-error">{error}</div>}
+              <button className="btn btn-rust btn-lg" onClick={handleSend} disabled={loading} style={{ justifyContent: "center" }}>
+                {loading ? <span className="spinner" /> : "Email me a sign-in link"}
+              </button>
             </div>
-          )}
-          <div className="form-group">
-            <label className="form-label">Email</label>
-            <input className="form-input" type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleSubmit()} />
-          </div>
-          <div className="form-group">
-            <label className="form-label">Password</label>
-            <input className="form-input" type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleSubmit()} />
-          </div>
-          {error && <div className="form-error">{error}</div>}
-          <button className="btn btn-rust btn-lg" onClick={handleSubmit} disabled={loading} style={{ justifyContent: "center" }}>
-            {loading ? <span className="spinner" /> : mode === "signup" ? "Create account" : "Sign in"}
-          </button>
-        </div>
-
-        <div className="auth-switch">
-          {mode === "signin" ? (
-            <>Don't have an account? <button onClick={() => { setMode("signup"); setError(""); }}>Sign up free</button></>
-          ) : (
-            <>Already have an account? <button onClick={() => { setMode("signin"); setError(""); }}>Sign in</button></>
-          )}
-        </div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -1390,46 +1379,61 @@ function HomePage({ onNavigate }) {
    ROOT APP
    ───────────────────────────────────────────────────────────── */
 export default function App() {
-  const [route, setRoute] = useState("home");
-  const [routeParam, setRouteParam] = useState(null);
+  const [route, setRoute] = useState(() => parseLocation().page);
+  const [routeParam, setRouteParam] = useState(() => parseLocation().param);
   const [currentUser, setCurrentUser] = useState(null);
   const [sessionToken, setSessionToken] = useState(null);
   const { toasts, show: showToast } = useToast();
 
-  // Restore session on load & check for memorial invite link
+  // On load: handle a magic-link return, restore any saved session, seed
+  // history state for the initial entry, and listen for Back/Forward.
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const memorialCode = params.get("memorial");
-    if (memorialCode) {
-      setRoute("memorial");
-      setRouteParam(memorialCode);
-      return;
+    // Magic-link return: GoTrue sends the session back in the URL hash.
+    const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+    const accessToken = hash.get("access_token");
+
+    if (accessToken) {
+      client.setAccessToken(accessToken);
+      client.storage._accessToken = accessToken;
+      client.auth.getUser(accessToken).then(({ data }) => {
+        const u = data?.user;
+        const user = { id: u?.id, email: u?.email, name: u?.user_metadata?.name || (u?.email ? u.email.split("@")[0] : "") };
+        saveSession(accessToken, user);
+        setCurrentUser(user);
+        setSessionToken(accessToken);
+        showToast("You're signed in.");
+      });
+      // Land on the dashboard and strip the token hash from the URL.
+      window.history.replaceState({ page: "dashboard", param: null }, "", routeToUrl("dashboard", null));
+      setRoute("dashboard");
+      setRouteParam(null);
+    } else {
+      const { page, param } = parseLocation();
+      window.history.replaceState({ page, param }, "");
+      const session = loadSession();
+      if (session) {
+        setCurrentUser(session.user);
+        setSessionToken(session.token);
+        client.setAccessToken(session.token);
+        client.storage._accessToken = session.token;
+      }
     }
 
-    const session = loadSession();
-    if (session) {
-      setCurrentUser(session.user);
-      setSessionToken(session.token);
-      client.setAccessToken(session.token);
-      client.storage._accessToken = session.token;
-    }
+    const onPopState = (e) => {
+      const loc = e.state && e.state.page ? e.state : parseLocation();
+      setRoute(loc.page);
+      setRouteParam(loc.param ?? null);
+      window.scrollTo(0, 0);
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
   }, []);
 
   const navigate = (page, param = null) => {
     setRoute(page);
     setRouteParam(param);
+    window.history.pushState({ page, param }, "", routeToUrl(page, param));
     window.scrollTo(0, 0);
-    if (page !== "memorial") {
-      const url = new URL(window.location);
-      url.searchParams.delete("memorial");
-      window.history.replaceState({}, "", url);
-    }
-  };
-
-  const handleAuthSuccess = (user, token) => {
-    setCurrentUser(user);
-    setSessionToken(token);
-    navigate("dashboard");
   };
 
   const handleSignOut = async () => {
@@ -1450,6 +1454,12 @@ export default function App() {
     <>
       <style>{STYLES}</style>
 
+      {!CONFIG_OK && (
+        <div style={{ background: "#6B1F2E", color: "#F4ECD8", padding: "10px 24px", fontSize: 13, textAlign: "center", lineHeight: 1.5 }}>
+          Backend not configured — sign-in and saving are unavailable. Set <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code> in <code>.env</code>.
+        </div>
+      )}
+
       {route !== "login" && route !== "memorial" && (
         <Nav currentUser={currentUser} onSignOut={handleSignOut} onNavigate={navigate} />
       )}
@@ -1457,21 +1467,21 @@ export default function App() {
       {route === "home" && <HomePage onNavigate={navigate} />}
 
       {route === "login" && (
-        <AuthPage onSuccess={handleAuthSuccess} showToast={showToast} />
+        <AuthPage showToast={showToast} />
       )}
 
       {route === "create" && currentUser && (
         <CreateMemorialPage currentUser={currentUser} onCreated={handleMemorialCreated} showToast={showToast} />
       )}
       {route === "create" && !currentUser && (
-        <AuthPage onSuccess={(user, token) => { handleAuthSuccess(user, token); navigate("create"); }} showToast={showToast} />
+        <AuthPage showToast={showToast} />
       )}
 
       {route === "dashboard" && currentUser && (
         <DashboardPage currentUser={currentUser} onNavigate={navigate} showToast={showToast} />
       )}
       {route === "dashboard" && !currentUser && (
-        <AuthPage onSuccess={handleAuthSuccess} showToast={showToast} />
+        <AuthPage showToast={showToast} />
       )}
 
       {route === "memorial" && (
