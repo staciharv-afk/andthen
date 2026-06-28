@@ -205,7 +205,7 @@ function clearSession() {
    Contributor deep-links use ?memorial=CODE (unchanged); app
    views use ?view=login|create|dashboard. Home is the bare path.
    ───────────────────────────────────────────────────────────── */
-const APP_VIEWS = ["login", "create", "dashboard"];
+const APP_VIEWS = ["login", "create", "dashboard", "edit"];
 
 function parseLocation() {
   const params = new URLSearchParams(window.location.search);
@@ -603,14 +603,15 @@ function AuthPage({ showToast }) {
 /* ─────────────────────────────────────────────────────────────
    CREATE MEMORIAL PAGE
    ───────────────────────────────────────────────────────────── */
-function CreateMemorialPage({ currentUser, onCreated, showToast }) {
-  const [name, setName] = useState("");
-  const [born, setBorn] = useState("");
-  const [passed, setPassed] = useState("");
-  const [description, setDescription] = useState("");
+function CreateMemorialPage({ currentUser, existing, onCreated, onUpdated, onCancel, showToast }) {
+  const isEdit = Boolean(existing);
+  const [name, setName] = useState(existing?.name || "");
+  const [born, setBorn] = useState(existing?.born || "");
+  const [passed, setPassed] = useState(existing?.passed || "");
+  const [description, setDescription] = useState(existing?.description || "");
   const [photoFile, setPhotoFile] = useState(null);
-  const [photoPreview, setPhotoPreview] = useState(null);
-  const [requireApproval, setRequireApproval] = useState(true);
+  const [photoPreview, setPhotoPreview] = useState(existing?.photo_url || null);
+  const [requireApproval, setRequireApproval] = useState(existing ? !!existing.require_approval : true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const fileInputRef = useRef();
@@ -627,6 +628,34 @@ function CreateMemorialPage({ currentUser, onCreated, showToast }) {
     if (!name.trim()) { setError("Please enter their name."); return; }
     setLoading(true);
     try {
+      if (isEdit) {
+        // Keep the existing photo unless a new one was chosen.
+        let photoUrl = existing.photo_url || null;
+        if (photoFile) {
+          const path = `memorials/${existing.invite_code}/cover-${uid()}.${photoFile.name.split(".").pop()}`;
+          const { data: uploadData, error: uploadErr } = await client.storage.from("memorial-media").upload(path, photoFile);
+          if (!uploadErr && uploadData) {
+            const { data: urlData } = client.storage.from("memorial-media").getPublicUrl(path);
+            photoUrl = urlData?.publicUrl;
+          }
+        }
+
+        const { data, error: err } = await client.from("memorials").update({
+          name: name.trim(),
+          born: born || null,
+          passed: passed || null,
+          description: description.trim() || null,
+          photo_url: photoUrl,
+          require_approval: requireApproval,
+        }, { id: existing.id });
+
+        if (err) { setError(err.message || "Couldn't save your changes. Please try again."); return; }
+
+        showToast("Memorial updated.");
+        onUpdated(data?.[0] || { ...existing, name: name.trim() });
+        return;
+      }
+
       const inviteCode = uid();
       let photoUrl = null;
 
@@ -665,8 +694,8 @@ function CreateMemorialPage({ currentUser, onCreated, showToast }) {
     <div className="create-page">
       <div className="create-inner">
         <div className="create-header fade-up">
-          <h1 className="create-title">Create a memorial</h1>
-          <p className="create-sub">A place to gather the stories only the people who loved them know. Takes about two minutes to set up.</p>
+          <h1 className="create-title">{isEdit ? "Edit memorial" : "Create a memorial"}</h1>
+          <p className="create-sub">{isEdit ? "Update the photo, name, dates, or description. Changes show right away." : "A place to gather the stories only the people who loved them know. Takes about two minutes to set up."}</p>
         </div>
 
         <div className="create-form fade-up-2">
@@ -721,9 +750,18 @@ function CreateMemorialPage({ currentUser, onCreated, showToast }) {
 
           {error && <div className="form-error">{error}</div>}
 
-          <button className="btn btn-rust btn-lg" onClick={handleSubmit} disabled={loading} style={{ justifyContent: "center" }}>
-            {loading ? <><span className="spinner" /> Creating...</> : "✦ Create memorial"}
-          </button>
+          <div style={{ display: "flex", gap: 12 }}>
+            {isEdit && (
+              <button className="btn btn-ghost btn-lg" onClick={onCancel} disabled={loading} style={{ justifyContent: "center" }}>
+                Cancel
+              </button>
+            )}
+            <button className="btn btn-rust btn-lg" onClick={handleSubmit} disabled={loading} style={{ justifyContent: "center", flex: 1 }}>
+              {loading
+                ? <><span className="spinner" /> {isEdit ? "Saving..." : "Creating..."}</>
+                : isEdit ? "Save changes" : "✦ Create memorial"}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -847,6 +885,7 @@ function DashboardPage({ currentUser, onNavigate, showToast }) {
                   <span className="invite-url">{window.location.origin}?memorial={activeMemorial.invite_code}</span>
                   <button className="btn btn-sm btn-ghost" onClick={() => copyInviteLink(activeMemorial.invite_code)}>Copy link</button>
                   <button className="btn btn-sm btn-ghost" onClick={() => onNavigate("memorial", activeMemorial.invite_code)}>Preview</button>
+                  <button className="btn btn-sm btn-ghost" onClick={() => onNavigate("edit", activeMemorial)}>Edit</button>
                 </div>
               </div>
             </div>
@@ -1481,6 +1520,23 @@ export default function App() {
         <DashboardPage currentUser={currentUser} onNavigate={navigate} showToast={showToast} />
       )}
       {route === "dashboard" && !currentUser && (
+        <AuthPage showToast={showToast} />
+      )}
+
+      {route === "edit" && currentUser && routeParam && (
+        <CreateMemorialPage
+          currentUser={currentUser}
+          existing={routeParam}
+          onUpdated={() => navigate("dashboard")}
+          onCancel={() => navigate("dashboard")}
+          showToast={showToast}
+        />
+      )}
+      {/* Reloaded straight onto /?view=edit with no memorial in history — fall back to the dashboard. */}
+      {route === "edit" && currentUser && !routeParam && (
+        <DashboardPage currentUser={currentUser} onNavigate={navigate} showToast={showToast} />
+      )}
+      {route === "edit" && !currentUser && (
         <AuthPage showToast={showToast} />
       )}
 
