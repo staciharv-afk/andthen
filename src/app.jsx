@@ -1,149 +1,31 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { createClient } from "@supabase/supabase-js";
 
 /* ─────────────────────────────────────────────────────────────
-   SUPABASE CLIENT
+   SUPABASE CLIENT — official @supabase/supabase-js.
+   Config comes from environment (.env, gitignored); see .env.example.
+   The library manages auth sessions for us: it persists the session,
+   refreshes tokens, and detects the magic-link token in the URL.
    ───────────────────────────────────────────────────────────── */
-// Config comes from environment (.env, gitignored) — never hard-code Supabase
-// credentials in source again. See .env.example for the required variables.
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const CONFIG_OK = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
 
-function createClient(url, anonKey) {
-  const headers = {
-    apikey: anonKey,
-    "Content-Type": "application/json",
-    Prefer: "return=representation",
-  };
-
-  const authHeaders = (token) =>
-    token
-      ? { ...headers, Authorization: `Bearer ${token}` }
-      : { ...headers, Authorization: `Bearer ${anonKey}` };
-
-  return {
-    url,
-    anonKey,
-    _accessToken: null,
-
-    setAccessToken(token) {
-      this._accessToken = token;
-    },
-
-    from(table) {
-      const self = this;
-      return {
-        async select(columns = "*", opts = {}) {
-          let queryStr = `select=${columns}`;
-          if (opts.eq) Object.entries(opts.eq).forEach(([k, v]) => (queryStr += `&${k}=eq.${v}`));
-          if (opts.order) queryStr += `&order=${opts.order.column}.${opts.order.ascending ? "asc" : "desc"}`;
-          const res = await fetch(`${url}/rest/v1/${table}?${queryStr}`, {
-            headers: authHeaders(self._accessToken),
-          });
-          if (!res.ok) return { data: null, error: await res.json().catch(() => ({})) };
-          return { data: await res.json(), error: null };
-        },
-
-        async insert(values) {
-          const res = await fetch(`${url}/rest/v1/${table}`, {
-            method: "POST",
-            headers: authHeaders(self._accessToken),
-            body: JSON.stringify(values),
-          });
-          if (!res.ok) return { data: null, error: await res.json().catch(() => ({})) };
-          return { data: await res.json(), error: null };
-        },
-
-        async update(values, match) {
-          let queryStr = Object.entries(match).map(([k, v]) => `${k}=eq.${v}`).join("&");
-          const res = await fetch(`${url}/rest/v1/${table}?${queryStr}`, {
-            method: "PATCH",
-            headers: authHeaders(self._accessToken),
-            body: JSON.stringify(values),
-          });
-          if (!res.ok) return { data: null, error: await res.json().catch(() => ({})) };
-          return { data: await res.json(), error: null };
-        },
-
-        async delete(match) {
-          let queryStr = Object.entries(match).map(([k, v]) => `${k}=eq.${v}`).join("&");
-          const res = await fetch(`${url}/rest/v1/${table}?${queryStr}`, {
-            method: "DELETE",
-            headers: authHeaders(self._accessToken),
-          });
-          if (!res.ok) return { data: null, error: await res.json().catch(() => ({})) };
-          return { data: await res.json(), error: null };
-        },
-      };
-    },
-
-    storage: {
-      from(bucket) {
-        const self2 = this;
-        return {
-          async upload(path, file, opts = {}) {
-            const formData = new FormData();
-            formData.append("", file);
-            const res = await fetch(`${url}/storage/v1/object/${bucket}/${path}`, {
-              method: "POST",
-              headers: {
-                apikey: anonKey,
-                Authorization: `Bearer ${self2._accessToken || anonKey}`,
-                ...(opts.contentType ? { "Content-Type": opts.contentType } : {}),
-              },
-              body: file,
-            });
-            if (!res.ok) return { data: null, error: await res.json().catch(() => ({})) };
-            return { data: await res.json(), error: null };
-          },
-          getPublicUrl(path) {
-            return { data: { publicUrl: `${url}/storage/v1/object/public/${bucket}/${path}` } };
-          },
-        };
+const supabase = CONFIG_OK
+  ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+        flowType: "implicit",
       },
-      _accessToken: null,
-    },
+    })
+  : null;
 
-    auth: {
-      _url: url,
-      _anonKey: anonKey,
-
-      // Magic-link sign-in: emails the user a link. On click, GoTrue
-      // redirects back to `redirectTo` with the session tokens in the URL
-      // hash fragment (handled on app load). No password is ever used.
-      async signInWithOtp(email, redirectTo) {
-        const qs = redirectTo ? `?redirect_to=${encodeURIComponent(redirectTo)}` : "";
-        const res = await fetch(`${url}/auth/v1/otp${qs}`, {
-          method: "POST",
-          headers: { apikey: anonKey, "Content-Type": "application/json" },
-          body: JSON.stringify({ email, create_user: true }),
-        });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) return { error: data };
-        return { error: null };
-      },
-
-      async getUser(token) {
-        const res = await fetch(`${url}/auth/v1/user`, {
-          headers: { apikey: anonKey, Authorization: `Bearer ${token}` },
-        });
-        if (!res.ok) return { data: null, error: "Not authenticated" };
-        const user = await res.json();
-        return { data: { user }, error: null };
-      },
-
-      async signOut(token) {
-        await fetch(`${url}/auth/v1/logout`, {
-          method: "POST",
-          headers: { apikey: anonKey, Authorization: `Bearer ${token}` },
-        });
-      },
-    },
-  };
-}
-
-const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-client.storage._accessToken = null;
+// True when this page load is the return from a magic-link email
+// (token arrives in the URL hash before supabase-js cleans it up).
+const ARRIVED_VIA_MAGIC_LINK =
+  typeof window !== "undefined" && window.location.hash.includes("access_token");
 
 /* ─────────────────────────────────────────────────────────────
    UTILITIES
@@ -176,29 +58,6 @@ const fileToDataURL = (file) =>
     reader.onerror = () => reject(new Error("Read failed"));
     reader.readAsDataURL(file);
   });
-
-/* ─────────────────────────────────────────────────────────────
-   SESSION MANAGEMENT
-   ───────────────────────────────────────────────────────────── */
-const SESSION_KEY = "andthen_session";
-
-function saveSession(token, user) {
-  localStorage.setItem(SESSION_KEY, JSON.stringify({ token, user, expires: Date.now() + 3600000 * 8 }));
-}
-
-function loadSession() {
-  try {
-    const raw = localStorage.getItem(SESSION_KEY);
-    if (!raw) return null;
-    const s = JSON.parse(raw);
-    if (s.expires < Date.now()) { localStorage.removeItem(SESSION_KEY); return null; }
-    return s;
-  } catch { return null; }
-}
-
-function clearSession() {
-  localStorage.removeItem(SESSION_KEY);
-}
 
 /* ─────────────────────────────────────────────────────────────
    ROUTING — URL <-> route, so the browser Back button works.
@@ -555,7 +414,10 @@ function AuthPage({ showToast }) {
     if (!CONFIG_OK) { setError("Sign-in is unavailable until the backend is configured."); return; }
     setLoading(true);
     try {
-      const { error: err } = await client.auth.signInWithOtp(trimmed, window.location.origin);
+      const { error: err } = await supabase.auth.signInWithOtp({
+        email: trimmed,
+        options: { emailRedirectTo: window.location.origin, shouldCreateUser: true },
+      });
       if (err) { setError(err.msg || err.message || err.error_description || "Couldn't send the link. Please try again."); return; }
       setSent(true);
     } catch (e) {
@@ -633,21 +495,21 @@ function CreateMemorialPage({ currentUser, existing, onCreated, onUpdated, onCan
         let photoUrl = existing.photo_url || null;
         if (photoFile) {
           const path = `memorials/${existing.invite_code}/cover-${uid()}.${photoFile.name.split(".").pop()}`;
-          const { data: uploadData, error: uploadErr } = await client.storage.from("memorial-media").upload(path, photoFile);
+          const { data: uploadData, error: uploadErr } = await supabase.storage.from("memorial-media").upload(path, photoFile);
           if (!uploadErr && uploadData) {
-            const { data: urlData } = client.storage.from("memorial-media").getPublicUrl(path);
+            const { data: urlData } = supabase.storage.from("memorial-media").getPublicUrl(path);
             photoUrl = urlData?.publicUrl;
           }
         }
 
-        const { data, error: err } = await client.from("memorials").update({
+        const { data, error: err } = await supabase.from("memorials").update({
           name: name.trim(),
           born: born || null,
           passed: passed || null,
           description: description.trim() || null,
           photo_url: photoUrl,
           require_approval: requireApproval,
-        }, { id: existing.id });
+        }).eq("id", existing.id).select();
 
         if (err) { setError(err.message || "Couldn't save your changes. Please try again."); return; }
 
@@ -661,14 +523,14 @@ function CreateMemorialPage({ currentUser, existing, onCreated, onUpdated, onCan
 
       if (photoFile) {
         const path = `memorials/${inviteCode}/cover.${photoFile.name.split(".").pop()}`;
-        const { data: uploadData, error: uploadErr } = await client.storage.from("memorial-media").upload(path, photoFile);
+        const { data: uploadData, error: uploadErr } = await supabase.storage.from("memorial-media").upload(path, photoFile);
         if (!uploadErr && uploadData) {
-          const { data: urlData } = client.storage.from("memorial-media").getPublicUrl(path);
+          const { data: urlData } = supabase.storage.from("memorial-media").getPublicUrl(path);
           photoUrl = urlData?.publicUrl;
         }
       }
 
-      const { data, error: err } = await client.from("memorials").insert({
+      const { data, error: err } = await supabase.from("memorials").insert({
         name: name.trim(),
         born: born || null,
         passed: passed || null,
@@ -677,7 +539,7 @@ function CreateMemorialPage({ currentUser, existing, onCreated, onUpdated, onCan
         steward_id: currentUser.id,
         invite_code: inviteCode,
         require_approval: requireApproval,
-      });
+      }).select();
 
       if (err) { setError(err.message || "Failed to create memorial. Please try again."); return; }
 
@@ -785,7 +647,7 @@ function DashboardPage({ currentUser, onNavigate, showToast }) {
 
   const loadMemorials = async () => {
     setLoading(true);
-    const { data } = await client.from("memorials").select("*", { eq: { steward_id: currentUser.id }, order: { column: "created_at", ascending: false } });
+    const { data } = await supabase.from("memorials").select("*").eq("steward_id", currentUser.id).order("created_at", { ascending: false });
     setLoading(false);
     if (data?.length) {
       setMemorials(data);
@@ -796,19 +658,19 @@ function DashboardPage({ currentUser, onNavigate, showToast }) {
 
   const loadSubmissions = async (memorialId) => {
     setSubmissionsLoading(true);
-    const { data } = await client.from("contributions").select("*", { eq: { memorial_id: memorialId }, order: { column: "created_at", ascending: false } });
+    const { data } = await supabase.from("contributions").select("*").eq("memorial_id", memorialId).order("created_at", { ascending: false });
     setSubmissionsLoading(false);
     setSubmissions(data || []);
   };
 
   const handleApprove = async (submissionId) => {
-    await client.from("contributions").update({ status: "approved" }, { id: submissionId });
+    await supabase.from("contributions").update({ status: "approved" }).eq("id", submissionId);
     setSubmissions((s) => s.map((x) => x.id === submissionId ? { ...x, status: "approved" } : x));
     showToast("Story approved and now visible on the memorial.");
   };
 
   const handleReject = async (submissionId) => {
-    await client.from("contributions").update({ status: "rejected" }, { id: submissionId });
+    await supabase.from("contributions").update({ status: "rejected" }).eq("id", submissionId);
     setSubmissions((s) => s.map((x) => x.id === submissionId ? { ...x, status: "rejected" } : x));
     showToast("Submission removed.");
   };
@@ -995,7 +857,7 @@ function MemorialPage({ inviteCode, showToast }) {
 
   const loadMemorial = async () => {
     setLoading(true);
-    const { data } = await client.from("memorials").select("*", { eq: { invite_code: inviteCode } });
+    const { data } = await supabase.from("memorials").select("*").eq("invite_code", inviteCode);
     if (data?.length) {
       setMemorial(data[0]);
       loadStories(data[0].id, data[0].require_approval);
@@ -1004,9 +866,9 @@ function MemorialPage({ inviteCode, showToast }) {
   };
 
   const loadStories = async (memorialId, requireApproval) => {
-    const opts = { eq: { memorial_id: memorialId }, order: { column: "created_at", ascending: false } };
-    if (requireApproval) opts.eq.status = "approved";
-    const { data } = await client.from("contributions").select("*", opts);
+    let query = supabase.from("contributions").select("*").eq("memorial_id", memorialId).order("created_at", { ascending: false });
+    if (requireApproval) query = query.eq("status", "approved");
+    const { data } = await query;
     setStories(data || []);
   };
 
@@ -1056,9 +918,9 @@ function MemorialPage({ inviteCode, showToast }) {
 
       if (mediaFile) {
         const path = `contributions/${memorial.invite_code}/${uid()}.${mediaFile.name.split(".").pop()}`;
-        const { data: uploadData } = await client.storage.from("memorial-media").upload(path, mediaFile);
+        const { data: uploadData } = await supabase.storage.from("memorial-media").upload(path, mediaFile);
         if (uploadData) {
-          const { data: urlData } = client.storage.from("memorial-media").getPublicUrl(path);
+          const { data: urlData } = supabase.storage.from("memorial-media").getPublicUrl(path);
           mediaUrl = urlData?.publicUrl;
         }
       }
@@ -1067,14 +929,14 @@ function MemorialPage({ inviteCode, showToast }) {
         const resp = await fetch(audioURL);
         const blob = await resp.blob();
         const path = `contributions/${memorial.invite_code}/${uid()}.webm`;
-        const { data: uploadData } = await client.storage.from("memorial-media").upload(path, blob, { contentType: "audio/webm" });
+        const { data: uploadData } = await supabase.storage.from("memorial-media").upload(path, blob, { contentType: "audio/webm" });
         if (uploadData) {
-          const { data: urlData } = client.storage.from("memorial-media").getPublicUrl(path);
+          const { data: urlData } = supabase.storage.from("memorial-media").getPublicUrl(path);
           mediaUrl = urlData?.publicUrl;
         }
       }
 
-      await client.from("contributions").insert({
+      await supabase.from("contributions").insert({
         memorial_id: memorial.id,
         contributor_name: contributorName.trim(),
         contributor_relation: contributorRelation.trim() || null,
@@ -1421,42 +1283,15 @@ export default function App() {
   const [route, setRoute] = useState(() => parseLocation().page);
   const [routeParam, setRouteParam] = useState(() => parseLocation().param);
   const [currentUser, setCurrentUser] = useState(null);
-  const [sessionToken, setSessionToken] = useState(null);
   const { toasts, show: showToast } = useToast();
+  const magicHandled = useRef(false);
 
-  // On load: handle a magic-link return, restore any saved session, seed
-  // history state for the initial entry, and listen for Back/Forward.
+  // On load: seed history state, wire up the session (supabase-js persists it
+  // and auto-detects the magic-link token in the URL), and listen for
+  // Back/Forward.
   useEffect(() => {
-    // Magic-link return: GoTrue sends the session back in the URL hash.
-    const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
-    const accessToken = hash.get("access_token");
-
-    if (accessToken) {
-      client.setAccessToken(accessToken);
-      client.storage._accessToken = accessToken;
-      client.auth.getUser(accessToken).then(({ data }) => {
-        const u = data?.user;
-        const user = { id: u?.id, email: u?.email, name: u?.user_metadata?.name || (u?.email ? u.email.split("@")[0] : "") };
-        saveSession(accessToken, user);
-        setCurrentUser(user);
-        setSessionToken(accessToken);
-        showToast("You're signed in.");
-      });
-      // Land on the dashboard and strip the token hash from the URL.
-      window.history.replaceState({ page: "dashboard", param: null }, "", routeToUrl("dashboard", null));
-      setRoute("dashboard");
-      setRouteParam(null);
-    } else {
-      const { page, param } = parseLocation();
-      window.history.replaceState({ page, param }, "");
-      const session = loadSession();
-      if (session) {
-        setCurrentUser(session.user);
-        setSessionToken(session.token);
-        client.setAccessToken(session.token);
-        client.storage._accessToken = session.token;
-      }
-    }
+    const { page, param } = parseLocation();
+    window.history.replaceState({ page, param }, "");
 
     const onPopState = (e) => {
       const loc = e.state && e.state.page ? e.state : parseLocation();
@@ -1465,7 +1300,28 @@ export default function App() {
       window.scrollTo(0, 0);
     };
     window.addEventListener("popstate", onPopState);
-    return () => window.removeEventListener("popstate", onPopState);
+
+    let subscription = null;
+    if (supabase) {
+      supabase.auth.getSession().then(({ data }) => {
+        if (data.session?.user) setCurrentUser(data.session.user);
+      });
+      const res = supabase.auth.onAuthStateChange((event, session) => {
+        setCurrentUser(session?.user ?? null);
+        // Land returning-from-email users on their dashboard, once.
+        if (event === "SIGNED_IN" && ARRIVED_VIA_MAGIC_LINK && !magicHandled.current) {
+          magicHandled.current = true;
+          showToast("You're signed in.");
+          navigate("dashboard");
+        }
+      });
+      subscription = res.data.subscription;
+    }
+
+    return () => {
+      window.removeEventListener("popstate", onPopState);
+      if (subscription) subscription.unsubscribe();
+    };
   }, []);
 
   const navigate = (page, param = null) => {
@@ -1476,11 +1332,8 @@ export default function App() {
   };
 
   const handleSignOut = async () => {
-    if (sessionToken) await client.auth.signOut(sessionToken);
-    clearSession();
-    client.setAccessToken(null);
+    if (supabase) await supabase.auth.signOut();
     setCurrentUser(null);
-    setSessionToken(null);
     navigate("home");
     showToast("Signed out.");
   };
