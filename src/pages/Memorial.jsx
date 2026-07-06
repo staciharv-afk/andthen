@@ -9,6 +9,7 @@ export function MemorialPage({ inviteCode, showToast }) {
   const [contributeType, setContributeType] = useState("story");
   const [contributorName, setContributorName] = useState("");
   const [contributorRelation, setContributorRelation] = useState("");
+  const [contributorEmail, setContributorEmail] = useState("");
   const [storyText, setStoryText] = useState("");
   const [mediaFile, setMediaFile] = useState(null);
   const [mediaPreview, setMediaPreview] = useState(null);
@@ -79,6 +80,7 @@ export function MemorialPage({ inviteCode, showToast }) {
 
   const handleSubmit = async () => {
     if (!contributorName.trim()) { showToast("Please enter your name.", "error"); return; }
+    if (contributorEmail.trim() && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(contributorEmail.trim())) { showToast("That email doesn't look right.", "error"); return; }
     if (contributeType === "story" && !storyText.trim()) { showToast("Please write a story.", "error"); return; }
     if ((contributeType === "photo" || contributeType === "video") && !mediaFile) { showToast("Please select a file.", "error"); return; }
     if (contributeType === "voice" && !audioURL) { showToast("Please record a voice memo.", "error"); return; }
@@ -111,6 +113,7 @@ export function MemorialPage({ inviteCode, showToast }) {
         memorial_id: memorial.id,
         contributor_name: contributorName.trim(),
         contributor_relation: contributorRelation.trim() || null,
+        contributor_email: contributorEmail.trim() || null,
         type: contributeType,
         text: storyText.trim() || null,
         media_url: mediaUrl,
@@ -156,6 +159,11 @@ export function MemorialPage({ inviteCode, showToast }) {
           <div className="contribute-card fade-up">
             <h2 className="contribute-title">Share a memory</h2>
             <p className="contribute-sub">What's your story? A moment, a habit, something they said — anything that captures who they really were.</p>
+            {memorial.prompt && (
+              <p style={{ fontFamily: "'Lora', serif", fontStyle: "italic", color: "var(--rust)", fontSize: 16, lineHeight: 1.5, marginBottom: 24 }}>
+                "{memorial.prompt}"
+              </p>
+            )}
 
             <div className="contribute-type-row">
               {[
@@ -182,10 +190,15 @@ export function MemorialPage({ inviteCode, showToast }) {
                 </div>
               </div>
 
+              <div className="form-group">
+                <label className="form-label">Your email (optional)</label>
+                <input className="form-input" type="email" placeholder="So the family can say thank you" value={contributorEmail} onChange={(e) => setContributorEmail(e.target.value)} />
+              </div>
+
               {contributeType === "story" && (
                 <div className="form-group">
                   <label className="form-label">Your story</label>
-                  <textarea className="form-input" placeholder={`And then ${memorial.name.split(" ")[0]}...`} value={storyText} onChange={(e) => setStoryText(e.target.value)} rows={5} />
+                  <textarea className="form-input" placeholder={memorial.prompt || `And then ${memorial.name.split(" ")[0]}...`} value={storyText} onChange={(e) => setStoryText(e.target.value)} rows={5} />
                 </div>
               )}
 
