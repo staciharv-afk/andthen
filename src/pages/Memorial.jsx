@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
-import { uid, fmtDate, timeAgo, fileToDataURL } from "../lib/utils";
+import { uid, fmtDate, timeAgo, fileToDataURL, sendThankYou } from "../lib/utils";
 
 export function MemorialPage({ inviteCode, showToast }) {
   const [memorial, setMemorial] = useState(null);
@@ -109,7 +109,7 @@ export function MemorialPage({ inviteCode, showToast }) {
         }
       }
 
-      await supabase.from("contributions").insert({
+      const { data: inserted } = await supabase.from("contributions").insert({
         memorial_id: memorial.id,
         contributor_name: contributorName.trim(),
         contributor_relation: contributorRelation.trim() || null,
@@ -118,7 +118,13 @@ export function MemorialPage({ inviteCode, showToast }) {
         text: storyText.trim() || null,
         media_url: mediaUrl,
         status: memorial.require_approval ? "pending" : "approved",
-      });
+      }).select("id");
+
+      // Memorials without moderation auto-approve, so thank the contributor now.
+      // (Moderated memorials send the thank-you when the steward approves.)
+      if (!memorial.require_approval && contributorEmail.trim()) {
+        sendThankYou(inserted?.[0]?.id);
+      }
 
       setSubmitted(true);
       showToast(memorial.require_approval ? "Your memory was submitted! The family will review it soon." : "Your memory was added. Thank you for sharing.");

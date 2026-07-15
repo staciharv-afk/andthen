@@ -26,3 +26,16 @@ export const fileToDataURL = (file) =>
     reader.onerror = () => reject(new Error("Read failed"));
     reader.readAsDataURL(file);
   });
+
+// Fire-and-forget: ask the server to email a contributor a thank-you.
+// Safe to call anywhere — it never throws, and the server decides whether to
+// actually send (approved + has email + not already thanked). No-ops locally,
+// where the /api function isn't served by Vite.
+export const sendThankYou = (contributionId) => {
+  if (!contributionId) return;
+  fetch("/api/thank-you", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ contributionId }),
+  }).catch(() => {});
+};

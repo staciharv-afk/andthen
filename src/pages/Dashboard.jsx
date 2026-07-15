@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
-import { fmtDate, timeAgo } from "../lib/utils";
+import { fmtDate, timeAgo, sendThankYou } from "../lib/utils";
 
 export function DashboardPage({ currentUser, onNavigate, showToast }) {
   const [memorials, setMemorials] = useState([]);
@@ -35,6 +35,7 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
   const handleApprove = async (submissionId) => {
     await supabase.from("contributions").update({ status: "approved" }).eq("id", submissionId);
     setSubmissions((s) => s.map((x) => x.id === submissionId ? { ...x, status: "approved" } : x));
+    sendThankYou(submissionId); // emails the contributor if they left an address
     showToast("Story approved and now visible on the memorial.");
   };
 
