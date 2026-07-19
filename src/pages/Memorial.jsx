@@ -109,7 +109,7 @@ export function MemorialPage({ inviteCode, showToast }) {
         }
       }
 
-      const { data: inserted } = await supabase.from("contributions").insert({
+      const row = {
         memorial_id: memorial.id,
         contributor_name: contributorName.trim(),
         contributor_relation: contributorRelation.trim() || null,
@@ -118,12 +118,20 @@ export function MemorialPage({ inviteCode, showToast }) {
         text: storyText.trim() || null,
         media_url: mediaUrl,
         status: memorial.require_approval ? "pending" : "approved",
-      }).select("id");
+      };
 
-      // Memorials without moderation auto-approve, so thank the contributor now.
-      // (Moderated memorials send the thank-you when the steward approves.)
-      if (!memorial.require_approval && contributorEmail.trim()) {
-        sendThankYou(inserted?.[0]?.id);
+      if (memorial.require_approval) {
+        // Pending rows are hidden from anonymous contributors by RLS, so we must
+        // NOT ask for them back — a plain insert, or the insert itself is rejected.
+        // The thank-you fires later, when the steward approves.
+        const { error } = await supabase.from("contributions").insert(row);
+        if (error) throw error;
+      } else {
+        // Auto-approved rows are publicly readable, so we can read the id back
+        // and thank the contributor right away.
+        const { data: inserted, error } = await supabase.from("contributions").insert(row).select("id");
+        if (error) throw error;
+        if (contributorEmail.trim()) sendThankYou(inserted?.[0]?.id);
       }
 
       setSubmitted(true);
