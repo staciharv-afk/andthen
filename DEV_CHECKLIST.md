@@ -66,7 +66,7 @@ Supersedes the single `prompt` field (#11).
 - **Files:** `CreateMemorial.jsx` (up to 3 inputs), `Memorial.jsx` (rotate through
   non-empty prompts; fall back to `prompt`, then `And then {firstName}…`).
 
-### T4 · Creator notification email (per contribution, cap 5/day) — [medium] 🔧
+### ✅ T4 · Creator notification email (per contribution, cap 5/day) — DONE (run 20260724_notified_at.sql; verify after deploy)
 Resend is now live, so this is unblocked.
 - **New file:** `api/notify-creator.js` (mirror `api/thank-you.js`). service_role:
   contribution → memorial → `steward_id`; steward email via

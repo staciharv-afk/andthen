@@ -39,3 +39,15 @@ export const sendThankYou = (contributionId) => {
     body: JSON.stringify({ contributionId }),
   }).catch(() => {});
 };
+
+// Fire-and-forget: ask the server to email the memorial's creator that a new
+// memory arrived. The server enforces a 5/day cap and dedupes per contribution,
+// so it's safe to call on every submission. No-ops locally.
+export const notifyCreator = (memorialId) => {
+  if (!memorialId) return;
+  fetch("/api/notify-creator", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ memorialId }),
+  }).catch(() => {});
+};

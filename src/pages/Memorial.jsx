@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
-import { uid, fmtDate, timeAgo, fileToDataURL, sendThankYou } from "../lib/utils";
+import { uid, fmtDate, timeAgo, fileToDataURL, sendThankYou, notifyCreator } from "../lib/utils";
 
 export function MemorialPage({ inviteCode, showToast }) {
   const [memorial, setMemorial] = useState(null);
@@ -148,6 +148,9 @@ export function MemorialPage({ inviteCode, showToast }) {
         if (error) throw error;
         if (contributorEmail.trim()) sendThankYou(inserted?.[0]?.id);
       }
+
+      // Let the creator know a new memory arrived (server caps at 5/day + dedupes).
+      notifyCreator(memorial.id);
 
       setSubmitted(true);
       showToast(memorial.require_approval ? "Your memory was submitted! The family will review it soon." : "Your memory was added. Thank you for sharing.");
