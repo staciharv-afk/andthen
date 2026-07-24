@@ -191,7 +191,31 @@ Vercel (Settings → Environment Variables):
 
 ---
 
-## 9. Making changes with Claude ("vibe coding")
+## 9. Your environments (production vs. staging)
+
+One codebase, three places it runs:
+
+| Environment | Branch | Where | What it's for |
+|---|---|---|---|
+| **Production** | `main` | myandthen.com | The live site families use |
+| **Preview (staging)** | `staging` (or any other branch) | a temporary `…vercel.app` URL Vercel makes for each push | Trying changes before they go live |
+| **Development** | — | `localhost:5173` (`npm run dev`) | Your own machine while editing |
+
+- Pushing to **`main`** auto-deploys to **production**. Pushing to **`staging`**
+  auto-creates a **preview** deploy you can click through first.
+- **⚠️ All three share ONE Supabase database.** There's no separate "test"
+  database — anything you add or delete on localhost or a preview touches the
+  **real** data. Be mindful while testing, and clear out test memories before
+  real families arrive.
+- **Config & secrets** (Supabase / Resend / Stripe keys) live in **Vercel →
+  Settings → Environment Variables** (set for both Production and Preview), never
+  in the code. If you change one, **redeploy** for it to take effect.
+- **Normal flow:** edit on `staging` → preview it (localhost or the preview URL)
+  → merge `staging` → `main` to go live. Full steps in [DEPLOY.md](DEPLOY.md).
+
+---
+
+## 10. Making changes with Claude ("vibe coding")
 
 You can absolutely do this. The workflow:
 
@@ -230,7 +254,7 @@ You can absolutely do this. The workflow:
 
 ---
 
-## 10. Gotchas we already hit (so you don't have to)
+## 11. Gotchas we already hit (so you don't have to)
 - **Supabase free tier auto-pauses** after ~7 days idle and takes the site down.
   It's on the **Pro** plan now — keep it there.
 - **Media uploads need storage policies** (fixed) — if uploads ever break, check
@@ -244,7 +268,7 @@ You can absolutely do this. The workflow:
 
 ---
 
-## 11. Accounts checklist (for the owner)
+## 12. Accounts checklist (for the owner)
 - **Supabase** — "And Then" project (Pro plan). Holds the database, logins, files.
 - **Vercel** — project `andthen-civ6` (production = myandthen.com). Holds the env vars.
 - **Resend** — `staciharv` workspace; domain `myandthen.com` verified.
