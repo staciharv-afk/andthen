@@ -100,10 +100,13 @@ deduped via `anniversary_notified_on`. Activate: run
 
 ## 🧹 Housekeeping
 - **#4 Retire Vercel projects — [quick]** 👤 keep `andthen-civ6`, delete the other two
-- 👤 Supabase **Site URL** → add `https://` (`https://www.myandthen.com`)
+- ✅ Supabase **Site URL** now uses `https://` (done)
 - 👤 **Rotate the Resend API key** (shared in chat during setup)
 - 👤 Clear test data (test memorials, "DELETE ME" probe memories, reset any
   test-upgraded memorials) before real families use it
+- 🔧 **Styled emails** — the thank-you / creator-notification / anniversary emails
+  are currently **plain text with no branding**. Consider branded HTML emails
+  (logo, colors, buttons). See GUIDE §12 for how to approach it.
 - 🔧 (optional) drop legacy unused columns `contributions.author/photo_url/audio_url`;
   the `profiles` table is unused
 
