@@ -37,7 +37,7 @@ export default async function handler(req, res) {
 
   const { data: rows, error } = await admin
     .from("contributions")
-    .select("id, status, contributor_name, contributor_email, thanked_at, memorials(name)")
+    .select("id, status, contributor_name, contributor_email, thanked_at, memorials(name, invite_code)")
     .eq("id", contributionId)
     .limit(1);
   if (error) return res.status(500).json({ error: error.message });
@@ -51,6 +51,10 @@ export default async function handler(req, res) {
 
   const memorialName = c.memorials?.name || "your loved one";
   const firstName = (c.contributor_name || "there").trim().split(" ")[0];
+  const inviteCode = c.memorials?.invite_code;
+  const forwardLine = inviteCode
+    ? `\n\nKnow someone else who knew ${memorialName}? Send them this link so they can add a memory too:\nhttps://www.myandthen.com/?memorial=${inviteCode}`
+    : "";
 
   const emailRes = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -62,8 +66,9 @@ export default async function handler(req, res) {
       text:
         `Hi ${firstName},\n\n` +
         `Thank you for sharing a memory of ${memorialName}. It means a great deal to have ` +
-        `your story kept alongside everyone else's — it's part of them now, and it stays.\n\n` +
-        `With gratitude,\nAnd Then`,
+        `your story kept alongside everyone else's — it's part of them now, and it stays.` +
+        forwardLine +
+        `\n\nWith gratitude,\nAnd Then`,
     }),
   });
 
