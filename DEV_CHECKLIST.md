@@ -108,8 +108,9 @@ deduped via `anniversary_notified_on`. Activate: run
   the `profiles` table is unused
 
 ## 📦 Handoff
-- **#14** 🔧 written + Loom-style walkthrough — where things live, how to run &
-  deploy, how to work with Claude from here.
+- **#14** ✅ DONE — `GUIDE.md` (how it works, journeys, data, services, and how
+  to vibe-code changes safely) + README/CLAUDE/DEPLOY/schema.sql. (No video —
+  the written guide is the handoff.)
 
 ## 🔭 Future / separate packages (out of current scope)
 Returning-visitor recognition (cookie / email-match / invite-token prefill) ·
