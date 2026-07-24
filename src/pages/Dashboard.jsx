@@ -12,6 +12,14 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
 
   useEffect(() => {
     loadMemorials();
+    // Returning from a successful Stripe checkout.
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("upgraded") === "1") {
+      showToast("Payment received — your page is being upgraded. If the new options don't show in a few seconds, refresh.");
+      params.delete("upgraded");
+      const qs = params.toString();
+      window.history.replaceState({}, "", window.location.pathname + (qs ? `?${qs}` : ""));
+    }
   }, []);
 
   const loadMemorials = async () => {
@@ -48,6 +56,21 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
   const copyInviteLink = (code) => {
     const link = `${window.location.origin}?memorial=${code}`;
     navigator.clipboard.writeText(link).then(() => showToast("Link copied! Share it with family and friends."));
+  };
+
+  const handleUpgrade = async (memorialId) => {
+    try {
+      const res = await fetch("/api/create-checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ memorialId }),
+      });
+      const data = await res.json();
+      if (data.url) window.location.href = data.url; // off to Stripe Checkout
+      else showToast(data.error || "Couldn't start checkout. Please try again.", "error");
+    } catch {
+      showToast("Couldn't start checkout. Please try again.", "error");
+    }
   };
 
   const filtered = submissions.filter((s) => {
@@ -119,6 +142,19 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
                   <button className="btn btn-sm btn-ghost" onClick={() => onNavigate("memorial", activeMemorial.invite_code)}>Preview</button>
                   <button className="btn btn-sm btn-ghost" onClick={() => onNavigate("edit", activeMemorial)}>Edit</button>
                 </div>
+
+                {activeMemorial.is_paid ? (
+                  <div className="invite-box" style={{ background: "rgba(39,174,96,0.08)", border: "1px solid rgba(39,174,96,0.25)" }}>
+                    <span className="invite-url" style={{ color: "#27ae60" }}>✓ Upgraded — photo, video &amp; voice memories are unlocked.</span>
+                  </div>
+                ) : (
+                  <div className="invite-box" style={{ flexWrap: "wrap" }}>
+                    <span className="invite-url" style={{ whiteSpace: "normal" }}>
+                      <strong>Free plan</strong> — written memories only. Unlock photo, video &amp; voice contributions (and exports, coming soon).
+                    </span>
+                    <button className="btn btn-sm btn-rust" onClick={() => handleUpgrade(activeMemorial.id)}>Upgrade — $149</button>
+                  </div>
+                )}
               </div>
             </div>
 
