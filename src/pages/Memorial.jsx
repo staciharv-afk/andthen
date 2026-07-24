@@ -15,6 +15,7 @@ export function MemorialPage({ inviteCode, showToast }) {
   const [mediaPreview, setMediaPreview] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [promptIdx, setPromptIdx] = useState(0);
   const [recording, setRecording] = useState(false);
   const [audioURL, setAudioURL] = useState(null);
   const [recordDuration, setRecordDuration] = useState(0);
@@ -35,6 +36,14 @@ export function MemorialPage({ inviteCode, showToast }) {
       v.onerror = () => resolve(true); // unreadable — let it through rather than block
       v.src = URL.createObjectURL(file);
     });
+
+  // Rotate through the memorial's prompts on the contribute form.
+  useEffect(() => {
+    const list = memorial?.prompts?.length ? memorial.prompts : (memorial?.prompt ? [memorial.prompt] : []);
+    if (list.length < 2) return;
+    const t = setInterval(() => setPromptIdx((i) => (i + 1) % list.length), 4500);
+    return () => clearInterval(t);
+  }, [memorial]);
 
   useEffect(() => {
     loadMemorial();
@@ -171,6 +180,9 @@ export function MemorialPage({ inviteCode, showToast }) {
     </div>
   );
 
+  const promptList = memorial.prompts?.length ? memorial.prompts : (memorial.prompt ? [memorial.prompt] : []);
+  const currentPrompt = promptList.length ? promptList[promptIdx % promptList.length] : "";
+
   return (
     <div className="memorial-page">
       <div className="memorial-hero">
@@ -191,9 +203,9 @@ export function MemorialPage({ inviteCode, showToast }) {
           <div className="contribute-card fade-up">
             <h2 className="contribute-title">Share a memory</h2>
             <p className="contribute-sub">What's your story? A moment, a habit, something they said — anything that captures who they really were.</p>
-            {memorial.prompt && (
-              <p style={{ fontFamily: "'Lora', serif", fontStyle: "italic", color: "var(--rust)", fontSize: 16, lineHeight: 1.5, marginBottom: 24 }}>
-                "{memorial.prompt}"
+            {currentPrompt && (
+              <p style={{ fontFamily: "'Lora', serif", fontStyle: "italic", color: "var(--rust)", fontSize: 16, lineHeight: 1.5, marginBottom: 24, transition: "opacity 0.3s" }}>
+                "{currentPrompt}"
               </p>
             )}
 
@@ -234,7 +246,7 @@ export function MemorialPage({ inviteCode, showToast }) {
               {contributeType === "story" && (
                 <div className="form-group">
                   <label className="form-label">Your story</label>
-                  <textarea className="form-input" placeholder={memorial.prompt || `And then ${memorial.name.split(" ")[0]}...`} value={storyText} onChange={(e) => setStoryText(e.target.value)} rows={5} />
+                  <textarea className="form-input" placeholder={currentPrompt || `And then ${memorial.name.split(" ")[0]}...`} value={storyText} onChange={(e) => setStoryText(e.target.value)} rows={5} />
                 </div>
               )}
 

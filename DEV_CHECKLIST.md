@@ -59,7 +59,7 @@ Creator sets an invite message that copies with the link.
   select, read duration via a temp `<video>` + `URL.createObjectURL`; reject >60s
   with a toast and clear the file.
 
-### T3 · Rotating prompts (2–3) — [medium] 🔧
+### ✅ T3 · Rotating prompts (2–3) — DONE (run 20260724_rotating_prompts.sql)
 Supersedes the single `prompt` field (#11).
 - **DB:** `alter table public.memorials add column if not exists prompts text[];`
   (migrate existing `prompt` into `prompts[0]` when empty).
