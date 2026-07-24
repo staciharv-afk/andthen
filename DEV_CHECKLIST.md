@@ -28,13 +28,18 @@ ship process and [CLAUDE.md](CLAUDE.md) for conventions.
       scheduled trigger)
 
 ### Fix-It cleanups (from the original plan)
-- [ ] **#3 Consolidate storage buckets** — confirm one bucket (`memorial-media`),
-      remove any empty/duplicate
+- [x] **#3 Storage** — media uploads were failing (no bucket policies); added
+      public bucket + upload/read policies. Run
+      `supabase/migrations/20260724_storage_media_policies.sql`, then re-test a
+      photo upload. (Old media-less memories won't backfill — re-submit those.)
 - [ ] **#4 Retire the 2 leftover Vercel projects** (keep only `andthen-civ6`)
-- [ ] **#8 Audit duplicate RLS policies** — our recent policies are clean; sweep
-      for old duplicates from earlier iterations
-- [ ] **#10 Snapshot the DB schema into the repo** (a full `schema.sql` so the
-      structure lives in git, not only on Supabase)
+- [x] **#8 RLS audit** — found 2-3 duplicate policies per action + two weak
+      INSERT policies (WITH CHECK true) that cancelled the "memorial must exist"
+      guard. Cleanup in `20260724_rls_cleanup.sql` (keeps one clean policy per
+      action, re-hardens is_paid). Run it, then verify flows.
+- [x] **#10 Schema snapshot** — `supabase/schema.sql` committed (structure now
+      in git). Legacy unused columns noted: contributions.author/photo_url/
+      audio_url; the profiles table.
 - [ ] **#14 Handoff walkthrough** — short Loom + let Staci try DIY fixes
 
 ### Housekeeping
