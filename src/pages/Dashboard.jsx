@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { fmtDate, timeAgo, sendThankYou } from "../lib/utils";
+import { exportMemorial } from "../lib/export";
 
 export function DashboardPage({ currentUser, onNavigate, showToast }) {
   const [memorials, setMemorials] = useState([]);
@@ -9,6 +10,7 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
   const [submissions, setSubmissions] = useState([]);
   const [activeTab, setActiveTab] = useState("pending");
   const [submissionsLoading, setSubmissionsLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     loadMemorials();
@@ -56,6 +58,18 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
   const copyInviteLink = (code) => {
     const link = `${window.location.origin}?memorial=${code}`;
     navigator.clipboard.writeText(link).then(() => showToast("Link copied! Share it with family and friends."));
+  };
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const n = await exportMemorial(activeMemorial);
+      showToast(n > 0 ? `Exported ${n} ${n === 1 ? "memory" : "memories"} as a ZIP.` : "No approved memories to export yet.");
+    } catch {
+      showToast("Export failed. Please try again.", "error");
+    } finally {
+      setExporting(false);
+    }
   };
 
   const handleUpgrade = async (memorialId) => {
@@ -141,6 +155,11 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
                   <button className="btn btn-sm btn-ghost" onClick={() => copyInviteLink(activeMemorial.invite_code)}>Copy link</button>
                   <button className="btn btn-sm btn-ghost" onClick={() => onNavigate("memorial", activeMemorial.invite_code)}>Preview</button>
                   <button className="btn btn-sm btn-ghost" onClick={() => onNavigate("edit", activeMemorial)}>Edit</button>
+                  {activeMemorial.is_paid && (
+                    <button className="btn btn-sm btn-ghost" onClick={handleExport} disabled={exporting}>
+                      {exporting ? "Exporting…" : "Export"}
+                    </button>
+                  )}
                 </div>
 
                 {activeMemorial.is_paid ? (
