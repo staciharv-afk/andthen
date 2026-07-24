@@ -179,18 +179,22 @@ export function MemorialPage({ inviteCode, showToast }) {
               </p>
             )}
 
-            <div className="contribute-type-row">
-              {[
-                { key: "story", icon: "✍️", label: "Story" },
-                { key: "photo", icon: "📷", label: "Photo" },
-                { key: "video", icon: "🎬", label: "Video" },
-                { key: "voice", icon: "🎙️", label: "Voice memo" },
-              ].map((t) => (
-                <button key={t.key} className={`type-btn ${contributeType === t.key ? "active" : ""}`} onClick={() => { setContributeType(t.key); setMediaFile(null); setMediaPreview(null); setAudioURL(null); }}>
-                  {t.icon} {t.label}
-                </button>
-              ))}
-            </div>
+            {/* Free memorials collect written memories only; photo/video/voice
+                are unlocked when the family upgrades the page. */}
+            {memorial.is_paid && (
+              <div className="contribute-type-row">
+                {[
+                  { key: "story", icon: "✍️", label: "Story" },
+                  { key: "photo", icon: "📷", label: "Photo" },
+                  { key: "video", icon: "🎬", label: "Video" },
+                  { key: "voice", icon: "🎙️", label: "Voice memo" },
+                ].map((t) => (
+                  <button key={t.key} className={`type-btn ${contributeType === t.key ? "active" : ""}`} onClick={() => { setContributeType(t.key); setMediaFile(null); setMediaPreview(null); setAudioURL(null); }}>
+                    {t.icon} {t.label}
+                  </button>
+                ))}
+              </div>
+            )}
 
             <div className="create-form">
               <div className="form-row">
