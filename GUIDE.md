@@ -243,18 +243,107 @@ You can absolutely do this. The workflow:
 - **Test a real save, not just the look.** A change can *look* fine and still
   break on save — always click through an actual action (submit/approve/sign-in).
 
-### Common "how do I…" recipes
-- **Change wording:** it's in `src/pages/*.jsx` (or `src/styles.js` for looks).
-- **Add a memorial field:** migration to add the column + edit `CreateMemorial.jsx`
-  (form) and wherever it's shown. (The `prompt`/`invite_message` fields are good
-  patterns to copy.)
-- **Change the price:** `UPGRADE_PRICE_CENTS` env var in Vercel, or the default in
-  `api/create-checkout.js`.
-- **Tweak an email:** the wording is in the matching `api/*.js` file.
+### Common changes
+Step-by-step recipes for the usual edits (styling, copy, pages, journeys, new
+fields, emails, pricing) are in **§12 — Common changes** below.
 
 ---
 
-## 11. Gotchas we already hit (so you don't have to)
+## 11. The layers: what lives where (a 2-minute full-stack primer)
+
+Every change touches one of three layers. Knowing which one tells you how careful
+to be:
+
+| Layer | What it is | In this project | Changing it is… |
+|---|---|---|---|
+| **Frontend** | what people see & click | `src/` — `pages/`, `components/`, `styles.js` | **Safe & instant** — preview on localhost, easy to undo |
+| **Backend** | small server jobs | `api/` — emails, payments, the cron | **Medium** — only runs on the deployed site; handles secrets |
+| **Database** | where data is stored | Supabase — tables + uploaded files | **Careful** — needs a migration you run by hand; touches real data |
+
+**The golden rule of vibe coding:** describe what you want → let Claude make it →
+then *actually run it and click the thing.* Code can look right and still not
+work — always test the real action (submit, approve, sign in), never just the look.
+
+**Talking to Claude well:**
+- Be specific about *what* and, if you know, *where* ("on the memorial page", "in
+  the thank-you email").
+- One change at a time; test between them.
+- If something breaks, paste the exact error or describe what you saw on screen.
+- Before anything involving **payments, the database, or deleting data**, ask
+  Claude *"what would this involve, and what could break?"* first.
+
+**Safe vs. careful:**
+- **Safe to experiment:** wording, colors, fonts, spacing, layout — it's
+  frontend, visible instantly, easy to revert.
+- **Be careful:** database migrations, payments, deleting data, the security
+  rules (RLS). Have Claude explain the plan, test on localhost, then deploy.
+
+---
+
+## 12. Common changes — recipes
+
+Each recipe: what to tell Claude, where it lives, and whether it needs a database
+migration or a deploy.
+
+**🎨 Change the look — colors, fonts, spacing**
+- *Tell Claude:* "change the rust brand color to #___", "make the headings
+  bigger", "add more space between memories".
+- *Where:* `src/styles.js` — all the CSS, with brand colors/fonts as variables at
+  the top (`--rust`, `--bark`, `--cream`…).
+- *Needs:* nothing — see it on localhost instantly.
+
+**✏️ Change wording / copy**
+- *Tell Claude:* "change the homepage headline to ___", "reword the thank-you screen".
+- *Where:* the relevant `src/pages/*.jsx` (Home, Memorial, Dashboard…).
+- *Needs:* nothing special.
+
+**📄 Add a new page**
+- *Tell Claude:* "add an About page linked from the footer".
+- *Where:* a new file in `src/pages/`, wired into the router in `src/app.jsx` +
+  `src/lib/router.js` (Claude follows the pattern from CLAUDE.md).
+- *Needs:* nothing — unless the page shows new stored data (then it's a database
+  change too).
+
+**🔀 Change a user journey / flow**
+- *Tell Claude* what should happen differently ("after someone submits, show them
+  the other memories", "let people preview before submitting").
+- *Where:* the page for that journey — `Memorial.jsx` (contributor),
+  `Dashboard.jsx` (creator), `CreateMemorial.jsx` (setup).
+- *Needs:* usually just frontend.
+
+**➕ Add a new piece of info** (e.g. a hometown field, or a new field on a memory)
+- *Tell Claude:* "add a hometown field to memorials, shown on the page and
+  editable in the form".
+- *Needs THREE steps* — Claude does 1 & 3, you do 2:
+  1. Claude writes a **migration** (adds the column),
+  2. **you run it** in Supabase → SQL Editor,
+  3. Claude updates the **form + display**.
+  The existing `prompt` / `invite_message` fields are the exact pattern to copy.
+
+**✉️ Change an email**
+- *Tell Claude:* "reword the thank-you email", "change who gets the anniversary email".
+- *Where:* the matching `api/*.js` (`thank-you`, `notify-creator`, `anniversary-cron`).
+- *Needs:* a **deploy** to test (the `api/` functions don't run on localhost).
+- ⚠️ *Heads-up:* the emails are currently **plain text — no branding or styling.**
+  Making them branded HTML emails (logo, colors, buttons) is a nice future
+  upgrade — just tell Claude "turn the thank-you email into a styled HTML email".
+
+**💳 Change the price or the free-vs-paid split**
+- *Tell Claude:* "change the upgrade to $129", or "make video a free feature".
+- *Where:* price → `api/create-checkout.js` (or the `UPGRADE_PRICE_CENTS` env var
+  in Vercel); the free/paid gating → `Memorial.jsx` / `Dashboard.jsx`.
+- *Needs:* a deploy; then run a test checkout.
+
+**🖼️ Add an image / logo**
+- *Tell Claude* what and where; it'll place the asset in a `public/` folder and
+  reference it.
+
+**When unsure:** ask Claude *"what would this change involve — frontend,
+database, or a server function?"* before you say go.
+
+---
+
+## 13. Gotchas we already hit (so you don't have to)
 - **Supabase free tier auto-pauses** after ~7 days idle and takes the site down.
   It's on the **Pro** plan now — keep it there.
 - **Media uploads need storage policies** (fixed) — if uploads ever break, check
@@ -268,7 +357,7 @@ You can absolutely do this. The workflow:
 
 ---
 
-## 12. Accounts checklist (for the owner)
+## 14. Accounts checklist (for the owner)
 - **Supabase** — "And Then" project (Pro plan). Holds the database, logins, files.
 - **Vercel** — project `andthen-civ6` (production = myandthen.com). Holds the env vars.
 - **Resend** — `staciharv` workspace; domain `myandthen.com` verified.
