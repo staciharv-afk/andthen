@@ -8,7 +8,11 @@ export function CreateMemorialPage({ currentUser, existing, onCreated, onUpdated
   const [born, setBorn] = useState(existing?.born || "");
   const [passed, setPassed] = useState(existing?.passed || "");
   const [description, setDescription] = useState(existing?.description || "");
-  const [prompt, setPrompt] = useState(existing?.prompt || "");
+  const [prompts, setPrompts] = useState(() => {
+    const src = existing?.prompts?.length ? existing.prompts : (existing?.prompt ? [existing.prompt] : []);
+    return [src[0] || "", src[1] || "", src[2] || ""];
+  });
+  const setPromptAt = (i, v) => setPrompts((p) => p.map((x, idx) => (idx === i ? v : x)));
   const [inviteMessage, setInviteMessage] = useState(existing?.invite_message || "");
   const [photoFile, setPhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(existing?.photo_url || null);
@@ -28,6 +32,7 @@ export function CreateMemorialPage({ currentUser, existing, onCreated, onUpdated
     setError("");
     if (!name.trim()) { setError("Please enter their name."); return; }
     setLoading(true);
+    const cleanPrompts = prompts.map((s) => s.trim()).filter(Boolean);
     try {
       if (isEdit) {
         // Keep the existing photo unless a new one was chosen.
@@ -46,7 +51,8 @@ export function CreateMemorialPage({ currentUser, existing, onCreated, onUpdated
           born: born || null,
           passed: passed || null,
           description: description.trim() || null,
-          prompt: prompt.trim() || null,
+          prompts: cleanPrompts.length ? cleanPrompts : null,
+          prompt: cleanPrompts[0] || null,
           invite_message: inviteMessage.trim() || null,
           photo_url: photoUrl,
           require_approval: requireApproval,
@@ -76,7 +82,8 @@ export function CreateMemorialPage({ currentUser, existing, onCreated, onUpdated
         born: born || null,
         passed: passed || null,
         description: description.trim() || null,
-        prompt: prompt.trim() || null,
+        prompts: cleanPrompts.length ? cleanPrompts : null,
+        prompt: cleanPrompts[0] || null,
         invite_message: inviteMessage.trim() || null,
         photo_url: photoUrl,
         steward_id: currentUser.id,
@@ -143,9 +150,18 @@ export function CreateMemorialPage({ currentUser, existing, onCreated, onUpdated
           </div>
 
           <div className="form-group">
-            <label className="form-label">Starter prompt for contributors</label>
-            <input className="form-input" placeholder={`e.g. And then ${(name.trim().split(" ")[0]) || "they"}…`} value={prompt} onChange={(e) => setPrompt(e.target.value)} />
-            <span className="form-hint">The gentle nudge people see on the sharing form. Leave blank to use the default.</span>
+            <label className="form-label">Starter prompts for contributors</label>
+            {[0, 1, 2].map((i) => (
+              <input
+                key={i}
+                className="form-input"
+                style={{ marginTop: i ? 8 : 0 }}
+                placeholder={i === 0 ? `e.g. And then ${(name.trim().split(" ")[0]) || "they"}…` : "Another prompt (optional)"}
+                value={prompts[i]}
+                onChange={(e) => setPromptAt(i, e.target.value)}
+              />
+            ))}
+            <span className="form-hint">Up to 3 — contributors see them rotating on the sharing form. Leave blank for a default.</span>
           </div>
 
           <div className="form-group">
