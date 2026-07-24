@@ -1,54 +1,117 @@
-# And Then — Dev Checklist
+# Dev Checklist — And Then
 
-Living list of what's done and what's left. See [DEPLOY.md](DEPLOY.md) for the
-ship process and [CLAUDE.md](CLAUDE.md) for conventions.
+A task queue for a Claude Code session working in this repo. Pick a task from
+**Ready now**, follow its spec, and check it off. Read [CLAUDE.md](CLAUDE.md)
+first — it has the architecture map and conventions this file assumes. See
+[DEPLOY.md](DEPLOY.md) for the ship flow.
 
-## ✅ Done & live in production
-- Magic-link sign-in (no passwords)
-- Contributions save; moderation queue (approve / remove)
-- Back button / real routing (deep-links safe)
-- Creator can edit a memorial (name, dates, description, photo, prompt)
-- Contributor prompt (editable "And then…" starter per memorial)
-- Capture contributor email (private — not exposed to the public API)
-- Thank-you email on approval (Resend, from hello@myandthen.com)
-- Codebase: split into per-page modules, on `@supabase/supabase-js`
-- Docs: README.md + CLAUDE.md
-- **Paid tier Phase 1** — $149 one-time Stripe upgrade + promo codes + feature
-  gating (free = text only; paid = photo/video/voice). Verified in TEST mode.
+## How to work here (read before starting)
 
-## 🔜 Remaining
+- **Stack:** Vite + React 18 + `@supabase/supabase-js`. One page per file in
+  `src/pages/`; shared bits in `src/lib/`; all CSS in `src/styles.js` (reuse the
+  existing classes + CSS variables — don't add a framework).
+- **Auth is magic-link only.** Never add passwords/providers. `currentUser` is
+  the supabase user; `currentUser.id` = `auth.uid()` = a memorial's `steward_id`.
+- **Data:** supabase-js chained API. The client is `src/lib/supabase.js`
+  (`supabase`, `CONFIG_OK`); import it, don't make another.
+- **DB changes:** add an **idempotent** SQL file to `supabase/migrations/`. You
+  **cannot run DDL** — after writing it, tell the human to run it in the Supabase
+  SQL Editor. RLS is the real security boundary; check policies when a
+  write/read misbehaves. (Gotcha: don't `insert().select()` a row the caller
+  can't read back under RLS — it rejects the whole insert.)
+- **Verify every change:** `npm run build` AND run the dev server and exercise
+  the real flow **including a toast-triggering action** (a build passes even when
+  a helper is used without importing it — that only throws at runtime).
+- **Git:** work on `staging`. Commit when done; **do not push** (pushing `main`
+  deploys to production). Promotion is `staging` → `main` by the human.
+- **Never commit `.env`.** Secrets (Resend, Stripe, service_role) live in Vercel
+  env vars, not in code. `api/*` are Vercel serverless functions — they don't
+  run under `npm run dev`; test them on a Vercel deploy.
+- Legend: **[quick]** ~<1hr · **[medium]** a few hrs · **[package]** its own
+  scoped project. 👤 = needs a human (access/decision) · 🔧 = code.
 
-### Paid tier
-- [ ] **Go live for real payments** — swap `STRIPE_SECRET_KEY` to the live key +
-      add a live-mode Stripe webhook. Blocked on Staci's LLC → EIN → business bank.
-- [x] **Phase 2 — Export** — paid memorials get an "Export" button that
-      downloads a ZIP (memories.html + media files + memories.json). Built;
-      verify in browser on a paid memorial.
-- [ ] **Phase 3 — Anniversary emails** (paid-gated; builds on Resend, needs a
-      scheduled trigger)
+---
 
-### Fix-It cleanups (from the original plan)
-- [x] **#3 Storage** — media uploads were failing (no bucket policies); added
-      public bucket + upload/read policies. Run
-      `supabase/migrations/20260724_storage_media_policies.sql`, then re-test a
-      photo upload. (Old media-less memories won't backfill — re-submit those.)
-- [ ] **#4 Retire the 2 leftover Vercel projects** (keep only `andthen-civ6`)
-- [x] **#8 RLS audit** — found 2-3 duplicate policies per action + two weak
-      INSERT policies (WITH CHECK true) that cancelled the "memorial must exist"
-      guard. Cleanup in `20260724_rls_cleanup.sql` (keeps one clean policy per
-      action, re-hardens is_paid). Run it, then verify flows.
-- [x] **#10 Schema snapshot** — `supabase/schema.sql` committed (structure now
-      in git). Legacy unused columns noted: contributions.author/photo_url/
-      audio_url; the profiles table.
-- [ ] **#14 Handoff walkthrough** — short Loom + let Staci try DIY fixes
+## ✅ Done & live
+- Magic-link sign-in; contribution saving; back-button routing (the 3 doors)
+- Codebase split into per-page modules; on `@supabase/supabase-js`
+- README + CLAUDE.md + DEPLOY.md
+- Creator can **edit** a memorial (name/dates/description/photo/prompt)
+- **#11** contributor prompt · **#12** contributor email (kept private)
+- **#13** thank-you email (Resend, live from hello@myandthen.com)
+- **#3** storage fixed — media uploads (photo/video/voice + cover) now work
+- **#8** RLS cleanup — dropped duplicate policies, closed the weak-insert gap,
+  re-hardened `is_paid` · **#10** `supabase/schema.sql` snapshot in git
+- **Paid tier Phase 1** — $149 one-time Stripe upgrade + promo codes + gating
+  (verified in Stripe TEST mode) · **Phase 2** export (download memorial as ZIP)
 
-### Housekeeping
-- [ ] Clear test data before real families use it (test memorials, the
-      "DELETE ME" probe memory, reset test-upgraded memorials if desired)
-- [ ] Rotate the Resend API key (was shared in chat during setup)
-- [ ] Fix Supabase Auth Site URL to include `https://` (prod magic-links)
+## 🟢 Ready now (no external blockers)
 
-## 💡 Nice-to-have / future (from Staci's roadmap)
-- Family tree, multiple pages/tabs (paid)
-- Forgot-nothing UX polish from Staci's real-user notes (collect at handoff)
-- New front-end design Staci mentioned (drops onto the clean module structure)
+### T1 · Editable invite message — [quick] 🔧
+Creator sets an invite message that copies with the link.
+- **DB:** `alter table public.memorials add column if not exists invite_message text;`
+- **Files:** `CreateMemorial.jsx` (textarea, save on create + edit — same pattern
+  as `prompt`), `Dashboard.jsx` ("Copy invite" button that copies message + URL).
+- **Default** when null: `I'm gathering memories of {name}. Would you share one? {link}`
+
+### T2 · 60-second cap on voice & video — [quick voice / medium video] 🔧
+- **Files:** `Memorial.jsx`. Voice: auto-`stopRecording()` at 60s. Video: on file
+  select, read duration via a temp `<video>` + `URL.createObjectURL`; reject >60s
+  with a toast and clear the file.
+
+### T3 · Rotating prompts (2–3) — [medium] 🔧
+Supersedes the single `prompt` field (#11).
+- **DB:** `alter table public.memorials add column if not exists prompts text[];`
+  (migrate existing `prompt` into `prompts[0]` when empty).
+- **Files:** `CreateMemorial.jsx` (up to 3 inputs), `Memorial.jsx` (rotate through
+  non-empty prompts; fall back to `prompt`, then `And then {firstName}…`).
+
+### T4 · Creator notification email (per contribution, cap 5/day) — [medium] 🔧
+Resend is now live, so this is unblocked.
+- **New file:** `api/notify-creator.js` (mirror `api/thank-you.js`). service_role:
+  contribution → memorial → `steward_id`; steward email via
+  `admin.auth.admin.getUserById`; count today's contributions; if ≤5, email
+  "New memory on {name}'s page from {contributor}" linking to the dashboard.
+- **Wire:** fire-and-forget from `Memorial.handleSubmit` (all submissions) via a
+  `notifyCreator(id)` helper in `src/lib/utils.js` (mirror `sendThankYou`).
+
+### T5 · "Forward" CTA in the thank-you email — [quick] 🔧
+- **Files:** `api/thank-you.js` — also select `memorials(invite_code)`, append:
+  `Know someone else who knew {name}? Send them this link: https://www.myandthen.com/?memorial={invite_code}`
+
+### Paid tier Phase 3 · Anniversary emails — [medium] 🔧
+Paid feature (Staci moved this into paid scope). Emails contributors on an
+anniversary date; gate behind `is_paid`; builds on Resend; needs a scheduled
+trigger (Vercel Cron or pg_cron). Scope when picked up.
+
+---
+
+## ⚠️ Blocked on Staci's decision (don't build until decided)
+- **D1 · Moderation default** 👤 — Figma contradicts itself. Current: pre-
+  moderation default + a toggle. If Staci wants post-moderation, flip default
+  `requireApproval` to `false` in `CreateMemorial.jsx` + adjust contributor copy.
+- **D2 · PDF export** 👤 — ZIP export (Phase 2) is done. If she specifically
+  wants a PDF variant, scope it separately.
+
+## 🔒 Blocked on human setup
+- **Paid tier go-live** 👤 — swap `STRIPE_SECRET_KEY` to the live key + add a
+  live-mode Stripe webhook once Staci's LLC → EIN → business bank are ready.
+
+## 🧹 Housekeeping
+- **#4 Retire Vercel projects — [quick]** 👤 keep `andthen-civ6`, delete the other two
+- 👤 Supabase **Site URL** → add `https://` (`https://www.myandthen.com`)
+- 👤 **Rotate the Resend API key** (shared in chat during setup)
+- 👤 Clear test data (test memorials, "DELETE ME" probe memories, reset any
+  test-upgraded memorials) before real families use it
+- 🔧 (optional) drop legacy unused columns `contributions.author/photo_url/audio_url`;
+  the `profiles` table is unused
+
+## 📦 Handoff
+- **#14** 🔧 written + Loom-style walkthrough — where things live, how to run &
+  deploy, how to work with Claude from here.
+
+## 🔭 Future / separate packages (out of current scope)
+Returning-visitor recognition (cookie / email-match / invite-token prefill) ·
+pre-roll welcome video · themes/layouts/custom URL · timeline/family tree ·
+multiple pages/tabs · "draft a eulogy with AI" · video slideshow · printable
+program · pass-to-next-of-kin · Google/Apple sign-in · new front-end design.
