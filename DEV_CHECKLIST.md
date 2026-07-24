@@ -21,7 +21,9 @@ ship process and [CLAUDE.md](CLAUDE.md) for conventions.
 ### Paid tier
 - [ ] **Go live for real payments** — swap `STRIPE_SECRET_KEY` to the live key +
       add a live-mode Stripe webhook. Blocked on Staci's LLC → EIN → business bank.
-- [ ] **Phase 2 — Export** ("download all memories" for a memorial; paid-gated)
+- [x] **Phase 2 — Export** — paid memorials get an "Export" button that
+      downloads a ZIP (memories.html + media files + memories.json). Built;
+      verify in browser on a paid memorial.
 - [ ] **Phase 3 — Anniversary emails** (paid-gated; builds on Resend, needs a
       scheduled trigger)
 
