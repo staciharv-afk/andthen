@@ -9,6 +9,7 @@ export function CreateMemorialPage({ currentUser, existing, onCreated, onUpdated
   const [passed, setPassed] = useState(existing?.passed || "");
   const [description, setDescription] = useState(existing?.description || "");
   const [prompt, setPrompt] = useState(existing?.prompt || "");
+  const [inviteMessage, setInviteMessage] = useState(existing?.invite_message || "");
   const [photoFile, setPhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(existing?.photo_url || null);
   const [requireApproval, setRequireApproval] = useState(existing ? !!existing.require_approval : true);
@@ -46,6 +47,7 @@ export function CreateMemorialPage({ currentUser, existing, onCreated, onUpdated
           passed: passed || null,
           description: description.trim() || null,
           prompt: prompt.trim() || null,
+          invite_message: inviteMessage.trim() || null,
           photo_url: photoUrl,
           require_approval: requireApproval,
         }).eq("id", existing.id).select();
@@ -75,6 +77,7 @@ export function CreateMemorialPage({ currentUser, existing, onCreated, onUpdated
         passed: passed || null,
         description: description.trim() || null,
         prompt: prompt.trim() || null,
+        invite_message: inviteMessage.trim() || null,
         photo_url: photoUrl,
         steward_id: currentUser.id,
         invite_code: inviteCode,
@@ -143,6 +146,12 @@ export function CreateMemorialPage({ currentUser, existing, onCreated, onUpdated
             <label className="form-label">Starter prompt for contributors</label>
             <input className="form-input" placeholder={`e.g. And then ${(name.trim().split(" ")[0]) || "they"}…`} value={prompt} onChange={(e) => setPrompt(e.target.value)} />
             <span className="form-hint">The gentle nudge people see on the sharing form. Leave blank to use the default.</span>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Invitation message</label>
+            <textarea className="form-input" placeholder={`e.g. I'm gathering memories of ${(name.trim().split(" ")[0]) || "them"}. Would you share one?`} value={inviteMessage} onChange={(e) => setInviteMessage(e.target.value)} rows={3} />
+            <span className="form-hint">Used by the “Copy invite” button — the link is added automatically. Leave blank for a default.</span>
           </div>
 
           <div className="moderation-toggle">

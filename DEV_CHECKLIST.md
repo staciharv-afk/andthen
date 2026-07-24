@@ -47,14 +47,14 @@ first — it has the architecture map and conventions this file assumes. See
 
 ## 🟢 Ready now (no external blockers)
 
-### T1 · Editable invite message — [quick] 🔧
+### ✅ T1 · Editable invite message — DONE (run 20260724_invite_message.sql; verify save + "Copy invite")
 Creator sets an invite message that copies with the link.
 - **DB:** `alter table public.memorials add column if not exists invite_message text;`
 - **Files:** `CreateMemorial.jsx` (textarea, save on create + edit — same pattern
   as `prompt`), `Dashboard.jsx` ("Copy invite" button that copies message + URL).
 - **Default** when null: `I'm gathering memories of {name}. Would you share one? {link}`
 
-### T2 · 60-second cap on voice & video — [quick voice / medium video] 🔧
+### ✅ T2 · 60-second cap on voice & video — DONE
 - **Files:** `Memorial.jsx`. Voice: auto-`stopRecording()` at 60s. Video: on file
   select, read duration via a temp `<video>` + `URL.createObjectURL`; reject >60s
   with a toast and clear the file.
@@ -75,7 +75,7 @@ Resend is now live, so this is unblocked.
 - **Wire:** fire-and-forget from `Memorial.handleSubmit` (all submissions) via a
   `notifyCreator(id)` helper in `src/lib/utils.js` (mirror `sendThankYou`).
 
-### T5 · "Forward" CTA in the thank-you email — [quick] 🔧
+### ✅ T5 · "Forward" CTA in the thank-you email — DONE (verify after deploy)
 - **Files:** `api/thank-you.js` — also select `memorials(invite_code)`, append:
   `Know someone else who knew {name}? Send them this link: https://www.myandthen.com/?memorial={invite_code}`
 

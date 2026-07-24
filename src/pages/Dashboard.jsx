@@ -60,6 +60,12 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
     navigator.clipboard.writeText(link).then(() => showToast("Link copied! Share it with family and friends."));
   };
 
+  const copyInvite = (memorial) => {
+    const link = `${window.location.origin}?memorial=${memorial.invite_code}`;
+    const msg = memorial.invite_message || `I'm gathering memories of ${memorial.name}. Would you share one?`;
+    navigator.clipboard.writeText(`${msg}\n\n${link}`).then(() => showToast("Invitation copied — message + link."));
+  };
+
   const handleExport = async () => {
     setExporting(true);
     try {
@@ -153,6 +159,7 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
                 <div className="invite-box">
                   <span className="invite-url">{window.location.origin}?memorial={activeMemorial.invite_code}</span>
                   <button className="btn btn-sm btn-ghost" onClick={() => copyInviteLink(activeMemorial.invite_code)}>Copy link</button>
+                  <button className="btn btn-sm btn-ghost" onClick={() => copyInvite(activeMemorial)}>Copy invite</button>
                   <button className="btn btn-sm btn-ghost" onClick={() => onNavigate("memorial", activeMemorial.invite_code)}>Preview</button>
                   <button className="btn btn-sm btn-ghost" onClick={() => onNavigate("edit", activeMemorial)}>Edit</button>
                   {activeMemorial.is_paid && (

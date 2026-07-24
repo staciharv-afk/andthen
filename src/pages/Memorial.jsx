@@ -21,7 +21,20 @@ export function MemorialPage({ inviteCode, showToast }) {
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
   const timerRef = useRef(null);
+  const maxTimerRef = useRef(null);
   const fileInputRef = useRef();
+
+  const MAX_SECONDS = 60;
+
+  // Reject videos longer than the cap (read duration without uploading).
+  const videoWithinCap = (file) =>
+    new Promise((resolve) => {
+      const v = document.createElement("video");
+      v.preload = "metadata";
+      v.onloadedmetadata = () => { URL.revokeObjectURL(v.src); resolve(v.duration <= MAX_SECONDS + 0.5); };
+      v.onerror = () => resolve(true); // unreadable — let it through rather than block
+      v.src = URL.createObjectURL(file);
+    });
 
   useEffect(() => {
     loadMemorial();
@@ -46,6 +59,10 @@ export function MemorialPage({ inviteCode, showToast }) {
 
   const handleMediaSelect = async (file) => {
     if (!file) return;
+    if (file.type.startsWith("video/") && !(await videoWithinCap(file))) {
+      showToast("Videos must be 60 seconds or less.", "error");
+      return;
+    }
     setMediaFile(file);
     const preview = await fileToDataURL(file);
     setMediaPreview(preview);
@@ -66,7 +83,8 @@ export function MemorialPage({ inviteCode, showToast }) {
       mr.start();
       setRecording(true);
       setRecordDuration(0);
-      timerRef.current = setInterval(() => setRecordDuration((d) => d + 1), 1000);
+      timerRef.current = setInterval(() => setRecordDuration((d) => Math.min(d + 1, MAX_SECONDS)), 1000);
+      maxTimerRef.current = setTimeout(stopRecording, MAX_SECONDS * 1000); // hard 60s cap
     } catch { showToast("Please allow microphone access to record.", "error"); }
   };
 
@@ -74,6 +92,7 @@ export function MemorialPage({ inviteCode, showToast }) {
     mediaRecorderRef.current?.stop();
     setRecording(false);
     clearInterval(timerRef.current);
+    clearTimeout(maxTimerRef.current);
   };
 
   const fmtDuration = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
