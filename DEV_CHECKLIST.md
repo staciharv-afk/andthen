@@ -108,9 +108,9 @@ deduped via `anniversary_notified_on`. Activate: run
   the `profiles` table is unused
 
 ## 📦 Handoff
-- **#14** ✅ written guide done — `GUIDE.md` (how it works, journeys, data,
-  services, and how to vibe-code changes safely) + README/CLAUDE/DEPLOY.
-  Remaining: 👤 record the short Loom-style walkthrough video.
+- **#14** ✅ DONE — `GUIDE.md` (how it works, journeys, data, services, and how
+  to vibe-code changes safely) + README/CLAUDE/DEPLOY/schema.sql. (No video —
+  the written guide is the handoff.)
 
 ## 🔭 Future / separate packages (out of current scope)
 Returning-visitor recognition (cookie / email-match / invite-token prefill) ·
