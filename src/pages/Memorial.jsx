@@ -91,22 +91,18 @@ export function MemorialPage({ inviteCode, showToast }) {
 
       if (mediaFile) {
         const path = `contributions/${memorial.invite_code}/${uid()}.${mediaFile.name.split(".").pop()}`;
-        const { data: uploadData } = await supabase.storage.from("memorial-media").upload(path, mediaFile);
-        if (uploadData) {
-          const { data: urlData } = supabase.storage.from("memorial-media").getPublicUrl(path);
-          mediaUrl = urlData?.publicUrl;
-        }
+        const { error: upErr } = await supabase.storage.from("memorial-media").upload(path, mediaFile);
+        if (upErr) throw upErr; // don't save a media-less memory on a failed upload
+        mediaUrl = supabase.storage.from("memorial-media").getPublicUrl(path).data?.publicUrl;
       }
 
       if (contributeType === "voice" && audioURL) {
         const resp = await fetch(audioURL);
         const blob = await resp.blob();
         const path = `contributions/${memorial.invite_code}/${uid()}.webm`;
-        const { data: uploadData } = await supabase.storage.from("memorial-media").upload(path, blob, { contentType: "audio/webm" });
-        if (uploadData) {
-          const { data: urlData } = supabase.storage.from("memorial-media").getPublicUrl(path);
-          mediaUrl = urlData?.publicUrl;
-        }
+        const { error: upErr } = await supabase.storage.from("memorial-media").upload(path, blob, { contentType: "audio/webm" });
+        if (upErr) throw upErr;
+        mediaUrl = supabase.storage.from("memorial-media").getPublicUrl(path).data?.publicUrl;
       }
 
       const row = {
