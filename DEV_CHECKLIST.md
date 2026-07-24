@@ -79,10 +79,11 @@ Resend is now live, so this is unblocked.
 - **Files:** `api/thank-you.js` — also select `memorials(invite_code)`, append:
   `Know someone else who knew {name}? Send them this link: https://www.myandthen.com/?memorial={invite_code}`
 
-### Paid tier Phase 3 · Anniversary emails — [medium] 🔧
-Paid feature (Staci moved this into paid scope). Emails contributors on an
-anniversary date; gate behind `is_paid`; builds on Resend; needs a scheduled
-trigger (Vercel Cron or pg_cron). Scope when picked up.
+### ✅ Paid tier Phase 3 · Anniversary emails — DONE
+Daily Vercel Cron (`api/anniversary-cron`, scheduled in vercel.json) emails the
+**steward** on a memorial's birth/passing anniversary. Paid-only (`is_paid`),
+deduped via `anniversary_notified_on`. Activate: run
+`20260724_anniversary.sql`, add `CRON_SECRET` in Vercel, deploy.
 
 ---
 
