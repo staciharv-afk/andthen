@@ -20,8 +20,19 @@ export function HomePage({ onNavigate }) {
             </div>
 
             <div className="fade-up-3">
-              <div className="hero-photo">
-                <div className="hero-photo-placeholder">real photos here</div>
+              <div className="hero-media-grid">
+                <div className="hero-media-large">
+                  <img src="/home/hero-family.jpg" alt="Family gathered around someone they love" />
+                </div>
+                <div className="hero-media-col">
+                  <div className="hero-media-small">
+                    <img src="/home/hero-cake.jpg" alt="Celebrating together" />
+                  </div>
+                  <div className="hero-media-small">
+                    <video src="/home/hero-video.mp4" poster="/home/hero-video-poster.jpg" muted loop autoPlay playsInline />
+                    <div className="media-play-btn" />
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -37,6 +48,36 @@ export function HomePage({ onNavigate }) {
             <p className="narrative-body">
               Somebody has a video you've never seen. Somebody else has a voicemail they left. Without a place for it to go, you never will. And Then is that place — one page everyone can add to, for as long as they have something left to give it.
             </p>
+
+            <div className="browser-mock fade-up-3">
+              <div className="browser-mock-bar">
+                <span className="browser-mock-dot" />
+                <span className="browser-mock-dot" />
+                <span className="browser-mock-dot" />
+                <span className="browser-mock-url">myandthen.com/their-page</span>
+              </div>
+              <div className="browser-mock-body">
+                <div className="mock-row">
+                  <div className="avatar">JM</div>
+                  <p className="mock-row-text">"What's something they always said?" — a quick story, typed in.</p>
+                </div>
+                <div className="mock-row">
+                  <div className="avatar">KL</div>
+                  <div className="mock-thumb">
+                    <img src="/home/mock-kitchen.jpg" alt="A shared photo" />
+                  </div>
+                  <p className="mock-label">a photo, dropped right in</p>
+                </div>
+                <div className="mock-row">
+                  <div className="avatar">DP</div>
+                  <div className="mock-thumb">
+                    <video src="/home/mock-video.mp4" poster="/home/mock-video-poster.jpg" muted loop autoPlay playsInline />
+                    <div className="play-badge" />
+                  </div>
+                  <p className="mock-label">a video, right alongside it</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
