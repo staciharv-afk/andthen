@@ -2,6 +2,12 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { uid, fmtDate, timeAgo, fileToDataURL, sendThankYou, notifyCreator } from "../lib/utils";
 
+const TYPE_LABEL = { photo: "Photo", story: "Story", video: "Video", voice: "Audio" };
+const FILTER_LABEL = { all: "Everything", photo: "Photos", story: "Stories", video: "Videos", voice: "Audio" };
+
+// Short caption for a hero collage tile — first line or so of the memory.
+const truncate = (text, n) => (text.length > n ? `${text.slice(0, n - 1).trim()}…` : text);
+
 export function MemorialPage({ inviteCode, showToast }) {
   const [memorial, setMemorial] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -19,11 +25,15 @@ export function MemorialPage({ inviteCode, showToast }) {
   const [recording, setRecording] = useState(false);
   const [audioURL, setAudioURL] = useState(null);
   const [recordDuration, setRecordDuration] = useState(0);
+  const [showContribute, setShowContribute] = useState(false);
+  const [activeFilter, setActiveFilter] = useState("all");
+  const [pulseId, setPulseId] = useState(null);
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
   const timerRef = useRef(null);
   const maxTimerRef = useRef(null);
   const fileInputRef = useRef();
+  const contributeRef = useRef(null);
 
   const MAX_SECONDS = 60;
 
@@ -49,6 +59,20 @@ export function MemorialPage({ inviteCode, showToast }) {
     loadMemorial();
   }, [inviteCode]);
 
+  useEffect(() => {
+    if (showContribute) contributeRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [showContribute]);
+
+  const openContribute = () => { setSubmitted(false); setShowContribute(true); };
+
+  // Jumping from a hero snippet to its full card in the archive: clear any
+  // active filter that might be hiding it, then let the anchor href do the scroll.
+  const jumpToStory = (id) => {
+    setActiveFilter("all");
+    setPulseId(id);
+    setTimeout(() => setPulseId(null), 1700);
+  };
+
   const loadMemorial = async () => {
     setLoading(true);
     const { data } = await supabase.from("memorials").select("*").eq("invite_code", inviteCode);
@@ -60,7 +84,14 @@ export function MemorialPage({ inviteCode, showToast }) {
   };
 
   const loadStories = async (memorialId, requireApproval) => {
-    let query = supabase.from("contributions").select("*").eq("memorial_id", memorialId).order("created_at", { ascending: false });
+    // anon only has column-scoped SELECT on this table (no contributor_email —
+    // see 20260705_protect_contributor_email.sql), so select("*") is denied
+    // outright for anonymous visitors. List the public columns explicitly.
+    let query = supabase
+      .from("contributions")
+      .select("id, memorial_id, contributor_name, contributor_relation, type, text, media_url, status, created_at")
+      .eq("memorial_id", memorialId)
+      .order("created_at", { ascending: false });
     if (requireApproval) query = query.eq("status", "approved");
     const { data } = await query;
     setStories(data || []);
@@ -183,23 +214,134 @@ export function MemorialPage({ inviteCode, showToast }) {
   const promptList = memorial.prompts?.length ? memorial.prompts : (memorial.prompt ? [memorial.prompt] : []);
   const currentPrompt = promptList.length ? promptList[promptIdx % promptList.length] : "";
 
+  // Hero collage: a handful of recent photo memories and quotable stories,
+  // in scrapbook order. Video/voice memories only show up in the full
+  // archive below — there's no good small-tile treatment for them yet.
+  const highlights = [];
+  for (const s of stories) {
+    if (highlights.length >= 12) break;
+    if (s.media_url && s.type === "photo") highlights.push({ kind: "photo", story: s });
+    else if (s.text?.trim()) highlights.push({ kind: "quote", story: s });
+  }
+
+  const filterTypes = ["all", ...new Set(stories.map((s) => s.type))];
+  const contributorCount = new Set(stories.map((s) => s.contributor_name)).size;
+
   return (
     <div className="memorial-page">
-      <div className="memorial-hero">
-        <div className="page-wrap">
+      <header className="scrapbook-hero">
+        <div className="hero-blob b1" />
+        <div className="hero-blob b2" />
+        <div className="hero-blob b3" />
+
+        <div className="hero-label">
+          <span className="eyebrow-script">as told by everyone who loves them</span>
           {memorial.photo_url && <img className="memorial-hero-photo" src={memorial.photo_url} alt={memorial.name} />}
           <h1 className="memorial-hero-name">{memorial.name}</h1>
           {(memorial.born || memorial.passed) && (
             <div className="memorial-hero-dates">
-              {fmtDate(memorial.born)}{memorial.born && memorial.passed && " — "}{fmtDate(memorial.passed)}
+              {fmtDate(memorial.born)}{memorial.born && memorial.passed && " – "}{fmtDate(memorial.passed)}
             </div>
           )}
           {memorial.description && <p className="memorial-hero-desc">{memorial.description}</p>}
         </div>
-      </div>
 
-      <div className="memorial-content">
-        {!submitted ? (
+        {highlights.length > 0 && (
+          <>
+            <div className="collage">
+              {highlights.map(({ kind, story: s }, i) => (
+                <a
+                  key={s.id}
+                  className={`snip snip-${kind}${i === 0 && highlights.length >= 4 ? " large" : ""}`}
+                  href={`#story-${s.id}`}
+                  onClick={() => jumpToStory(s.id)}
+                  aria-label={`Jump to: ${s.contributor_name}'s memory`}
+                >
+                  <div className="snip-inner">
+                    {kind === "photo" ? (
+                      <>
+                        <div className="frame"><img src={s.media_url} alt="" loading="lazy" /></div>
+                        {s.text && <div className="cap">{truncate(s.text, 36)}</div>}
+                      </>
+                    ) : (
+                      <>
+                        {truncate(s.text, 110)}
+                        <span className="who">
+                          &mdash; {s.contributor_name}{s.contributor_relation ? `, ${s.contributor_relation}` : ""}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                </a>
+              ))}
+            </div>
+
+            <div className="collage-tail">
+              <div className="stat-line">
+                {contributorCount} {contributorCount === 1 ? "person has" : "people have"} shared {stories.length} {stories.length === 1 ? "memory" : "memories"} &mdash; this is just a taste of it
+              </div>
+              <a href="#archive" className="scroll-down">
+                <span>see the whole story</span>
+                <span>&#8595;</span>
+              </a>
+            </div>
+          </>
+        )}
+      </header>
+
+      <div id="archive" />
+
+      {stories.length === 0 ? (
+        <div className="empty-state fade-up-2">
+          <div className="empty-state-icon">🕊️</div>
+          <div className="empty-state-title">No memories yet</div>
+          <p className="empty-state-sub">Be the first to share a story, photo, or memory of {memorial.name}.</p>
+        </div>
+      ) : (
+        <>
+          <section className="archive-intro">
+            <div className="cluster-eyebrow">Every Contribution</div>
+            <h2>The Full Archive</h2>
+            <p>Every photo, story, and memory that's been shared for {memorial.name} &mdash; all in one place. There's no right order, so jump in anywhere.</p>
+          </section>
+
+          <nav className="filter-bar">
+            <div className="filter-inner">
+              {filterTypes.map((f) => (
+                <button key={f} className={`chip${activeFilter === f ? " active" : ""}`} onClick={() => setActiveFilter(f)}>
+                  {FILTER_LABEL[f] || f}
+                </button>
+              ))}
+            </div>
+          </nav>
+
+          <main className="clusters">
+            <div className="masonry">
+              {stories.map((s) => (
+                <div
+                  key={s.id}
+                  id={`story-${s.id}`}
+                  className={`card-wrap${activeFilter !== "all" && s.type !== activeFilter ? " hidden-card" : ""}${pulseId === s.id ? " pulse" : ""}`}
+                >
+                  <ScrapbookCard story={s} />
+                </div>
+              ))}
+            </div>
+          </main>
+        </>
+      )}
+
+      <footer className="closing">
+        <div className="script">and then...</div>
+        <h2>This is only what's been shared so far. There's always another memory somewhere.</h2>
+        <button className="add-btn" onClick={openContribute}>Add Your Memory</button>
+        <p className="note">This page keeps growing &mdash; anyone who knew {memorial.name.split(" ")[0]} can add a photo, story, voice memo, or video, anytime.</p>
+      </footer>
+
+      {showContribute && (
+        <div ref={contributeRef} className="page-wrap" style={{ paddingBottom: 64 }}>
+          <button className="btn btn-ghost btn-sm" style={{ marginBottom: 16 }} onClick={() => setShowContribute(false)}>Close</button>
+          {!submitted ? (
           <div className="contribute-card fade-up">
             <h2 className="contribute-title">Share a memory</h2>
             <p className="contribute-sub">What's your story? A moment, a habit, something they said — anything that captures who they really were.</p>
@@ -311,37 +453,39 @@ export function MemorialPage({ inviteCode, showToast }) {
                 ? "Your memory has been submitted and will appear once the family reviews it."
                 : `Your memory has been added to ${memorial.name}'s story.`}
             </p>
-            <button className="btn btn-ghost" style={{ marginTop: 24 }} onClick={() => setSubmitted(false)}>Share another memory</button>
+            <div style={{ display: "flex", gap: 12, justifyContent: "center", marginTop: 24 }}>
+              <button className="btn btn-ghost" onClick={() => setSubmitted(false)}>Share another memory</button>
+              <button className="btn btn-rust" onClick={() => setShowContribute(false)}>Done</button>
+            </div>
           </div>
         )}
-
-        {stories.length > 0 && (
-          <div className="fade-up-2">
-            <h2 className="stories-section-title">Stories & memories</h2>
-            {stories.map((s) => <PublicStoryCard key={s.id} story={s} />)}
-          </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function PublicStoryCard({ story: s }) {
-  const initials = (s.contributor_name || "?")[0].toUpperCase();
+function ScrapbookCard({ story: s }) {
+  const relLabel = s.contributor_relation ? `${s.contributor_name}, ${s.contributor_relation}` : s.contributor_name;
   return (
-    <div className="public-story-card">
-      <div className="public-story-header">
-        <div className="avatar">{initials}</div>
-        <div>
-          <div style={{ fontSize: 13, fontWeight: 500, color: "var(--bark)" }}>{s.contributor_name}</div>
-          {s.contributor_relation && <div style={{ fontSize: 11, color: "var(--warm-light)" }}>{s.contributor_relation}</div>}
-        </div>
-        <div style={{ marginLeft: "auto", fontSize: 11, color: "var(--warm-light)" }}>{timeAgo(s.created_at)}</div>
+    <div className="card">
+      {s.media_url && s.type === "photo" && (
+        <div className="card-media"><img src={s.media_url} alt="" loading="lazy" /></div>
+      )}
+      {s.media_url && s.type === "video" && (
+        <div className="card-media"><video controls src={s.media_url} /></div>
+      )}
+      {s.media_url && s.type === "voice" && (
+        <div className="card-media-audio"><audio controls src={s.media_url} /></div>
+      )}
+      {s.text && <blockquote>{s.text}</blockquote>}
+      <div className="meta">
+        <span className="contributor">
+          &mdash; {relLabel}
+          <span className="contributor-time">{timeAgo(s.created_at)}</span>
+        </span>
+        <span className={`tag tag-${s.type}`}>{TYPE_LABEL[s.type] || "Story"}</span>
       </div>
-      {s.text && <p className="public-story-text">"{s.text}"</p>}
-      {s.media_url && s.type === "photo" && <img src={s.media_url} alt="" style={{ width: "100%", maxHeight: 360, objectFit: "cover", borderRadius: 3, marginTop: 12 }} />}
-      {s.media_url && s.type === "video" && <video controls src={s.media_url} style={{ width: "100%", marginTop: 12, borderRadius: 3 }} />}
-      {s.media_url && s.type === "voice" && <audio controls src={s.media_url} style={{ width: "100%", marginTop: 12 }} />}
     </div>
   );
 }
