@@ -109,7 +109,7 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 
 /* Hero media grid (photo + photo + video) */
 .hero-media-grid { display: grid; grid-template-columns: 1.25fr 1fr; gap: 12px; }
-.hero-media-large { border-radius: 8px; overflow: hidden; aspect-ratio: 3/4; background: var(--cream-dark); }
+.hero-media-large { position: relative; border-radius: 8px; overflow: hidden; aspect-ratio: 3/4; background: var(--cream-dark); }
 .hero-media-col { display: flex; flex-direction: column; gap: 12px; }
 .hero-media-small { position: relative; border-radius: 8px; overflow: hidden; flex: 1; aspect-ratio: 1; background: var(--cream-dark); }
 .hero-media-large img, .hero-media-small img, .hero-media-small video { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -117,6 +117,16 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 
 .media-play-btn { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(45,33,24,0.18); }
 .media-play-btn::before { content: ''; width: 0; height: 0; border-style: solid; border-width: 8px 0 8px 13px; border-color: transparent transparent transparent #fff; margin-left: 3px; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3)); }
+
+/* -- memory cards: quote overlay on hero photos/video -- */
+.memory-card-caption { position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; padding: 14px 16px; background: linear-gradient(180deg, rgba(26,14,8,0) 0%, rgba(26,14,8,0.85) 75%); }
+.hero-media-large .memory-card-caption { padding: 22px 20px 18px; }
+.memory-card-quote { font-family: 'Lora', serif; font-style: italic; font-size: 13px; line-height: 1.4; color: var(--cream); margin: 0; }
+.hero-media-large .memory-card-quote { font-size: 15px; }
+.memory-card-attr { display: block; margin-top: 6px; font-family: 'DM Sans', sans-serif; font-size: 11px; color: rgba(253,250,245,0.72); }
+
+.hero-media-cta { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; margin-top: 14px; background: none; border: none; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; color: var(--rust); transition: color 0.2s; }
+.hero-media-cta:hover { color: var(--rust-light); text-decoration: underline; }
 
 /* "What you get" browser mockup card */
 .browser-mock { background: var(--white); border: 1px solid var(--warm-faint); border-radius: 10px; overflow: hidden; box-shadow: 0 24px 60px -24px rgba(45,33,24,0.18); max-width: 620px; margin-top: 40px; }
