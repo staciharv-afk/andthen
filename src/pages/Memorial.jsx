@@ -5,7 +5,7 @@ import { uid, fmtDate, timeAgo, fileToDataURL, sendThankYou, notifyCreator } fro
 const TYPE_LABEL = { photo: "Photo", story: "Story", video: "Video", voice: "Audio" };
 const FILTER_LABEL = { all: "Everything", photo: "Photos", story: "Stories", video: "Videos", voice: "Audio" };
 
-export function MemorialPage({ inviteCode, showToast }) {
+export function MemorialPage({ inviteCode, showToast, onNavigate }) {
   const [memorial, setMemorial] = useState(null);
   const [loading, setLoading] = useState(true);
   const [stories, setStories] = useState([]);
@@ -220,6 +220,11 @@ export function MemorialPage({ inviteCode, showToast }) {
   return (
     <div className="memorial-page">
       <header className="scrapbook-hero">
+        <button type="button" className="memorial-brand" onClick={() => onNavigate?.("home")}>
+          <span className="memorial-brand-logo">And Then<em>...</em></span>
+          <span className="memorial-brand-tag">A living story for someone you love.</span>
+        </button>
+
         {memorial.photo_url ? (
           <div className="hero-banner">
             <img src={memorial.photo_url} alt={memorial.name} />

@@ -232,11 +232,15 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 
 /* -- hero -- */
 .scrapbook-hero { position: relative; padding: 0 24px 28px; overflow: hidden; }
+.memorial-brand { position: absolute; top: 16px; left: 16px; z-index: 6; display: flex; flex-direction: column; align-items: flex-start; gap: 1px; background: rgba(255,252,245,0.9); backdrop-filter: blur(6px); border: none; border-radius: 8px; padding: 8px 14px; box-shadow: var(--mem-shadow); cursor: pointer; text-align: left; }
+.memorial-brand-logo { font-family: 'Fraunces', serif; font-size: 1rem; font-weight: 600; color: var(--mem-ink); line-height: 1.2; }
+.memorial-brand-logo em { font-style: italic; color: var(--mem-rose); }
+.memorial-brand-tag { font-family: 'Caveat', cursive; font-size: 0.82rem; color: var(--mem-ink-soft); line-height: 1.2; }
 .hero-blob { position: absolute; border-radius: 42% 58% 63% 37% / 41% 44% 56% 59%; filter: blur(38px); opacity: 0.5; z-index: 0; }
 .hero-blob.b1 { width: 380px; height: 380px; background: var(--mem-rose-soft); top: -14%; left: 2%; }
 .hero-blob.b2 { width: 320px; height: 320px; background: var(--mem-gold-soft); bottom: -6%; right: 2%; }
 .hero-blob.b3 { width: 240px; height: 240px; background: var(--mem-sage-soft); top: 30%; right: 26%; }
-.hero-label { position: relative; z-index: 2; text-align: center; padding-top: 40px; }
+.hero-label { position: relative; z-index: 2; text-align: center; padding-top: 88px; }
 .eyebrow-script { font-family: 'Caveat', cursive; font-size: 1.6rem; color: var(--mem-rose); transform: rotate(-2deg); margin-bottom: 4px; display: inline-block; }
 .memorial-hero-name { font-size: clamp(2.6rem, 7vw, 4.6rem); font-weight: 600; line-height: 1; letter-spacing: -0.01em; }
 .memorial-hero-dates { font-family: 'Fraunces', serif; font-style: italic; font-weight: 400; font-size: clamp(1rem, 2vw, 1.25rem); color: var(--mem-ink-soft); margin-top: 10px; }

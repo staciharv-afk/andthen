@@ -125,7 +125,7 @@ export default function App() {
       )}
 
       {route === "memorial" && (
-        <MemorialPage inviteCode={routeParam} showToast={showToast} />
+        <MemorialPage inviteCode={routeParam} showToast={showToast} onNavigate={navigate} />
       )}
 
       <ToastContainer toasts={toasts} />
