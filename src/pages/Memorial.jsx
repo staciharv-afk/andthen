@@ -63,7 +63,11 @@ export function MemorialPage({ inviteCode, showToast, onNavigate }) {
 
   const loadMemorial = async () => {
     setLoading(true);
-    const { data } = await supabase.from("memorials").select("*").eq("invite_code", inviteCode);
+    // The URL param may be the invite code (?memorial=<code>) or a custom
+    // vanity slug (myandthen.com/<slug>) — try both rather than building a
+    // filter string out of raw URL input.
+    let { data } = await supabase.from("memorials").select("*").eq("invite_code", inviteCode);
+    if (!data?.length) ({ data } = await supabase.from("memorials").select("*").eq("slug", inviteCode));
     if (data?.length) {
       setMemorial(data[0]);
       loadStories(data[0].id, data[0].require_approval);

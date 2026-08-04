@@ -55,15 +55,18 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
     showToast("Submission removed.");
   };
 
-  const copyInviteLink = (code) => {
-    const link = `${window.location.origin}?memorial=${code}`;
-    navigator.clipboard.writeText(link).then(() => showToast("Link copied! Share it with family and friends."));
+  // Prefer the steward's custom vanity URL (myandthen.com/<slug>) once set;
+  // the invite-code link always works too, so it's the fallback.
+  const memorialUrl = (memorial) =>
+    memorial.slug ? `${window.location.origin}/${memorial.slug}` : `${window.location.origin}?memorial=${memorial.invite_code}`;
+
+  const copyInviteLink = (memorial) => {
+    navigator.clipboard.writeText(memorialUrl(memorial)).then(() => showToast("Link copied! Share it with family and friends."));
   };
 
   const copyInvite = (memorial) => {
-    const link = `${window.location.origin}?memorial=${memorial.invite_code}`;
     const msg = memorial.invite_message || `I'm gathering memories of ${memorial.name}. Would you share one?`;
-    navigator.clipboard.writeText(`${msg}\n\n${link}`).then(() => showToast("Invitation copied — message + link."));
+    navigator.clipboard.writeText(`${msg}\n\n${memorialUrl(memorial)}`).then(() => showToast("Invitation copied — message + link."));
   };
 
   const handleExport = async () => {
@@ -157,8 +160,8 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
                 {activeMemorial.description && <div className="memorial-desc">{activeMemorial.description}</div>}
 
                 <div className="invite-box">
-                  <span className="invite-url">{window.location.origin}?memorial={activeMemorial.invite_code}</span>
-                  <button className="btn btn-sm btn-ghost" onClick={() => copyInviteLink(activeMemorial.invite_code)}>Copy link</button>
+                  <span className="invite-url">{memorialUrl(activeMemorial)}</span>
+                  <button className="btn btn-sm btn-ghost" onClick={() => copyInviteLink(activeMemorial)}>Copy link</button>
                   <button className="btn btn-sm btn-ghost" onClick={() => copyInvite(activeMemorial)}>Copy invite</button>
                   <button className="btn btn-sm btn-ghost" onClick={() => onNavigate("memorial", activeMemorial.invite_code)}>Preview</button>
                   <button className="btn btn-sm btn-ghost" onClick={() => onNavigate("edit", activeMemorial)}>Edit</button>

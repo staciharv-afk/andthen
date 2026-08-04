@@ -1,5 +1,15 @@
 export const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 
+// Normalize free text into a URL-safe slug: lowercase, alphanumeric words
+// joined by single hyphens, no leading/trailing/doubled hyphens. Matches the
+// memorials_slug_format DB constraint.
+export const slugify = (text) =>
+  text
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
 export const fmtDate = (d) => {
   if (!d) return "";
   const date = new Date(d);

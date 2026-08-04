@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { supabase } from "../lib/supabase";
-import { uid, fileToDataURL } from "../lib/utils";
+import { uid, fileToDataURL, slugify } from "../lib/utils";
+import { RESERVED_SLUGS } from "../lib/router";
 
 export function CreateMemorialPage({ currentUser, existing, onCreated, onUpdated, onCancel, showToast }) {
   const isEdit = Boolean(existing);
@@ -8,6 +9,7 @@ export function CreateMemorialPage({ currentUser, existing, onCreated, onUpdated
   const [born, setBorn] = useState(existing?.born || "");
   const [passed, setPassed] = useState(existing?.passed || "");
   const [description, setDescription] = useState(existing?.description || "");
+  const [slug, setSlug] = useState(existing?.slug || "");
   const [prompts, setPrompts] = useState(() => {
     const src = existing?.prompts?.length ? existing.prompts : (existing?.prompt ? [existing.prompt] : []);
     return [src[0] || "", src[1] || "", src[2] || ""];
@@ -31,6 +33,9 @@ export function CreateMemorialPage({ currentUser, existing, onCreated, onUpdated
   const handleSubmit = async () => {
     setError("");
     if (!name.trim()) { setError("Please enter their name."); return; }
+    const cleanSlug = slug.trim() ? slugify(slug) : null;
+    if (slug.trim() && !cleanSlug) { setError("That page address needs at least one letter or number."); return; }
+    if (cleanSlug && RESERVED_SLUGS.has(cleanSlug)) { setError("That page address is reserved — please choose another."); return; }
     setLoading(true);
     const cleanPrompts = prompts.map((s) => s.trim()).filter(Boolean);
     try {
@@ -56,9 +61,10 @@ export function CreateMemorialPage({ currentUser, existing, onCreated, onUpdated
           invite_message: inviteMessage.trim() || null,
           photo_url: photoUrl,
           require_approval: requireApproval,
+          slug: cleanSlug,
         }).eq("id", existing.id).select();
 
-        if (err) { setError(err.message || "Couldn't save your changes. Please try again."); return; }
+        if (err) { setError(err.code === "23505" ? "That page address is already taken — please choose another." : (err.message || "Couldn't save your changes. Please try again.")); return; }
 
         showToast("Memorial updated.");
         onUpdated(data?.[0] || { ...existing, name: name.trim() });
@@ -89,9 +95,10 @@ export function CreateMemorialPage({ currentUser, existing, onCreated, onUpdated
         steward_id: currentUser.id,
         invite_code: inviteCode,
         require_approval: requireApproval,
+        slug: cleanSlug,
       }).select();
 
-      if (err) { setError(err.message || "Failed to create memorial. Please try again."); return; }
+      if (err) { setError(err.code === "23505" ? "That page address is already taken — please choose another." : (err.message || "Failed to create memorial. Please try again.")); return; }
 
       showToast("Memorial created! Share the link to start gathering stories.");
       onCreated(data[0] || { id: uid(), name, invite_code: inviteCode });
@@ -131,6 +138,14 @@ export function CreateMemorialPage({ currentUser, existing, onCreated, onUpdated
           <div className="form-group">
             <label className="form-label">Their name *</label>
             <input className="form-input" placeholder="Full name or how they were known" value={name} onChange={(e) => setName(e.target.value)} />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Page address (optional)</label>
+            <input className="form-input" placeholder="e.g. debhausch" value={slug} onChange={(e) => setSlug(e.target.value)} />
+            <span className="form-hint">
+              {slug.trim() ? `myandthen.com/${slugify(slug)}` : "Leave blank to keep the default link — you can add this anytime."}
+            </span>
           </div>
 
           <div className="form-row">
