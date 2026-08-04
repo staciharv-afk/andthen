@@ -231,27 +231,31 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .memorial-page h1, .memorial-page h2, .memorial-page h3 { font-family: 'Fraunces', serif; margin: 0; }
 
 /* -- hero -- */
-.scrapbook-hero { position: relative; padding: 70px 24px 50px; overflow: hidden; }
+.scrapbook-hero { position: relative; padding: 0 24px 28px; overflow: hidden; }
 .hero-blob { position: absolute; border-radius: 42% 58% 63% 37% / 41% 44% 56% 59%; filter: blur(38px); opacity: 0.5; z-index: 0; }
 .hero-blob.b1 { width: 380px; height: 380px; background: var(--mem-rose-soft); top: -14%; left: 2%; }
 .hero-blob.b2 { width: 320px; height: 320px; background: var(--mem-gold-soft); bottom: -6%; right: 2%; }
 .hero-blob.b3 { width: 240px; height: 240px; background: var(--mem-sage-soft); top: 30%; right: 26%; }
-.hero-label { position: relative; z-index: 2; text-align: center; }
+.hero-label { position: relative; z-index: 2; text-align: center; padding-top: 40px; }
 .eyebrow-script { font-family: 'Caveat', cursive; font-size: 1.6rem; color: var(--mem-rose); transform: rotate(-2deg); margin-bottom: 4px; display: inline-block; }
-.memorial-hero-photo { width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 3px solid var(--mem-card); box-shadow: var(--mem-shadow); margin: 0 auto 20px; display: block; }
 .memorial-hero-name { font-size: clamp(2.6rem, 7vw, 4.6rem); font-weight: 600; line-height: 1; letter-spacing: -0.01em; }
 .memorial-hero-dates { font-family: 'Fraunces', serif; font-style: italic; font-weight: 400; font-size: clamp(1rem, 2vw, 1.25rem); color: var(--mem-ink-soft); margin-top: 10px; }
-.memorial-hero-desc { font-size: 15px; color: var(--mem-ink-soft); max-width: 560px; margin: 16px auto 0; line-height: 1.75; }
 
-/* -- hero stat line + scroll-down cue -- */
-.collage-tail { position: relative; z-index: 2; text-align: center; margin-top: 44px; }
-.stat-line { font-size: 0.92rem; color: var(--mem-ink-soft); margin-bottom: 26px; }
-.scroll-down { display: inline-flex; flex-direction: column; align-items: center; gap: 6px; font-family: 'Caveat', cursive; font-size: 1.15rem; color: var(--mem-ink-soft); text-decoration: none; animation: bob 2.4s ease-in-out infinite; }
-@keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(7px); } }
-@media (prefers-reduced-motion: reduce) { .scroll-down { animation: none; } }
+/* -- header photo banner (creator-uploaded cover photo, 16:7 from the create form) -- */
+.hero-banner { position: relative; margin: 0 -24px 28px; overflow: hidden; }
+.hero-banner img { width: 100%; height: clamp(220px, 34vw, 420px); object-fit: cover; display: block; }
+.hero-banner-scrim { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(44,36,32,0) 35%, rgba(44,36,32,0.78) 100%); }
+.hero-banner-label { position: absolute; left: 0; right: 0; bottom: 0; padding: 24px 24px 28px; text-align: center; }
+.hero-banner-label .memorial-hero-name { color: var(--mem-paper); }
+.hero-banner-label .memorial-hero-dates { color: rgba(245,239,225,0.85); }
+.hero-banner-label .eyebrow-script { color: var(--mem-rose-soft); }
+
+.hero-below { position: relative; z-index: 2; text-align: center; }
+.memorial-hero-desc { font-size: 15px; color: var(--mem-ink-soft); max-width: 560px; margin: 16px auto 0; line-height: 1.75; }
+.stat-line { font-size: 0.92rem; color: var(--mem-ink-soft); margin-top: 18px; }
 
 /* -- archive intro + filters -- */
-.archive-intro { text-align: center; padding: 90px 24px 30px; max-width: 640px; margin: 0 auto; }
+.archive-intro { text-align: center; padding: 32px 24px 24px; max-width: 640px; margin: 0 auto; }
 .archive-intro .cluster-eyebrow { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--mem-rose); margin-bottom: 10px; }
 .archive-intro p { margin-top: 12px; color: var(--mem-ink-soft); font-size: 0.98rem; line-height: 1.55; }
 .filter-bar { position: sticky; top: 0; z-index: 200; background: rgba(245,239,225,0.9); backdrop-filter: blur(8px); border-bottom: 1px solid rgba(44,36,32,0.1); padding: 14px 20px; margin-top: 40px; }

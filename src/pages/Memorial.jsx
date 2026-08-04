@@ -205,36 +205,44 @@ export function MemorialPage({ inviteCode, showToast }) {
   const filterTypes = ["all", ...new Set(stories.map((s) => s.type))];
   const contributorCount = new Set(stories.map((s) => s.contributor_name)).size;
 
+  const heroTitle = (
+    <>
+      <span className="eyebrow-script">as told by everyone who loves them</span>
+      <h1 className="memorial-hero-name">{memorial.name}</h1>
+      {(memorial.born || memorial.passed) && (
+        <div className="memorial-hero-dates">
+          {fmtDate(memorial.born)}{memorial.born && memorial.passed && " – "}{fmtDate(memorial.passed)}
+        </div>
+      )}
+    </>
+  );
+
   return (
     <div className="memorial-page">
       <header className="scrapbook-hero">
-        <div className="hero-blob b1" />
-        <div className="hero-blob b2" />
-        <div className="hero-blob b3" />
+        {memorial.photo_url ? (
+          <div className="hero-banner">
+            <img src={memorial.photo_url} alt={memorial.name} />
+            <div className="hero-banner-scrim" />
+            <div className="hero-banner-label">{heroTitle}</div>
+          </div>
+        ) : (
+          <>
+            <div className="hero-blob b1" />
+            <div className="hero-blob b2" />
+            <div className="hero-blob b3" />
+            <div className="hero-label">{heroTitle}</div>
+          </>
+        )}
 
-        <div className="hero-label">
-          <span className="eyebrow-script">as told by everyone who loves them</span>
-          {memorial.photo_url && <img className="memorial-hero-photo" src={memorial.photo_url} alt={memorial.name} />}
-          <h1 className="memorial-hero-name">{memorial.name}</h1>
-          {(memorial.born || memorial.passed) && (
-            <div className="memorial-hero-dates">
-              {fmtDate(memorial.born)}{memorial.born && memorial.passed && " – "}{fmtDate(memorial.passed)}
-            </div>
-          )}
+        <div className="hero-below">
           {memorial.description && <p className="memorial-hero-desc">{memorial.description}</p>}
-        </div>
-
-        {stories.length > 0 && (
-          <div className="collage-tail">
+          {stories.length > 0 && (
             <div className="stat-line">
               {contributorCount} {contributorCount === 1 ? "person has" : "people have"} shared {stories.length} {stories.length === 1 ? "memory" : "memories"}
             </div>
-            <a href="#archive" className="scroll-down">
-              <span>see the whole story</span>
-              <span>&#8595;</span>
-            </a>
-          </div>
-        )}
+          )}
+        </div>
       </header>
 
       <div id="archive" />
