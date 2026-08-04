@@ -5,9 +5,6 @@ import { uid, fmtDate, timeAgo, fileToDataURL, sendThankYou, notifyCreator } fro
 const TYPE_LABEL = { photo: "Photo", story: "Story", video: "Video", voice: "Audio" };
 const FILTER_LABEL = { all: "Everything", photo: "Photos", story: "Stories", video: "Videos", voice: "Audio" };
 
-// Short caption for a hero collage tile — first line or so of the memory.
-const truncate = (text, n) => (text.length > n ? `${text.slice(0, n - 1).trim()}…` : text);
-
 export function MemorialPage({ inviteCode, showToast }) {
   const [memorial, setMemorial] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -27,7 +24,6 @@ export function MemorialPage({ inviteCode, showToast }) {
   const [recordDuration, setRecordDuration] = useState(0);
   const [showContribute, setShowContribute] = useState(false);
   const [activeFilter, setActiveFilter] = useState("all");
-  const [pulseId, setPulseId] = useState(null);
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
   const timerRef = useRef(null);
@@ -64,14 +60,6 @@ export function MemorialPage({ inviteCode, showToast }) {
   }, [showContribute]);
 
   const openContribute = () => { setSubmitted(false); setShowContribute(true); };
-
-  // Jumping from a hero snippet to its full card in the archive: clear any
-  // active filter that might be hiding it, then let the anchor href do the scroll.
-  const jumpToStory = (id) => {
-    setActiveFilter("all");
-    setPulseId(id);
-    setTimeout(() => setPulseId(null), 1700);
-  };
 
   const loadMemorial = async () => {
     setLoading(true);
@@ -214,16 +202,6 @@ export function MemorialPage({ inviteCode, showToast }) {
   const promptList = memorial.prompts?.length ? memorial.prompts : (memorial.prompt ? [memorial.prompt] : []);
   const currentPrompt = promptList.length ? promptList[promptIdx % promptList.length] : "";
 
-  // Hero collage: a handful of recent photo memories and quotable stories,
-  // in scrapbook order. Video/voice memories only show up in the full
-  // archive below — there's no good small-tile treatment for them yet.
-  const highlights = [];
-  for (const s of stories) {
-    if (highlights.length >= 12) break;
-    if (s.media_url && s.type === "photo") highlights.push({ kind: "photo", story: s });
-    else if (s.text?.trim()) highlights.push({ kind: "quote", story: s });
-  }
-
   const filterTypes = ["all", ...new Set(stories.map((s) => s.type))];
   const contributorCount = new Set(stories.map((s) => s.contributor_name)).size;
 
@@ -246,46 +224,16 @@ export function MemorialPage({ inviteCode, showToast }) {
           {memorial.description && <p className="memorial-hero-desc">{memorial.description}</p>}
         </div>
 
-        {highlights.length > 0 && (
-          <>
-            <div className="collage">
-              {highlights.map(({ kind, story: s }, i) => (
-                <a
-                  key={s.id}
-                  className={`snip snip-${kind}${i === 0 && highlights.length >= 4 ? " large" : ""}`}
-                  href={`#story-${s.id}`}
-                  onClick={() => jumpToStory(s.id)}
-                  aria-label={`Jump to: ${s.contributor_name}'s memory`}
-                >
-                  <div className="snip-inner">
-                    {kind === "photo" ? (
-                      <>
-                        <div className="frame"><img src={s.media_url} alt="" loading="lazy" /></div>
-                        {s.text && <div className="cap">{truncate(s.text, 36)}</div>}
-                      </>
-                    ) : (
-                      <>
-                        {truncate(s.text, 110)}
-                        <span className="who">
-                          &mdash; {s.contributor_name}{s.contributor_relation ? `, ${s.contributor_relation}` : ""}
-                        </span>
-                      </>
-                    )}
-                  </div>
-                </a>
-              ))}
+        {stories.length > 0 && (
+          <div className="collage-tail">
+            <div className="stat-line">
+              {contributorCount} {contributorCount === 1 ? "person has" : "people have"} shared {stories.length} {stories.length === 1 ? "memory" : "memories"}
             </div>
-
-            <div className="collage-tail">
-              <div className="stat-line">
-                {contributorCount} {contributorCount === 1 ? "person has" : "people have"} shared {stories.length} {stories.length === 1 ? "memory" : "memories"} &mdash; this is just a taste of it
-              </div>
-              <a href="#archive" className="scroll-down">
-                <span>see the whole story</span>
-                <span>&#8595;</span>
-              </a>
-            </div>
-          </>
+            <a href="#archive" className="scroll-down">
+              <span>see the whole story</span>
+              <span>&#8595;</span>
+            </a>
+          </div>
         )}
       </header>
 
@@ -321,7 +269,7 @@ export function MemorialPage({ inviteCode, showToast }) {
                 <div
                   key={s.id}
                   id={`story-${s.id}`}
-                  className={`card-wrap${activeFilter !== "all" && s.type !== activeFilter ? " hidden-card" : ""}${pulseId === s.id ? " pulse" : ""}`}
+                  className={`card-wrap${activeFilter !== "all" && s.type !== activeFilter ? " hidden-card" : ""}`}
                 >
                   <ScrapbookCard story={s} />
                 </div>

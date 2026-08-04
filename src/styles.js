@@ -243,25 +243,11 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .memorial-hero-dates { font-family: 'Fraunces', serif; font-style: italic; font-weight: 400; font-size: clamp(1rem, 2vw, 1.25rem); color: var(--mem-ink-soft); margin-top: 10px; }
 .memorial-hero-desc { font-size: 15px; color: var(--mem-ink-soft); max-width: 560px; margin: 16px auto 0; line-height: 1.75; }
 
-/* -- collage: dense auto-flow bento, first tile large -- */
-.collage { position: relative; z-index: 2; max-width: 980px; margin: 50px auto 8px; display: grid; grid-template-columns: repeat(4, 1fr); grid-auto-rows: 168px; grid-auto-flow: dense; gap: 22px; }
-.snip { display: block; height: 100%; text-decoration: none; color: inherit; cursor: pointer; position: relative; transition: transform 0.2s ease, box-shadow 0.2s ease; }
-.snip.large { grid-column: span 2; grid-row: span 2; }
-.snip:hover { transform: translateY(-5px); z-index: 5; }
-.snip:focus-visible { outline: 3px solid var(--mem-rose); outline-offset: 3px; border-radius: 6px; }
-.snip-inner { height: 100%; display: flex; flex-direction: column; background: var(--mem-card); box-shadow: var(--mem-shadow); border: 1px solid rgba(44,36,32,0.06); border-radius: 3px; overflow: hidden; }
-.snip-photo .snip-inner { padding: 10px 10px 12px; }
-.snip-photo .frame { flex: 1; min-height: 0; border-radius: 2px; overflow: hidden; }
-.snip-photo .frame img, .snip-photo .frame video { width: 100%; height: 100%; object-fit: cover; display: block; }
-.snip-photo .cap { flex: 0 0 auto; font-family: 'Caveat', cursive; font-size: 1.05rem; text-align: center; color: var(--mem-ink-soft); margin-top: 8px; }
-.snip-quote .snip-inner { justify-content: center; padding: 18px; font-family: 'Fraunces', serif; font-style: italic; font-size: 1rem; line-height: 1.4; }
-.snip-quote .who { display: block; margin-top: 10px; font-family: 'Caveat', cursive; font-style: normal; font-size: 1rem; color: var(--mem-ink-soft); text-align: right; }
+/* -- hero stat line + scroll-down cue -- */
 .collage-tail { position: relative; z-index: 2; text-align: center; margin-top: 44px; }
 .stat-line { font-size: 0.92rem; color: var(--mem-ink-soft); margin-bottom: 26px; }
 .scroll-down { display: inline-flex; flex-direction: column; align-items: center; gap: 6px; font-family: 'Caveat', cursive; font-size: 1.15rem; color: var(--mem-ink-soft); text-decoration: none; animation: bob 2.4s ease-in-out infinite; }
 @keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(7px); } }
-@media (max-width: 900px) { .collage { max-width: 560px; grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 560px) { .collage { max-width: 340px; grid-template-columns: 1fr; grid-auto-rows: 190px; gap: 18px; } .snip.large { grid-column: span 1; grid-row: span 1; } }
 @media (prefers-reduced-motion: reduce) { .scroll-down { animation: none; } }
 
 /* -- archive intro + filters -- */
@@ -284,8 +270,6 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .card-wrap:nth-child(3n+1) .card { transform: rotate(-1deg); }
 .card-wrap:nth-child(3n+2) .card { transform: rotate(0.8deg); }
 .card-wrap:nth-child(3n+3) .card { transform: rotate(-0.4deg); }
-.card-wrap.pulse .card { animation: pulseGlow 1.6s ease; }
-@keyframes pulseGlow { 0% { box-shadow: 0 0 0 0 rgba(193,81,90,0); } 18% { box-shadow: 0 0 0 10px rgba(193,81,90,0.28); } 100% { box-shadow: 0 0 0 0 rgba(193,81,90,0); } }
 .card { position: relative; background: var(--mem-card); border-radius: 4px; padding: 26px 26px 20px; box-shadow: var(--mem-shadow); border: 1px solid rgba(44,36,32,0.06); }
 .card-media { width: 100%; border-radius: 3px; margin-bottom: 14px; overflow: hidden; }
 .card-media img, .card-media video { width: 100%; max-height: 320px; object-fit: cover; display: block; }
