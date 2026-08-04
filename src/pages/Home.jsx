@@ -105,7 +105,7 @@ export function HomePage({ onNavigate }) {
             <div className="section-label">Collecting is the easy part</div>
             <h2 className="narrative-headline">One link does all the work.</h2>
             <p className="narrative-body">
-              Text it. Email it. Send it however you want. Whoever gets it taps it and adds their memory — no account, no app, nothing to set up. One tap, and it's on the page.
+              Text it. Email it. Send it however you want. Whoever gets it taps it and adds their memory — no account, no app, nothing to set up. One tap, and it's on the page. You're still the one in control — anything added can be reviewed or removed by you, anytime.
             </p>
           </div>
         </div>
