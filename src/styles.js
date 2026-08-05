@@ -184,6 +184,14 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .narrative-body { font-size: 15px; font-weight: 300; line-height: 1.75; color: var(--warm-mid); max-width: 540px; }
 .narrative-body.on-dark { color: var(--warm-light); }
 
+/* "Collecting is the easy part" feature row */
+.feature-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px; margin-top: 44px; }
+@media (max-width: 700px) { .feature-row { grid-template-columns: 1fr; gap: 32px; } }
+.feature-icon { width: 44px; height: 44px; border-radius: 10px; background: var(--warm-faint); color: var(--rust); display: flex; align-items: center; justify-content: center; margin-bottom: 16px; }
+.feature-icon svg { width: 22px; height: 22px; }
+.feature-label { font-family: 'Lora', serif; font-size: 17px; font-weight: 500; color: var(--bark); margin-bottom: 8px; }
+.feature-body { font-size: 14px; font-weight: 300; line-height: 1.65; color: var(--warm-mid); max-width: 320px; }
+
 /* ── FINAL CTA ── */
 .final-cta { padding: 96px 0; text-align: center; }
 .final-cta h2 { font-family: 'Lora', serif; font-size: clamp(30px, 4vw, 50px); font-weight: 400; font-style: italic; color: var(--cream); margin-bottom: 16px; line-height: 1.2; }

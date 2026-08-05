@@ -168,6 +168,46 @@ function WhatYouGetPreview() {
   );
 }
 
+// Icons for the "Collecting is the easy part" feature row. No icon library
+// is installed (checked — the only existing precedent is the inline SVG in
+// CreateMemorial.jsx's photo-upload icon), so these follow that same outline
+// style: 24x24 viewBox, currentColor stroke, 1.5 stroke width, round joins.
+function LinkIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 15l6-6" />
+      <path d="M10.5 6.5l1-1a3.5 3.5 0 0 1 5 5l-1 1" />
+      <path d="M13.5 17.5l-1 1a3.5 3.5 0 0 1-5-5l1-1" />
+    </svg>
+  );
+}
+
+function MailboxIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5 20V11a4 4 0 0 1 4-4h1a4 4 0 0 1 4 4v9" />
+      <path d="M3 20h12" />
+      <path d="M9 20v-9" />
+      <path d="M14 12h3.5a1.5 1.5 0 0 1 0 3H16" />
+    </svg>
+  );
+}
+
+function ShieldCheckIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 3l7 3v6c0 4.5-3 8-7 9-4-1-7-4.5-7-9V6l7-3z" />
+      <path d="M9 12l2 2 4-4" />
+    </svg>
+  );
+}
+
+const COLLECTING_FEATURES = [
+  { Icon: LinkIcon, label: "Send it anywhere", body: "Text, email, a group chat. One link reaches everyone who loved them, all at once." },
+  { Icon: MailboxIcon, label: "The memories arrive", body: "Some you already know by heart. Others you've never heard before." },
+  { Icon: ShieldCheckIcon, label: "You stay in control", body: "Approve, hold, or remove anything, anytime. The page stays up for good, and it's yours to export whenever you want." },
+];
+
 export function HomePage({ onNavigate }) {
   return (
     <div>
@@ -245,10 +285,17 @@ export function HomePage({ onNavigate }) {
         <div className="page-wrap">
           <div className="narrative">
             <div className="section-label">Collecting is the easy part</div>
-            <h2 className="narrative-headline">One link does all the work.</h2>
-            <p className="narrative-body">
-              Text it. Email it. Send it however you want. Whoever gets it taps it and adds their memory — no account, no app, nothing to set up. One tap, and it's on the page. You're still the one in control — anything added can be reviewed or removed by you, anytime.
-            </p>
+            <h2 className="narrative-headline">Create their page, and you get one link.</h2>
+
+            <div className="feature-row">
+              {COLLECTING_FEATURES.map(({ Icon, label, body }) => (
+                <div className="feature-item" key={label}>
+                  <div className="feature-icon"><Icon /></div>
+                  <h3 className="feature-label">{label}</h3>
+                  <p className="feature-body">{body}</p>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
