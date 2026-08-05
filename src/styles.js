@@ -131,19 +131,47 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .hero-media-cta { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; margin-top: 14px; background: none; border: none; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; color: var(--rust); transition: color 0.2s; }
 .hero-media-cta:hover { color: var(--rust-light); text-decoration: underline; }
 
-/* "What you get" browser mockup card */
-.browser-mock { background: var(--white); border: 1px solid var(--warm-faint); border-radius: 10px; overflow: hidden; box-shadow: 0 24px 60px -24px rgba(45,33,24,0.18); max-width: 620px; margin-top: 40px; }
+/* "What you get" interactive preview */
+.preview-block { margin-top: 40px; }
+.preview-pills { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
+.preview-pill { font-family: 'Lora', serif; font-style: italic; font-size: 14px; line-height: 1.3; padding: 10px 18px; border-radius: 100px; border: 1.5px solid var(--warm-faint); background: var(--white); color: var(--warm-mid); cursor: pointer; transition: all 0.2s; text-align: left; }
+.preview-pill:hover { border-color: var(--rust-light); color: var(--bark); }
+.preview-pill.active { background: var(--bark); border-color: var(--bark); color: var(--cream); }
+
+.preview-crowd { display: flex; align-items: center; gap: 14px; margin-top: 22px; }
+.preview-crowd-avatars { display: flex; }
+.preview-crowd-avatar { margin-left: -10px; border-width: 2px; border-color: var(--white); }
+.preview-crowd-avatar:first-child { margin-left: 0; }
+.preview-crowd-text { font-size: 13px; color: var(--warm-light); }
+
+/* Browser mockup card */
+.browser-mock { background: var(--white); border: 1px solid var(--warm-faint); border-radius: 10px; overflow: hidden; box-shadow: 0 24px 60px -24px rgba(45,33,24,0.18); max-width: 720px; }
 .browser-mock-bar { display: flex; align-items: center; gap: 6px; padding: 12px 16px; background: var(--cream-dark); border-bottom: 1px solid var(--warm-faint); }
 .browser-mock-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--warm-faint); }
 .browser-mock-url { font-size: 12px; color: var(--warm-mid); margin-left: 10px; }
-.browser-mock-body { padding: 20px; display: flex; flex-direction: column; gap: 12px; }
-.mock-row { display: flex; align-items: center; gap: 14px; border: 1px solid var(--warm-faint); border-radius: 8px; padding: 14px; background: var(--cream); }
-.mock-row-text { font-family: 'Lora', serif; font-style: italic; font-size: 14px; line-height: 1.5; color: var(--bark); }
+.browser-mock-body { padding: 24px; }
+.mock-row { display: flex; align-items: flex-start; gap: 16px; border: 1px solid var(--warm-faint); border-radius: 8px; padding: 18px; background: var(--cream); }
+.mock-row-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
 .mock-thumb { position: relative; width: 68px; height: 50px; border-radius: 6px; overflow: hidden; flex-shrink: 0; background: var(--cream-dark); }
 .mock-thumb img, .mock-thumb video { width: 100%; height: 100%; object-fit: cover; display: block; }
-.mock-label { font-size: 13px; color: var(--warm-mid); }
-.play-badge { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(45,33,24,0.2); }
-.play-badge::before { content: ''; width: 0; height: 0; border-style: solid; border-width: 5px 0 5px 8px; border-color: transparent transparent transparent #fff; margin-left: 2px; }
+.mock-thumb-lg { width: 100%; height: auto; aspect-ratio: 16/9; }
+.mock-label { font-family: 'Lora', serif; font-style: italic; font-size: 15px; color: var(--warm-mid); line-height: 1.6; }
+.mock-label-on-dark { color: rgba(253,250,245,0.85); }
+.mock-attr { font-size: 12px; color: var(--warm-light); }
+.mock-attr-on-dark { color: rgba(253,250,245,0.6); }
+.icon-pause { width: 4px; height: 16px; background: #fff; box-shadow: 8px 0 0 #fff; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3)); }
+
+/* Voice memo mock row — dark card, waveform, real play/pause */
+.mock-row-voice { background: var(--bark); border-color: var(--bark); }
+.avatar-on-dark { background: rgba(253,250,245,0.15); color: var(--cream); border-color: rgba(253,250,245,0.25); }
+.voice-controls { display: flex; align-items: center; gap: 12px; }
+.voice-play-btn { flex-shrink: 0; width: 34px; height: 34px; border-radius: 50%; border: none; background: var(--rust); color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.15s ease, background 0.15s ease; }
+.voice-play-btn:hover { background: var(--rust-light); transform: scale(1.06); }
+.icon-play { width: 0; height: 0; border-style: solid; border-width: 6px 0 6px 10px; border-color: transparent transparent transparent #fff; margin-left: 2px; }
+.voice-waveform { flex: 1; display: flex; align-items: center; gap: 2px; height: 24px; min-width: 0; }
+.voice-waveform span { flex: 1; background: rgba(253,250,245,0.3); border-radius: 2px; transition: background 0.15s ease; }
+.voice-waveform span.played { background: var(--rust-light); }
+.voice-time { flex-shrink: 0; font-size: 11px; font-variant-numeric: tabular-nums; color: rgba(253,250,245,0.6); }
 
 .avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--warm-faint); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 500; color: var(--warm-mid); flex-shrink: 0; border: 1.5px solid var(--story-line); }
 
