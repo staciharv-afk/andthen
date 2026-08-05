@@ -92,7 +92,7 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .auth-switch button { color: var(--rust); background: none; border: none; cursor: pointer; font-family: inherit; font-size: inherit; text-decoration: underline; }
 
 /* ── HOMEPAGE ── */
-.hero { display: grid; grid-template-columns: 1.15fr 1fr; gap: 72px; align-items: start; padding: 80px 0 72px; border-bottom: 1px solid var(--warm-faint); }
+.hero { display: grid; grid-template-columns: 1fr 1.2fr; gap: 56px; align-items: start; padding: 80px 0 72px; border-bottom: 1px solid var(--warm-faint); }
 @media (max-width: 900px) { .hero { grid-template-columns: 1fr; gap: 48px; } }
 .hero-tag { display: inline-flex; align-items: center; gap: 10px; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--rust); margin-bottom: 28px; }
 .hero-tag::before { content: ''; display: block; width: 28px; height: 1px; background: var(--rust); }
@@ -119,7 +119,10 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .media-play-btn::before { content: ''; width: 0; height: 0; border-style: solid; border-width: 8px 0 8px 13px; border-color: transparent transparent transparent #fff; margin-left: 3px; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3)); }
 
 /* -- memory cards: quote overlay on hero photos/video -- */
-.memory-card-caption { position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; padding: 14px 16px; background: linear-gradient(180deg, rgba(26,14,8,0) 0%, rgba(26,14,8,0.85) 75%); }
+/* Fixed-px transition (not %) so it stays legible however many lines the
+   quote wraps to — a relative stop would leave the top lines of a long
+   caption sitting on the still-transparent part of the gradient. */
+.memory-card-caption { position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; padding: 14px 16px; background: linear-gradient(180deg, rgba(26,14,8,0) 0px, rgba(26,14,8,0.88) 44px); }
 .hero-media-large .memory-card-caption { padding: 22px 20px 18px; }
 .memory-card-quote { font-family: 'Lora', serif; font-style: italic; font-size: 13px; line-height: 1.4; color: var(--cream); margin: 0; }
 .hero-media-large .memory-card-quote { font-size: 15px; }
