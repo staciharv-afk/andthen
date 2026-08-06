@@ -109,24 +109,30 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 
 /* Hero media grid (photo + photo + video) */
 .hero-media-grid { display: grid; grid-template-columns: 1.25fr 1fr; gap: 12px; }
-.hero-media-large { position: relative; border-radius: 8px; overflow: hidden; aspect-ratio: 3/4; background: var(--cream-dark); }
+.hero-media-large, .hero-media-small { display: flex; flex-direction: column; }
 .hero-media-col { display: flex; flex-direction: column; gap: 12px; }
-.hero-media-small { position: relative; border-radius: 8px; overflow: hidden; flex: 1; aspect-ratio: 1; background: var(--cream-dark); }
-.hero-media-large img, .hero-media-small img, .hero-media-small video { width: 100%; height: 100%; object-fit: cover; display: block; }
 @media (max-width: 900px) { .hero-media-grid { max-width: 420px; margin: 0 auto; } }
 
 .media-play-btn { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(45,33,24,0.18); }
 .media-play-btn::before { content: ''; width: 0; height: 0; border-style: solid; border-width: 8px 0 8px 13px; border-color: transparent transparent transparent #fff; margin-left: 3px; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3)); }
 
-/* -- memory cards: quote overlay on hero photos/video -- */
-/* Fixed-px transition (not %) so it stays legible however many lines the
-   quote wraps to — a relative stop would leave the top lines of a long
-   caption sitting on the still-transparent part of the gradient. */
-.memory-card-caption { position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; padding: 14px 16px; background: linear-gradient(180deg, rgba(26,14,8,0) 0px, rgba(26,14,8,0.88) 44px); }
-.hero-media-large .memory-card-caption { padding: 22px 20px 18px; }
-.memory-card-quote { font-family: 'Lora', serif; font-style: italic; font-size: 13px; line-height: 1.4; color: var(--cream); margin: 0; }
-.hero-media-large .memory-card-quote { font-size: 15px; }
-.memory-card-attr { display: block; margin-top: 6px; font-family: 'DM Sans', sans-serif; font-size: 11px; color: rgba(253,250,245,0.72); }
+/* -- memory cards: photo + quote + attribution grouped in one card, same
+   pattern as the memorial page's own ScrapbookCard (media, blockquote,
+   dashed-divider meta line) — just using the homepage's own tokens instead
+   of the memorial page's --mem-* set, which is scoped to .memorial-page.
+   Replaces an earlier version where the quote overlaid the photo directly:
+   that broke on mobile, where shrunk photos left the gradient scrim
+   covering most of the image and long quotes overlapping illegibly. */
+.memory-card { flex: 1; display: flex; flex-direction: column; background: var(--white); border: 1px solid var(--warm-faint); border-radius: 8px; overflow: hidden; box-shadow: 0 16px 40px -22px rgba(45,33,24,0.22); }
+.memory-card-photo { position: relative; background: var(--cream-dark); }
+.memory-card-photo img, .memory-card-photo video { width: 100%; height: auto; display: block; }
+.memory-card-body { padding: 14px 16px 12px; }
+.hero-media-large .memory-card-body { padding: 18px 20px 16px; }
+.memory-card-quote { margin: 0; font-family: 'Fraunces', serif; font-style: italic; font-weight: 400; font-size: 15px; line-height: 1.5; color: var(--bark); }
+.hero-media-large .memory-card-quote { font-size: 16px; }
+.memory-card-quote::before { content: '“'; color: var(--rust); font-size: 1.3em; line-height: 0; vertical-align: -0.28em; margin-right: 1px; }
+.memory-card-quote::after { content: '”'; color: var(--rust); font-size: 1.3em; line-height: 0; vertical-align: -0.42em; margin-left: 1px; }
+.memory-card-attr { display: block; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--warm-faint); font-family: 'DM Sans', sans-serif; font-size: 12px; color: var(--warm-light); }
 
 .hero-media-cta { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; margin-top: 14px; background: none; border: none; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; color: var(--rust); transition: color 0.2s; }
 .hero-media-cta:hover { color: var(--rust-light); text-decoration: underline; }

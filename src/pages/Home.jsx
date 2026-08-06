@@ -232,26 +232,38 @@ export function HomePage({ onNavigate }) {
             <div className="fade-up-3">
               <div className="hero-media-grid">
                 <div className="hero-media-large">
-                  <img src="/home/hero-deb-cinnamon-rolls.jpg" alt="Deb Hausch holding her Christmas cinnamon rolls" />
-                  <div className="memory-card-caption">
-                    <p className="memory-card-quote">"Mom made her grandma's cinnamon roll recipe every Christmas, and she put cherries on top just like her grandma did."</p>
-                    <span className="memory-card-attr">— Staci, her daughter</span>
+                  <div className="memory-card">
+                    <div className="memory-card-photo">
+                      <img src="/home/hero-deb-cinnamon-rolls.jpg" alt="Deb Hausch holding her Christmas cinnamon rolls" />
+                    </div>
+                    <div className="memory-card-body">
+                      <blockquote className="memory-card-quote">Mom made her grandma's cinnamon roll recipe every Christmas, and she put cherries on top just like her grandma did.</blockquote>
+                      <span className="memory-card-attr">— Staci, her daughter</span>
+                    </div>
                   </div>
                 </div>
                 <div className="hero-media-col">
                   <div className="hero-media-small">
-                    <img src="/home/hero-deb-motorcycle.jpg" alt="Deb Hausch riding on the back of a motorcycle" />
-                    <div className="memory-card-caption">
-                      <p className="memory-card-quote">"Before she was known as reliable and conservative, she rode on the back of my 1978 Honda 750."</p>
-                      <span className="memory-card-attr">— Dan, her husband</span>
+                    <div className="memory-card">
+                      <div className="memory-card-photo">
+                        <img src="/home/hero-deb-motorcycle.jpg" alt="Deb Hausch riding on the back of a motorcycle" />
+                      </div>
+                      <div className="memory-card-body">
+                        <blockquote className="memory-card-quote">Before she was known as reliable and conservative, she rode on the back of my 1978 Honda 750.</blockquote>
+                        <span className="memory-card-attr">— Dan, her husband</span>
+                      </div>
                     </div>
                   </div>
                   <div className="hero-media-small">
-                    <video src="/home/hero-video.mp4" poster="/home/hero-video-poster.jpg" muted loop autoPlay playsInline />
-                    <div className="media-play-btn" />
-                    <div className="memory-card-caption">
-                      <p className="memory-card-quote">"Mom leaned on Dad so much, figuratively and literally — he always had an arm ready for her."</p>
-                      <span className="memory-card-attr">— Staci, her daughter</span>
+                    <div className="memory-card">
+                      <div className="memory-card-photo">
+                        <video src="/home/hero-video.mp4" poster="/home/hero-video-poster.jpg" muted loop autoPlay playsInline />
+                        <div className="media-play-btn" />
+                      </div>
+                      <div className="memory-card-body">
+                        <blockquote className="memory-card-quote">Mom leaned on Dad so much, figuratively and literally — he always had an arm ready for her.</blockquote>
+                        <span className="memory-card-attr">— Staci, her daughter</span>
+                      </div>
                     </div>
                   </div>
                 </div>
