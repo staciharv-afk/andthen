@@ -224,7 +224,7 @@ export function HomePage({ onNavigate }) {
                 Stories about someone live in a hundred different people. And Then gathers what everyone remembers — family, friends, the people who've known them for years — into one page that keeps filling in.
               </p>
               <div className="hero-cta-group fade-up-4">
-                <button className="btn btn-rust btn-lg" onClick={() => onNavigate("login")}>Start their page</button>
+                <button className="btn btn-rust btn-lg" onClick={() => onNavigate("onboarding")}>Start their page</button>
                 <button className="btn btn-ghost" onClick={() => document.getElementById("how").scrollIntoView({ behavior: "smooth" })}>See how it works</button>
               </div>
             </div>
@@ -318,7 +318,7 @@ export function HomePage({ onNavigate }) {
           <div className="final-cta">
             <h2>Everyone has a story about them.</h2>
             <p>Start gathering them. Free to start. It only grows from here.</p>
-            <button className="btn btn-rust btn-lg" onClick={() => onNavigate("login")}>Start their page</button>
+            <button className="btn btn-rust btn-lg" onClick={() => onNavigate("onboarding")}>Start their page</button>
           </div>
         </div>
       </div>

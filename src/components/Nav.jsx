@@ -14,7 +14,7 @@ export function Nav({ currentUser, onSignOut, onNavigate }) {
         ) : (
           <>
             <button className="nav-link" onClick={() => onNavigate("login")}>Sign in</button>
-            <button className="btn btn-primary btn-sm" onClick={() => onNavigate("login")}>Start gathering their stories</button>
+            <button className="btn btn-primary btn-sm" onClick={() => onNavigate("onboarding")}>Start gathering their stories</button>
           </>
         )}
       </div>

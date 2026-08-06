@@ -441,4 +441,18 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
   .pricing-page .fade-up-3 { animation: none; opacity: 1; transform: none; }
   .pricing-page .btn { transition: none; }
 }
+
+/* ── ONBOARDING ── */
+.onboarding-card-wide { max-width: 480px; }
+.onboarding-eyebrow { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--rust); font-weight: 500; text-align: center; margin-bottom: 14px; }
+.onboarding-headline { font-family: 'Lora', serif; font-weight: 400; font-size: 22px; line-height: 1.35; color: var(--bark); text-align: center; margin: 0 0 14px; }
+.onboarding-caption { display: block; margin-top: 14px; font-size: 12.5px; color: var(--warm-light); text-align: center; }
+
+@media (max-width: 520px) {
+  .onboarding-card, .onboarding-card-wide { padding: 36px 28px; max-width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .onboarding-page .fade-up { animation: none; opacity: 1; transform: none; }
+}
 `;

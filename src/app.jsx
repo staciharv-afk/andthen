@@ -1,11 +1,14 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase, CONFIG_OK, ARRIVED_VIA_MAGIC_LINK } from "./lib/supabase";
+import { uid } from "./lib/utils";
+import { readDraft, clearDraft } from "./lib/onboardingDraft";
 import { STYLES } from "./styles";
 import { parseLocation, routeToUrl } from "./lib/router";
 import { useToast, ToastContainer } from "./components/Toast";
 import { Nav } from "./components/Nav";
 import { HomePage } from "./pages/Home";
 import { AuthPage } from "./pages/Auth";
+import { OnboardingPage } from "./pages/Onboarding";
 import { CreateMemorialPage } from "./pages/CreateMemorial";
 import { DashboardPage } from "./pages/Dashboard";
 import { MemorialPage } from "./pages/Memorial";
@@ -40,11 +43,12 @@ export default function App() {
       });
       const res = supabase.auth.onAuthStateChange((event, session) => {
         setCurrentUser(session?.user ?? null);
-        // Land returning-from-email users on their dashboard, once.
+        // Land returning-from-email users on their dashboard, once — unless
+        // they left an onboarding draft behind, in which case finish creating
+        // their page instead (see finishSignIn).
         if (event === "SIGNED_IN" && ARRIVED_VIA_MAGIC_LINK && !magicHandled.current) {
           magicHandled.current = true;
-          showToast("You're signed in.");
-          navigate("dashboard");
+          finishSignIn(session);
         }
       });
       subscription = res.data.subscription;
@@ -61,6 +65,35 @@ export default function App() {
     setRouteParam(param);
     window.history.pushState({ page, param }, "", routeToUrl(page, param));
     window.scrollTo(0, 0);
+  };
+
+  // Runs once, right after a magic-link sign-in. If the user left an
+  // onboarding draft (name/relation/description from the intro step)
+  // before confirming their email, create their memorial now — this is
+  // the earliest point a steward_id exists to satisfy the memorials
+  // INSERT policy — and land them on it instead of the dashboard.
+  const finishSignIn = async (session) => {
+    const draft = readDraft();
+    if (draft?.name && session?.user) {
+      clearDraft();
+      const { data, error } = await supabase.from("memorials").insert({
+        name: draft.name,
+        description: draft.description || null,
+        steward_relation: draft.relation || null,
+        steward_id: session.user.id,
+        invite_code: uid(),
+      }).select();
+      if (!error && data?.[0]) {
+        showToast("You're signed in — your page is ready to finish.");
+        navigate("edit", data[0]);
+        return;
+      }
+      showToast("You're signed in — let's finish setting up your page.");
+      navigate("create");
+      return;
+    }
+    showToast("You're signed in.");
+    navigate("dashboard");
   };
 
   const handleSignOut = async () => {
@@ -84,13 +117,17 @@ export default function App() {
         </div>
       )}
 
-      {route !== "login" && route !== "memorial" && (
+      {route !== "login" && route !== "memorial" && route !== "onboarding" && (
         <Nav currentUser={currentUser} onSignOut={handleSignOut} onNavigate={navigate} />
       )}
 
       {route === "home" && <HomePage onNavigate={navigate} />}
 
       {route === "pricing" && <PricingPage onNavigate={navigate} />}
+
+      {route === "onboarding" && (
+        <OnboardingPage showToast={showToast} />
+      )}
 
       {route === "login" && (
         <AuthPage showToast={showToast} />

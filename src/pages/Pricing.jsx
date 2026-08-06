@@ -110,7 +110,7 @@ export function PricingPage({ onNavigate }) {
         <div className="page-wrap">
           <div className="pricing-closing">
             <p className="pricing-closing-quote">Every great story starts with and then they&hellip;</p>
-            <button className="btn btn-rust btn-lg" onClick={() => onNavigate("login")}>Start your page, free</button>
+            <button className="btn btn-rust btn-lg" onClick={() => onNavigate("onboarding")}>Start your page, free</button>
             <span className="pricing-cta-note">Five entries, no card required. Upgrade any time.</span>
           </div>
         </div>

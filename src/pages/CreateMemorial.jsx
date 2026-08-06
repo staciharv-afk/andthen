@@ -9,6 +9,7 @@ export function CreateMemorialPage({ currentUser, existing, onCreated, onUpdated
   const [born, setBorn] = useState(existing?.born || "");
   const [passed, setPassed] = useState(existing?.passed || "");
   const [description, setDescription] = useState(existing?.description || "");
+  const [stewardRelation, setStewardRelation] = useState(existing?.steward_relation || "");
   const [slug, setSlug] = useState(existing?.slug || "");
   const [prompts, setPrompts] = useState(() => {
     const src = existing?.prompts?.length ? existing.prompts : (existing?.prompt ? [existing.prompt] : []);
@@ -56,6 +57,7 @@ export function CreateMemorialPage({ currentUser, existing, onCreated, onUpdated
           born: born || null,
           passed: passed || null,
           description: description.trim() || null,
+          steward_relation: stewardRelation.trim() || null,
           prompts: cleanPrompts.length ? cleanPrompts : null,
           prompt: cleanPrompts[0] || null,
           invite_message: inviteMessage.trim() || null,
@@ -88,6 +90,7 @@ export function CreateMemorialPage({ currentUser, existing, onCreated, onUpdated
         born: born || null,
         passed: passed || null,
         description: description.trim() || null,
+        steward_relation: stewardRelation.trim() || null,
         prompts: cleanPrompts.length ? cleanPrompts : null,
         prompt: cleanPrompts[0] || null,
         invite_message: inviteMessage.trim() || null,
@@ -138,6 +141,11 @@ export function CreateMemorialPage({ currentUser, existing, onCreated, onUpdated
           <div className="form-group">
             <label className="form-label">Their name *</label>
             <input className="form-input" placeholder="Full name or how they were known" value={name} onChange={(e) => setName(e.target.value)} />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Your relationship to them</label>
+            <input className="form-input" placeholder="e.g. Daughter" value={stewardRelation} onChange={(e) => setStewardRelation(e.target.value)} />
           </div>
 
           <div className="form-group">
