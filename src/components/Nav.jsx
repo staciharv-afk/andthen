@@ -5,6 +5,7 @@ export function Nav({ currentUser, onSignOut, onNavigate }) {
         And Then<em>...</em>
       </span>
       <div className="nav-right">
+        <button className="nav-link" onClick={() => onNavigate("pricing")}>Pricing</button>
         {currentUser ? (
           <>
             <button className="nav-link" onClick={() => onNavigate("dashboard")}>Dashboard</button>

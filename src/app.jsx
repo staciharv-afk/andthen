@@ -9,6 +9,7 @@ import { AuthPage } from "./pages/Auth";
 import { CreateMemorialPage } from "./pages/CreateMemorial";
 import { DashboardPage } from "./pages/Dashboard";
 import { MemorialPage } from "./pages/Memorial";
+import { PricingPage } from "./pages/Pricing";
 
 export default function App() {
   const [route, setRoute] = useState(() => parseLocation().page);
@@ -88,6 +89,8 @@ export default function App() {
       )}
 
       {route === "home" && <HomePage onNavigate={navigate} />}
+
+      {route === "pricing" && <PricingPage onNavigate={navigate} />}
 
       {route === "login" && (
         <AuthPage showToast={showToast} />

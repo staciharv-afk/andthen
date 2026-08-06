@@ -384,4 +384,61 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .toast { padding: 14px 20px; border-radius: 4px; font-size: 14px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); animation: fadeUp 0.3s ease; max-width: 320px; }
 .toast-success { background: var(--bark); color: var(--cream); }
 .toast-error { background: #c0392b; color: white; }
+
+/* ── PRICING PAGE ── */
+.pricing-hero { padding: 80px 0 56px; }
+.pricing-hero-body { margin-bottom: 0; }
+
+.pricing-free { padding: 40px 0 56px; border-top: 1px solid var(--warm-faint); }
+.pricing-free-row { display: flex; align-items: baseline; gap: 14px; margin-bottom: 10px; }
+.pricing-free-heading { font-family: 'Lora', serif; font-weight: 400; font-size: 24px; color: var(--bark); margin: 0; }
+.pricing-price-tag { font-family: 'Lora', serif; font-style: italic; font-size: 18px; color: var(--rust); }
+.pricing-free-body { color: var(--warm-mid); max-width: 56ch; margin: 0; font-size: 15px; font-weight: 300; }
+
+.pricing-timeline-section { padding: 72px 0 88px; }
+.pricing-section-heading { font-family: 'Lora', serif; font-weight: 400; font-size: clamp(24px, 3vw, 30px); color: var(--bark); margin: 0 0 10px; }
+.pricing-section-sub { color: var(--warm-mid); font-size: 15px; font-weight: 300; margin: 0 0 56px; max-width: 52ch; }
+
+.pricing-timeline { position: relative; padding: 0 0 0 4px; }
+.pricing-timeline-track { position: relative; height: 2px; background: linear-gradient(to right, var(--warm-mid) 0%, var(--warm-mid) 78%, transparent 100%); margin: 0 40px; }
+.pricing-timeline-fade-dots { position: absolute; right: -34px; top: -9px; font-size: 20px; letter-spacing: 3px; color: var(--warm-light); }
+
+.pricing-timeline-points { display: grid; grid-template-columns: repeat(5, 1fr); margin: 0 40px; position: relative; top: -2px; }
+.pricing-point { position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; padding-top: 22px; }
+.pricing-point::before { content: ''; position: absolute; top: 0; width: 12px; height: 12px; border-radius: 50%; background: var(--cream); border: 2px solid var(--warm-mid); }
+.pricing-point-origin::before { width: 16px; height: 16px; background: var(--rust); border-color: var(--rust); }
+.pricing-point-yr { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--warm-mid); margin-bottom: 6px; }
+.pricing-point-amt { font-family: 'Lora', serif; font-size: 19px; color: var(--bark); font-weight: 500; }
+.pricing-point-origin .pricing-point-amt { color: var(--rust); font-size: 22px; }
+.pricing-point-tag { font-size: 12.5px; color: var(--warm-mid); margin-top: 4px; max-width: 11ch; }
+
+.pricing-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 56px; padding: 64px 0 80px; border-top: 1px solid var(--warm-faint); }
+.pricing-kicker { font-family: 'Lora', serif; font-style: italic; font-size: 14px; color: var(--rust); margin-bottom: 8px; }
+.pricing-detail-heading { font-family: 'Lora', serif; font-weight: 400; font-size: 22px; color: var(--bark); margin: 0 0 16px; }
+.pricing-detail-list { list-style: none; padding: 0; margin: 0; }
+.pricing-detail-list li { padding: 10px 0; border-top: 1px solid var(--warm-faint); color: var(--warm-mid); font-size: 15px; font-weight: 300; }
+.pricing-detail-list li:first-of-type { border-top: none; }
+.pricing-detail-list li strong { color: var(--bark); font-weight: 500; }
+
+.pricing-prepay-box { background: var(--bark); border-radius: var(--radius); padding: 26px 36px; margin: 0 0 72px; display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+.pricing-prepay-label { font-family: 'Lora', serif; font-style: italic; font-size: 17px; color: var(--cream); }
+.pricing-prepay-price { font-family: 'Lora', serif; font-weight: 500; font-size: 22px; color: var(--rust-light); }
+
+.pricing-closing { padding: 56px 0 100px; border-top: 1px solid var(--warm-faint); text-align: center; }
+.pricing-closing-quote { font-family: 'Lora', serif; font-style: italic; font-size: 21px; color: var(--bark); max-width: 30ch; margin: 0 auto 32px; }
+.pricing-cta-note { display: block; margin-top: 14px; font-size: 13px; color: var(--warm-light); }
+
+@media (max-width: 720px) {
+  .pricing-detail-grid { grid-template-columns: 1fr; gap: 40px; }
+  .pricing-point-tag { display: none; }
+  .pricing-timeline-track, .pricing-timeline-points { margin: 0 12px; }
+  .pricing-prepay-box { flex-direction: column; align-items: flex-start; padding: 22px 24px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pricing-page .fade-up,
+  .pricing-page .fade-up-2,
+  .pricing-page .fade-up-3 { animation: none; opacity: 1; transform: none; }
+  .pricing-page .btn { transition: none; }
+}
 `;
