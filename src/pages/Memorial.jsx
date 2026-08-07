@@ -235,7 +235,9 @@ export function MemorialPage({ inviteCode, showToast, onNavigate }) {
   const handleSubmit = async () => {
     if (!contributorName.trim()) { showToast("Please enter your name.", "error"); return; }
     if (contributorEmail.trim() && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(contributorEmail.trim())) { showToast("That email doesn't look right.", "error"); return; }
-    if (contributeType === "story" && !storyText.trim()) { showToast("Please write a story.", "error"); return; }
+    // A story needs text OR an attached photo — never neither. Photo-alone
+    // (no caption) is a valid entry now, same as the dedicated Photo type.
+    if (contributeType === "story" && !storyText.trim() && !mediaFile) { showToast("Please write a story or attach a photo.", "error"); return; }
     if ((contributeType === "photo" || contributeType === "video") && !mediaFile) { showToast("Please select a file.", "error"); return; }
     if (contributeType === "voice" && !audioURL) { showToast("Please record a voice memo.", "error"); return; }
 
@@ -748,10 +750,12 @@ function PhotoItem({ story: s, id, hiddenClass }) {
 }
 
 // A story with an attached photo — one card: photo on top (same square
-// crop treatment as a standalone PhotoItem), quote below, attribution
-// below that. Not eligible for the pull-quote/accent treatments (see
-// pickPullQuoteId/pickAccentIds) — those exist to add variety to plain
-// text entries, and this already has a photo doing that job.
+// crop treatment as a standalone PhotoItem), quote below (skipped entirely
+// for a photo-alone entry submitted with no caption — see the !storyText
+// && !mediaFile check in handleSubmit), attribution below that. Not
+// eligible for the pull-quote/accent treatments (see pickPullQuoteId/
+// pickAccentIds) — those exist to add variety to plain text entries, and
+// this already has a photo doing that job.
 function LinkedCard({ story: s, relLabel }) {
   const objectPosition = `${s.crop_x ?? 50}% ${s.crop_y ?? 50}%`;
   return (
