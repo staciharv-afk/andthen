@@ -364,6 +364,11 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 }
 
 .card { position: relative; background: var(--mem-card); border-radius: 4px; padding: 26px 26px 20px; box-shadow: var(--mem-shadow); border: 1px solid rgba(44,36,32,0.06); height: 100%; }
+/* A story with an attached photo — the photo bleeds to the card's own
+   edges (negative margin against .card's padding) rather than sitting
+   inset, so it reads as "photo on top" instead of a small illustration. */
+.linked-card-photo { aspect-ratio: 1; margin: -26px -26px 14px; border-radius: 4px 4px 0 0; overflow: hidden; }
+.linked-card-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
 /* Rare secondary accent treatment (roughly 1 in 8-10 text entries) — a
    warm/gold-tinted card, so the grid gets a color break even with zero
    photos yet. Reuses the existing tag-photo gold token rather than a new
@@ -440,6 +445,10 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .type-btn { font-size: 13px; padding: 8px 16px; border-radius: 100px; border: 1.5px solid var(--warm-faint); background: none; cursor: pointer; color: var(--warm-mid); font-family: inherit; transition: all 0.2s; display: flex; align-items: center; gap: 6px; }
 .media-drop { width: 100%; border: 2px dashed var(--warm-faint); border-radius: 4px; padding: 32px; text-align: center; cursor: pointer; transition: all 0.2s; }
 .media-drop-text { font-size: 14px; color: var(--warm-light); }
+/* Lighter-weight than .media-drop — attaching a photo to a story is a
+   secondary, optional action, not the primary thing being submitted. */
+.attach-photo-btn { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--warm-mid); background: none; border: 1.5px dashed var(--warm-faint); border-radius: 100px; padding: 8px 16px; cursor: pointer; font-family: inherit; transition: all 0.2s; }
+.attach-photo-btn:hover { border-color: var(--rust); color: var(--rust); }
 .voice-recorder { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 24px 0; }
 .record-btn { width: 64px; height: 64px; border-radius: 50%; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; font-size: 24px; }
 .record-btn-recording { background: #e74c3c; animation: pulse 1.5s ease-in-out infinite; }
@@ -457,6 +466,8 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .memorial-page .type-btn.active { border-color: var(--mem-rose); color: var(--mem-rose); background: rgba(193,81,90,0.06); }
 .memorial-page .media-drop { border-color: rgba(44,36,32,0.14); }
 .memorial-page .media-drop:hover { border-color: var(--mem-rose); background: rgba(193,81,90,0.03); }
+.memorial-page .attach-photo-btn { border-color: rgba(44,36,32,0.18); color: var(--mem-ink-soft); }
+.memorial-page .attach-photo-btn:hover { border-color: var(--mem-rose); color: var(--mem-rose); }
 .memorial-page .record-btn-idle { background: var(--mem-rose); }
 .memorial-page .record-btn-idle:hover { background: #a8434b; }
 .memorial-page .btn-rust { background: var(--mem-rose); }

@@ -29,9 +29,13 @@ const PULLQUOTE_MAX_LEN = 90;
 // color break even on a page with no photos yet.
 const ACCENT_EVERY = 9;
 
+// Excludes linked story+photo entries from both — pulling just the text out
+// as a quote (or tinting it) would discard the attached photo, and a linked
+// entry already has its own visual distinctiveness from the image. Both
+// treatments exist to add variety specifically to plain text entries.
 function pickPullQuoteId(stories) {
   const candidates = stories.filter(
-    (s) => s.type === "story" && s.text && s.text.trim().length >= PULLQUOTE_MIN_LEN && s.text.trim().length <= PULLQUOTE_MAX_LEN
+    (s) => s.type === "story" && !s.media_url && s.text && s.text.trim().length >= PULLQUOTE_MIN_LEN && s.text.trim().length <= PULLQUOTE_MAX_LEN
   );
   if (!candidates.length) return null;
   return candidates.reduce((shortest, s) => (s.text.trim().length < shortest.text.trim().length ? s : shortest)).id;
@@ -40,7 +44,7 @@ function pickPullQuoteId(stories) {
 function pickAccentIds(stories, pullQuoteId) {
   const ids = new Set();
   stories
-    .filter((s) => s.type === "story" && s.id !== pullQuoteId)
+    .filter((s) => s.type === "story" && !s.media_url && s.id !== pullQuoteId)
     .forEach((s, i) => { if (i % ACCENT_EVERY === 0) ids.add(s.id); });
   return ids;
 }
@@ -193,11 +197,10 @@ export function MemorialPage({ inviteCode, showToast, onNavigate }) {
     setMediaFile(file);
     const preview = await fileToDataURL(file);
     setMediaPreview(preview);
-    if (contributeType === "photo") {
-      setCropPos(await detectCropPosition(file));
-    } else {
-      setCropPos({ x: 50, y: 50 });
-    }
+    // Any image gets a crop anchor — a standalone photo entry and a photo
+    // attached to a story are cropped the same way, only the video accept
+    // ever passes a non-image file here.
+    setCropPos(file.type.startsWith("image/") ? await detectCropPosition(file) : { x: 50, y: 50 });
   };
 
   const startRecording = async () => {
@@ -265,8 +268,11 @@ export function MemorialPage({ inviteCode, showToast, onNavigate }) {
         text: storyText.trim() || null,
         media_url: mediaUrl,
         status: memorial.require_approval ? "pending" : "approved",
-        crop_x: contributeType === "photo" && mediaUrl ? cropPos.x : null,
-        crop_y: contributeType === "photo" && mediaUrl ? cropPos.y : null,
+        // Applies to a standalone photo entry and a story with an attached
+        // photo alike — the crop only means anything when the uploaded file
+        // was actually an image.
+        crop_x: mediaUrl && mediaFile?.type.startsWith("image/") ? cropPos.x : null,
+        crop_y: mediaUrl && mediaFile?.type.startsWith("image/") ? cropPos.y : null,
       };
 
       if (memorial.require_approval) {
@@ -453,6 +459,29 @@ export function MemorialPage({ inviteCode, showToast, onNavigate }) {
                 <div className="form-group">
                   <label className="form-label">Your story</label>
                   <textarea className="form-input" placeholder={currentPrompt || `And then ${memorial.name.split(" ")[0]}...`} value={storyText} onChange={(e) => setStoryText(e.target.value)} rows={5} />
+                </div>
+              )}
+
+              {/* Optional — a story doesn't need a photo to submit. Someone who
+                  wants to share just a photo with no story still has the
+                  standalone Photo type above for that. */}
+              {contributeType === "story" && (
+                <div className="form-group">
+                  <label className="form-label">Attach a photo (optional)</label>
+                  {!mediaPreview ? (
+                    <button type="button" className="attach-photo-btn" onClick={() => fileInputRef.current?.click()}>
+                      + Add a photo
+                    </button>
+                  ) : (
+                    <div className="photo-preview-crop">
+                      <img src={mediaPreview} alt="" style={{ objectPosition: `${cropPos.x}% ${cropPos.y}%` }} />
+                      <button type="button" className="crop-adjust-btn" onClick={() => setShowCropAdjuster(true)}>Adjust crop</button>
+                    </div>
+                  )}
+                  <input ref={fileInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => handleMediaSelect(e.target.files[0])} />
+                  {mediaPreview && (
+                    <button className="btn btn-sm btn-ghost" style={{ marginTop: 8 }} onClick={() => { setMediaFile(null); setMediaPreview(null); setCropPos({ x: 50, y: 50 }); }}>Remove photo</button>
+                  )}
                 </div>
               )}
 
@@ -676,6 +705,17 @@ function MosaicItem({ story: s, isPullQuote, isAccent, hidden }) {
     return <PhotoItem story={s} id={`story-${s.id}`} hiddenClass={hiddenClass} />;
   }
 
+  // A story with an attached photo — one linked card, not two entries
+  // sitting near each other. Sized like a photo entry (mi-col-1) rather
+  // than by text length, since it carries a photo.
+  if (s.type === "story" && s.media_url) {
+    return (
+      <div id={`story-${s.id}`} className={`mosaic-item mi-col-1${hiddenClass}`}>
+        <LinkedCard story={s} relLabel={relLabel} />
+      </div>
+    );
+  }
+
   const span = textColSpan(s.text);
   return (
     <div id={`story-${s.id}`} className={`mosaic-item mi-col-${span}${hiddenClass}`}>
@@ -702,6 +742,30 @@ function PhotoItem({ story: s, id, hiddenClass }) {
     <div id={id} className={`mosaic-item mi-col-1${hiddenClass}`}>
       <div className="photo-item">
         <img src={s.media_url} alt="" loading="lazy" style={{ objectPosition }} />
+      </div>
+    </div>
+  );
+}
+
+// A story with an attached photo — one card: photo on top (same square
+// crop treatment as a standalone PhotoItem), quote below, attribution
+// below that. Not eligible for the pull-quote/accent treatments (see
+// pickPullQuoteId/pickAccentIds) — those exist to add variety to plain
+// text entries, and this already has a photo doing that job.
+function LinkedCard({ story: s, relLabel }) {
+  const objectPosition = `${s.crop_x ?? 50}% ${s.crop_y ?? 50}%`;
+  return (
+    <div className="card linked-card">
+      <div className="linked-card-photo">
+        <img src={s.media_url} alt="" loading="lazy" style={{ objectPosition }} />
+      </div>
+      {s.text && <blockquote>{s.text}</blockquote>}
+      <div className="meta">
+        <span className="contributor">
+          &mdash; {relLabel}
+          <span className="contributor-time">{timeAgo(s.created_at)}</span>
+        </span>
+        <span className={`tag tag-${s.type}`}>{TYPE_LABEL[s.type] || "Story"}</span>
       </div>
     </div>
   );
