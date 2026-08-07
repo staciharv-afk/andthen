@@ -323,21 +323,56 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .chip:hover { border-color: var(--mem-rose); color: var(--mem-ink); }
 .chip.active { background: var(--mem-ink); border-color: var(--mem-ink); color: var(--mem-paper); }
 
-/* -- masonry archive -- */
+/* -- mosaic archive --
+   CSS Grid, not the old column-count masonry: entries span different
+   column/row counts by media type and (for text) content length, so a
+   page reads as a varied mosaic rather than a wall of identical cards.
+   grid-auto-flow: dense lets shorter items backfill the gaps a wide/tall
+   item leaves, so spans don't have to line up in strict rows. Sizing
+   comes from content, not manual tagging, so a text-only page (the
+   common starting state, before photos/video/audio get added) still
+   varies by quote length + the pull-quote/accent treatments below,
+   rather than falling back to a separate "empty" layout. */
 .clusters { max-width: 1180px; margin: 0 auto; padding: 56px 24px 40px; }
-.masonry { column-count: 3; column-gap: 26px; }
-@media (max-width: 900px) { .masonry { column-count: 2; } }
-@media (max-width: 600px) { .masonry { column-count: 1; } }
-.card-wrap { break-inside: avoid; margin-bottom: 26px; border-radius: 6px; scroll-margin-top: 100px; }
-.card-wrap.hidden-card { display: none !important; }
-.card-wrap:nth-child(3n+1) .card { transform: rotate(-1deg); }
-.card-wrap:nth-child(3n+2) .card { transform: rotate(0.8deg); }
-.card-wrap:nth-child(3n+3) .card { transform: rotate(-0.4deg); }
-.card { position: relative; background: var(--mem-card); border-radius: 4px; padding: 26px 26px 20px; box-shadow: var(--mem-shadow); border: 1px solid rgba(44,36,32,0.06); }
-.card-media { width: 100%; border-radius: 3px; margin-bottom: 14px; overflow: hidden; }
-.card-media img, .card-media video { width: 100%; max-height: 320px; object-fit: cover; display: block; }
-.card-media-audio { background: var(--mem-paper-deep); border-radius: 3px; padding: 16px; margin-bottom: 14px; }
-.card-media-audio audio { width: 100%; }
+.mosaic-grid { display: grid; grid-template-columns: repeat(4, 1fr); grid-auto-flow: dense; gap: 26px; }
+.mosaic-item { scroll-margin-top: 100px; }
+.mosaic-item.hidden-card { display: none !important; }
+.mi-col-1 { grid-column: span 1; }
+.mi-col-2 { grid-column: span 2; }
+.mi-col-3 { grid-column: span 3; }
+.mi-col-full { grid-column: 1 / -1; }
+.mi-row-2 { grid-row: span 2; }
+
+/* Scrapbook tilt, kept from the old masonry — only on regular (non-media,
+   non-full-width) cards, so it doesn't make the big video/pull-quote
+   blocks look crooked. */
+.mosaic-item:nth-child(4n+1) .card { transform: rotate(-1deg); }
+.mosaic-item:nth-child(4n+2) .card { transform: rotate(0.8deg); }
+.mosaic-item:nth-child(4n+3) .card { transform: rotate(-0.5deg); }
+.mosaic-item:nth-child(4n+4) .card { transform: rotate(0.4deg); }
+
+@media (max-width: 900px) {
+  .mosaic-grid { grid-template-columns: repeat(2, 1fr); }
+  .mi-col-3 { grid-column: span 2; }
+}
+@media (max-width: 600px) {
+  .mosaic-grid { grid-template-columns: 1fr; gap: 20px; }
+  .mi-col-1, .mi-col-2, .mi-col-3 { grid-column: span 1; }
+  .mi-row-2 { grid-row: span 1; }
+  .mosaic-item .card { transform: none !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  /* voice-play-btn's hover scale (defined globally, reused here by AudioCard) */
+  .audio-mosaic-card .voice-play-btn { transition: none; }
+}
+
+.card { position: relative; background: var(--mem-card); border-radius: 4px; padding: 26px 26px 20px; box-shadow: var(--mem-shadow); border: 1px solid rgba(44,36,32,0.06); height: 100%; }
+/* Rare secondary accent treatment (roughly 1 in 8-10 text entries) — a
+   warm/gold-tinted card, so the grid gets a color break even with zero
+   photos yet. Reuses the existing tag-photo gold token rather than a new
+   color. */
+.card-accent { background: var(--mem-gold-soft); border-color: rgba(107,78,30,0.18); }
+.card-accent .contributor, .card-accent .contributor-time { color: #6B4E1E; }
 .card blockquote { margin: 0 0 14px; font-family: 'Fraunces', serif; font-style: italic; font-size: 1.05rem; line-height: 1.5; color: var(--mem-ink); }
 .card blockquote::before { content: '“'; color: var(--mem-rose); font-size: 1.4em; line-height: 0; vertical-align: -0.3em; margin-right: 2px; }
 .card blockquote::after { content: '”'; color: var(--mem-rose); font-size: 1.4em; line-height: 0; vertical-align: -0.5em; margin-left: 2px; }
@@ -349,6 +384,40 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .tag-story { background: var(--mem-sage-soft); color: #3F4B31; }
 .tag-video { background: #DCE3EE; color: #33425E; }
 .tag-voice { background: var(--mem-rose-soft); color: #7A2E33; }
+
+/* -- pull-quote: one short entry, full-width, dark, larger type — a
+   magazine-style break in the grid. Uses --mem-ink (the page's own dark
+   tone) rather than introducing a teal not otherwise in this palette. */
+.pullquote-card { background: var(--mem-ink); border-radius: 6px; padding: 48px 40px; text-align: center; box-shadow: var(--mem-shadow); }
+.pullquote-card blockquote { margin: 0 auto 18px; max-width: 640px; font-family: 'Fraunces', serif; font-style: italic; font-weight: 500; font-size: clamp(1.4rem, 3vw, 2rem); line-height: 1.4; color: var(--mem-paper); }
+.pullquote-card blockquote::before { content: '“'; color: var(--mem-rose-soft); font-size: 1.2em; line-height: 0; vertical-align: -0.32em; margin-right: 3px; }
+.pullquote-card blockquote::after { content: '”'; color: var(--mem-rose-soft); font-size: 1.2em; line-height: 0; vertical-align: -0.5em; margin-left: 3px; }
+.pullquote-attr { font-size: 0.85rem; color: rgba(245,239,225,0.65); }
+
+/* -- photo entries: image only, no caption/overlay, sized by its own
+   aspect ratio via the mi-col-1/mi-col-2 class the component picks after
+   the image loads. */
+.photo-item { border-radius: 6px; overflow: hidden; box-shadow: var(--mem-shadow); height: 100%; }
+.photo-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* -- video entries: thumbnail + play icon, caption bar with just the
+   contributor (not a text block) -- */
+.video-mosaic-card { display: flex; flex-direction: column; height: 100%; border-radius: 6px; overflow: hidden; box-shadow: var(--mem-shadow); background: var(--mem-ink); }
+.video-mosaic-frame { position: relative; display: block; width: 100%; aspect-ratio: 4 / 3; border: none; padding: 0; cursor: pointer; background: var(--mem-ink); flex: 1; }
+.video-mosaic-frame video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.video-mosaic-caption { padding: 12px 16px; font-size: 0.82rem; color: rgba(245,239,225,0.8); }
+
+/* -- audio entries: waveform visual + duration + contributor, not a
+   text card. Reuses the homepage's voice-play-btn/icon-play/icon-pause
+   pattern; the waveform bars get their own light-card-friendly colors
+   since that pattern was built for a dark background. -- */
+.audio-mosaic-card { height: 100%; display: flex; flex-direction: column; justify-content: center; gap: 12px; background: var(--mem-card); border: 1px solid rgba(44,36,32,0.06); border-radius: 6px; padding: 20px 22px; box-shadow: var(--mem-shadow); }
+.audio-mosaic-controls { display: flex; align-items: center; gap: 12px; }
+.audio-mosaic-waveform { flex: 1; display: flex; align-items: center; gap: 2px; height: 24px; min-width: 0; }
+.audio-mosaic-waveform span { flex: 1; background: rgba(44,36,32,0.14); border-radius: 2px; transition: background 0.15s ease; }
+.audio-mosaic-waveform span.played { background: var(--mem-rose); }
+.audio-mosaic-time { flex-shrink: 0; font-size: 11px; font-variant-numeric: tabular-nums; color: var(--mem-ink-soft); }
+.audio-mosaic-attr { font-size: 0.82rem; color: var(--mem-ink-soft); }
 
 /* -- share-a-memory panel: form widgets are used only on this page -- */
 .contribute-type-row { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }

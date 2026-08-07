@@ -5,6 +5,59 @@ import { uid, fmtDate, timeAgo, fileToDataURL, sendThankYou, notifyCreator } fro
 const TYPE_LABEL = { photo: "Photo", story: "Story", video: "Video", voice: "Audio" };
 const FILTER_LABEL = { all: "Everything", photo: "Photos", story: "Stories", video: "Videos", voice: "Audio" };
 
+// -- mosaic layout tuning --
+// Text entries span more columns as they get longer (a simple length
+// threshold, not manual tagging). Photos get a wide span once their loaded
+// aspect ratio reads as landscape-ish. Video/audio spans are fixed by type.
+const TEXT_SPAN_LONG = 220;   // > this many characters -> span 3
+const TEXT_SPAN_MED = 80;     // > this many characters -> span 2, else span 1
+const PHOTO_WIDE_RATIO = 1.3; // naturalWidth / naturalHeight at or above this -> span 2
+
+// The pull-quote is one short, standalone-readable text entry rendered
+// full-width as a magazine-style break in the grid. Bounded on both ends —
+// too short reads as a fragment out of context, too long stops looking like
+// a "pull" quote — and picks the shortest candidate so the choice is stable
+// and deterministic rather than arbitrary.
+const PULLQUOTE_MIN_LEN = 20;
+const PULLQUOTE_MAX_LEN = 90;
+
+// One accent-tinted text card roughly every N entries, so the grid gets a
+// color break even on a page with no photos yet.
+const ACCENT_EVERY = 9;
+
+function pickPullQuoteId(stories) {
+  const candidates = stories.filter(
+    (s) => s.type === "story" && s.text && s.text.trim().length >= PULLQUOTE_MIN_LEN && s.text.trim().length <= PULLQUOTE_MAX_LEN
+  );
+  if (!candidates.length) return null;
+  return candidates.reduce((shortest, s) => (s.text.trim().length < shortest.text.trim().length ? s : shortest)).id;
+}
+
+function pickAccentIds(stories, pullQuoteId) {
+  const ids = new Set();
+  stories
+    .filter((s) => s.type === "story" && s.id !== pullQuoteId)
+    .forEach((s, i) => { if (i % ACCENT_EVERY === 0) ids.add(s.id); });
+  return ids;
+}
+
+function textColSpan(text) {
+  const len = (text || "").trim().length;
+  if (len > TEXT_SPAN_LONG) return 3;
+  if (len > TEXT_SPAN_MED) return 2;
+  return 1;
+}
+
+const fmtTime = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+
+// Deterministic per-story offset so multiple waveform cards on the same
+// page don't all render the identical bar pattern.
+const seedFor = (id) => {
+  let h = 0;
+  for (let i = 0; i < String(id).length; i++) h = (h * 31 + String(id).charCodeAt(i)) % 1000;
+  return h;
+};
+
 export function MemorialPage({ inviteCode, showToast, onNavigate }) {
   const [memorial, setMemorial] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -209,6 +262,9 @@ export function MemorialPage({ inviteCode, showToast, onNavigate }) {
   const filterTypes = ["all", ...new Set(stories.map((s) => s.type))];
   const contributorCount = new Set(stories.map((s) => s.contributor_name)).size;
 
+  const pullQuoteId = pickPullQuoteId(stories);
+  const accentIds = pickAccentIds(stories, pullQuoteId);
+
   const heroTitle = (
     <>
       <span className="eyebrow-script">as told by everyone who loves them</span>
@@ -281,15 +337,15 @@ export function MemorialPage({ inviteCode, showToast, onNavigate }) {
           </nav>
 
           <main className="clusters">
-            <div className="masonry">
+            <div className="mosaic-grid">
               {stories.map((s) => (
-                <div
+                <MosaicItem
                   key={s.id}
-                  id={`story-${s.id}`}
-                  className={`card-wrap${activeFilter !== "all" && s.type !== activeFilter ? " hidden-card" : ""}`}
-                >
-                  <ScrapbookCard story={s} />
-                </div>
+                  story={s}
+                  isPullQuote={s.id === pullQuoteId}
+                  isAccent={accentIds.has(s.id)}
+                  hidden={activeFilter !== "all" && s.type !== activeFilter}
+                />
               ))}
             </div>
           </main>
@@ -430,27 +486,146 @@ export function MemorialPage({ inviteCode, showToast, onNavigate }) {
   );
 }
 
-function ScrapbookCard({ story: s }) {
+// Mosaic grid item — one entry, sized and treated by type. Each branch
+// returns its own complete .mosaic-item grid child (rather than a shared
+// wrapper around a variable inner card) so the photo branch can hold its
+// own aspect-ratio state without breaking the rules of hooks in a
+// conditionally-branching parent.
+function MosaicItem({ story: s, isPullQuote, isAccent, hidden }) {
   const relLabel = s.contributor_relation ? `${s.contributor_name}, ${s.contributor_relation}` : s.contributor_name;
-  return (
-    <div className="card">
-      {s.media_url && s.type === "photo" && (
-        <div className="card-media"><img src={s.media_url} alt="" loading="lazy" /></div>
-      )}
-      {s.media_url && s.type === "video" && (
-        <div className="card-media"><video controls src={s.media_url} /></div>
-      )}
-      {s.media_url && s.type === "voice" && (
-        <div className="card-media-audio"><audio controls src={s.media_url} /></div>
-      )}
-      {s.text && <blockquote>{s.text}</blockquote>}
-      <div className="meta">
-        <span className="contributor">
-          &mdash; {relLabel}
-          <span className="contributor-time">{timeAgo(s.created_at)}</span>
-        </span>
-        <span className={`tag tag-${s.type}`}>{TYPE_LABEL[s.type] || "Story"}</span>
+  const hiddenClass = hidden ? " hidden-card" : "";
+
+  if (isPullQuote) {
+    return (
+      <div id={`story-${s.id}`} className={`mosaic-item mi-col-full${hiddenClass}`}>
+        <div className="pullquote-card">
+          <blockquote>{s.text}</blockquote>
+          <span className="pullquote-attr">&mdash; {relLabel}</span>
+        </div>
       </div>
+    );
+  }
+
+  if (s.type === "video") {
+    return (
+      <div id={`story-${s.id}`} className={`mosaic-item mi-col-2 mi-row-2${hiddenClass}`}>
+        <VideoCard story={s} relLabel={relLabel} />
+      </div>
+    );
+  }
+
+  if (s.type === "voice") {
+    return (
+      <div id={`story-${s.id}`} className={`mosaic-item mi-col-2${hiddenClass}`}>
+        <AudioCard story={s} relLabel={relLabel} />
+      </div>
+    );
+  }
+
+  if (s.type === "photo") {
+    return <PhotoItem story={s} id={`story-${s.id}`} hiddenClass={hiddenClass} />;
+  }
+
+  const span = textColSpan(s.text);
+  return (
+    <div id={`story-${s.id}`} className={`mosaic-item mi-col-${span}${hiddenClass}`}>
+      <div className={`card${isAccent ? " card-accent" : ""}`}>
+        {s.text && <blockquote>{s.text}</blockquote>}
+        <div className="meta">
+          <span className="contributor">
+            &mdash; {relLabel}
+            <span className="contributor-time">{timeAgo(s.created_at)}</span>
+          </span>
+          <span className={`tag tag-${s.type}`}>{TYPE_LABEL[s.type] || "Story"}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Photo span (1 or 2 columns) depends on the image's own aspect ratio, only
+// known once it loads — so this owns its own state rather than being decided
+// by the parent ahead of render.
+function PhotoItem({ story: s, id, hiddenClass }) {
+  const [wide, setWide] = useState(false);
+  return (
+    <div id={id} className={`mosaic-item mi-col-${wide ? 2 : 1}${hiddenClass}`}>
+      <div className="photo-item">
+        <img
+          src={s.media_url}
+          alt=""
+          loading="lazy"
+          onLoad={(e) => setWide(e.target.naturalWidth / e.target.naturalHeight >= PHOTO_WIDE_RATIO)}
+        />
+      </div>
+    </div>
+  );
+}
+
+function VideoCard({ story: s, relLabel }) {
+  const videoRef = useRef(null);
+  const [playing, setPlaying] = useState(false);
+
+  const togglePlay = () => {
+    const v = videoRef.current;
+    if (!v) return;
+    if (playing) v.pause();
+    else v.play();
+    setPlaying((p) => !p);
+  };
+
+  return (
+    <div className="video-mosaic-card">
+      <button type="button" className="video-mosaic-frame" onClick={togglePlay} aria-label={playing ? "Pause video" : "Play video"}>
+        <video ref={videoRef} src={s.media_url} preload="metadata" playsInline controls={playing} onEnded={() => setPlaying(false)} />
+        {!playing && <div className="media-play-btn" />}
+      </button>
+      <div className="video-mosaic-caption">&mdash; {relLabel}</div>
+    </div>
+  );
+}
+
+function AudioCard({ story: s, relLabel }) {
+  const audioRef = useRef(null);
+  const [playing, setPlaying] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const progress = duration ? elapsed / duration : 0;
+  const seed = seedFor(s.id);
+
+  const toggle = () => {
+    const a = audioRef.current;
+    if (!a) return;
+    if (playing) a.pause();
+    else a.play();
+    setPlaying((p) => !p);
+  };
+
+  return (
+    <div className="audio-mosaic-card">
+      <audio
+        ref={audioRef}
+        src={s.media_url}
+        onLoadedMetadata={(e) => setDuration(e.target.duration)}
+        onTimeUpdate={(e) => setElapsed(e.target.currentTime)}
+        onEnded={() => { setPlaying(false); setElapsed(0); }}
+      />
+      <div className="audio-mosaic-controls">
+        <button type="button" className="voice-play-btn" onClick={toggle} aria-label={playing ? "Pause voice memo" : "Play voice memo"}>
+          {playing ? <span className="icon-pause" /> : <span className="icon-play" />}
+        </button>
+        <div className="audio-mosaic-waveform">
+          {Array.from({ length: 28 }).map((_, i) => (
+            <span
+              key={i}
+              className={i / 28 <= progress ? "played" : ""}
+              style={{ height: `${6 + Math.round(Math.abs(Math.sin(i * 0.7 + seed)) * 16)}px` }}
+            />
+          ))}
+        </div>
+        <span className="audio-mosaic-time">{fmtTime(elapsed)} / {fmtTime(duration)}</span>
+      </div>
+      <div className="audio-mosaic-attr">&mdash; {relLabel}</div>
     </div>
   );
 }
