@@ -386,6 +386,7 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .tag-story { background: var(--mem-sage-soft); color: #3F4B31; }
 .tag-video { background: #DCE3EE; color: #33425E; }
 .tag-voice { background: var(--mem-rose-soft); color: #7A2E33; }
+.tag-url { background: #E4DCF0; color: #4A3B66; }
 
 /* -- pull-quote: one short entry, full-width, dark, larger type — a
    magazine-style break in the grid. Uses --mem-ink (the page's own dark
@@ -427,6 +428,28 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .video-mosaic-frame { position: relative; display: block; width: 100%; aspect-ratio: 4 / 3; border: none; padding: 0; cursor: pointer; background: var(--mem-ink); flex: 1; }
 .video-mosaic-frame video { width: 100%; height: 100%; object-fit: cover; display: block; }
 .video-mosaic-caption { padding: 12px 16px; font-size: 0.82rem; color: rgba(245,239,225,0.8); }
+
+/* -- link entries: thumbnail (YouTube's own, or a scraped og:image) + a
+   plain title line, not a quote — this is a page someone's pointing to,
+   not a memory being told. YouTube expands inline on click; anything else
+   opens in a new tab, so the whole card acts as a button. */
+.link-card { cursor: pointer; }
+.link-card-thumb { position: relative; aspect-ratio: 16 / 9; margin: -26px -26px 14px; border-radius: 4px 4px 0 0; overflow: hidden; background: var(--mem-paper-deep); }
+.link-card-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.link-card-thumb-fallback { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 2rem; opacity: 0.4; }
+.link-card-title { margin: 0 0 14px; font-size: 0.95rem; font-weight: 500; color: var(--mem-ink); line-height: 1.4; }
+.link-card-embed { aspect-ratio: 16 / 9; margin: -26px -26px 14px; border-radius: 4px 4px 0 0; overflow: hidden; background: #000; }
+.link-card-embed iframe { width: 100%; height: 100%; border: none; display: block; }
+
+/* -- contribute form: link preview -- */
+.link-preview-card { display: flex; align-items: center; gap: 12px; margin-top: 10px; padding: 10px; border: 1px solid var(--warm-faint); border-radius: 4px; background: var(--white); }
+.link-preview-thumb { width: 64px; height: 64px; flex-shrink: 0; border-radius: 3px; overflow: hidden; object-fit: cover; }
+.link-preview-thumb-fallback { display: flex; align-items: center; justify-content: center; background: var(--cream-dark); font-size: 1.2rem; }
+.link-preview-title { font-size: 13px; font-weight: 500; color: var(--bark); line-height: 1.4; }
+.link-preview-provider { font-size: 11px; color: var(--warm-light); margin-top: 2px; }
+.memorial-page .link-preview-card { border-color: rgba(44,36,32,0.14); background: var(--mem-card); }
+.memorial-page .link-preview-title { color: var(--mem-ink); }
+.memorial-page .link-preview-provider { color: var(--mem-ink-soft); }
 
 /* -- audio entries: waveform visual + duration + contributor, not a
    text card. Reuses the homepage's voice-play-btn/icon-play/icon-pause

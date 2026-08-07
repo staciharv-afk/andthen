@@ -2,12 +2,12 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { uid, fmtDate, timeAgo, fileToDataURL, sendThankYou, notifyCreator } from "../lib/utils";
 
-const TYPE_LABEL = { photo: "Photo", story: "Story", video: "Video", voice: "Audio" };
-const FILTER_LABEL = { all: "Everything", photo: "Photos", story: "Stories", video: "Videos", voice: "Audio" };
+const TYPE_LABEL = { photo: "Photo", story: "Story", video: "Video", voice: "Audio", url: "Link" };
+const FILTER_LABEL = { all: "Everything", photo: "Photos", story: "Stories", video: "Videos", voice: "Audio", url: "Links" };
 // Always show every filter, even types with zero entries yet — a page
 // shouldn't lose its Audio/Video filter just because nothing's been
 // added in that type so far.
-const FILTER_ORDER = ["all", "story", "photo", "video", "voice"];
+const FILTER_ORDER = ["all", "story", "photo", "video", "voice", "url"];
 
 // -- mosaic layout tuning --
 // Text entries span more columns as they get longer (a simple length
@@ -115,6 +115,10 @@ export function MemorialPage({ inviteCode, showToast, onNavigate }) {
   const [mediaPreview, setMediaPreview] = useState(null);
   const [cropPos, setCropPos] = useState({ x: 50, y: 50 });
   const [showCropAdjuster, setShowCropAdjuster] = useState(false);
+  const [linkUrl, setLinkUrl] = useState("");
+  const [linkPreview, setLinkPreview] = useState(null); // { provider, videoId, start, title, image } | null
+  const [linkPreviewLoading, setLinkPreviewLoading] = useState(false);
+  const [linkPreviewError, setLinkPreviewError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [promptIdx, setPromptIdx] = useState(0);
@@ -180,7 +184,7 @@ export function MemorialPage({ inviteCode, showToast, onNavigate }) {
     // outright for anonymous visitors. List the public columns explicitly.
     let query = supabase
       .from("contributions")
-      .select("id, memorial_id, contributor_name, contributor_relation, type, text, media_url, status, created_at, crop_x, crop_y")
+      .select("id, memorial_id, contributor_name, contributor_relation, type, text, media_url, status, created_at, crop_x, crop_y, link_meta")
       .eq("memorial_id", memorialId)
       .order("created_at", { ascending: false });
     if (requireApproval) query = query.eq("status", "approved");
@@ -201,6 +205,39 @@ export function MemorialPage({ inviteCode, showToast, onNavigate }) {
     // attached to a story are cropped the same way, only the video accept
     // ever passes a non-image file here.
     setCropPos(file.type.startsWith("image/") ? await detectCropPosition(file) : { x: 50, y: 50 });
+  };
+
+  // Fetches a title/thumbnail preview for a pasted URL. Best-effort — a
+  // failed fetch still lets the link be shared (handleSubmit falls back to
+  // the bare URL with no preview), it just means no thumbnail. Fires once
+  // the field loses focus rather than on every keystroke.
+  const fetchLinkPreview = async () => {
+    const url = linkUrl.trim();
+    if (!url) { setLinkPreview(null); setLinkPreviewError(""); return; }
+    let hostname;
+    try {
+      hostname = new URL(url).hostname.replace(/^www\./, ""); // must at least be well-formed before we ask the server
+    } catch {
+      setLinkPreview(null);
+      setLinkPreviewError("That doesn't look like a valid URL.");
+      return;
+    }
+    setLinkPreviewLoading(true);
+    setLinkPreviewError("");
+    try {
+      const res = await fetch("/api/link-preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      });
+      if (!res.ok) throw new Error("preview failed");
+      setLinkPreview({ ...(await res.json()), hostname });
+    } catch {
+      setLinkPreview(null);
+      setLinkPreviewError("Couldn't load a preview — you can still share the link.");
+    } finally {
+      setLinkPreviewLoading(false);
+    }
   };
 
   const startRecording = async () => {
@@ -240,6 +277,7 @@ export function MemorialPage({ inviteCode, showToast, onNavigate }) {
     if (contributeType === "story" && !storyText.trim() && !mediaFile) { showToast("Please write a story or attach a photo.", "error"); return; }
     if ((contributeType === "photo" || contributeType === "video") && !mediaFile) { showToast("Please select a file.", "error"); return; }
     if (contributeType === "voice" && !audioURL) { showToast("Please record a voice memo.", "error"); return; }
+    if (contributeType === "url" && !linkUrl.trim()) { showToast("Please paste a link.", "error"); return; }
 
     setSubmitting(true);
     try {
@@ -261,6 +299,10 @@ export function MemorialPage({ inviteCode, showToast, onNavigate }) {
         mediaUrl = supabase.storage.from("memorial-media").getPublicUrl(path).data?.publicUrl;
       }
 
+      // A link entry's "media" is the fetched preview thumbnail, not an
+      // upload — reuses media_url for that, consistent with every other
+      // type's primary-visual convention.
+      const isLink = contributeType === "url";
       const row = {
         memorial_id: memorial.id,
         contributor_name: contributorName.trim(),
@@ -268,13 +310,23 @@ export function MemorialPage({ inviteCode, showToast, onNavigate }) {
         contributor_email: contributorEmail.trim() || null,
         type: contributeType,
         text: storyText.trim() || null,
-        media_url: mediaUrl,
+        media_url: isLink ? (linkPreview?.image || null) : mediaUrl,
         status: memorial.require_approval ? "pending" : "approved",
         // Applies to a standalone photo entry and a story with an attached
         // photo alike — the crop only means anything when the uploaded file
         // was actually an image.
         crop_x: mediaUrl && mediaFile?.type.startsWith("image/") ? cropPos.x : null,
         crop_y: mediaUrl && mediaFile?.type.startsWith("image/") ? cropPos.y : null,
+        link_meta: isLink
+          ? {
+              url: linkUrl.trim(),
+              provider: linkPreview?.provider || null,
+              videoId: linkPreview?.videoId || null,
+              start: linkPreview?.start ?? null,
+              title: linkPreview?.title || null,
+              hostname: linkPreview?.hostname || null,
+            }
+          : null,
       };
 
       if (memorial.require_approval) {
@@ -423,8 +475,8 @@ export function MemorialPage({ inviteCode, showToast, onNavigate }) {
               </p>
             )}
 
-            {/* Free memorials collect written memories only; photo/video/voice
-                are unlocked when the family upgrades the page. */}
+            {/* Free memorials collect written memories only; photo/video/voice/
+                link are unlocked when the family upgrades the page. */}
             {memorial.is_paid && (
               <div className="contribute-type-row">
                 {[
@@ -432,8 +484,18 @@ export function MemorialPage({ inviteCode, showToast, onNavigate }) {
                   { key: "photo", icon: "📷", label: "Photo" },
                   { key: "video", icon: "🎬", label: "Video" },
                   { key: "voice", icon: "🎙️", label: "Voice memo" },
+                  { key: "url", icon: "🔗", label: "Add a link" },
                 ].map((t) => (
-                  <button key={t.key} className={`type-btn ${contributeType === t.key ? "active" : ""}`} onClick={() => { setContributeType(t.key); setMediaFile(null); setMediaPreview(null); setAudioURL(null); setCropPos({ x: 50, y: 50 }); setShowCropAdjuster(false); }}>
+                  <button
+                    key={t.key}
+                    className={`type-btn ${contributeType === t.key ? "active" : ""}`}
+                    onClick={() => {
+                      setContributeType(t.key);
+                      setMediaFile(null); setMediaPreview(null); setAudioURL(null);
+                      setCropPos({ x: 50, y: 50 }); setShowCropAdjuster(false);
+                      setLinkUrl(""); setLinkPreview(null); setLinkPreviewError("");
+                    }}
+                  >
                     {t.icon} {t.label}
                   </button>
                 ))}
@@ -532,6 +594,35 @@ export function MemorialPage({ inviteCode, showToast, onNavigate }) {
                     <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 12 }}>
                       <audio controls src={audioURL} style={{ width: "100%" }} />
                       <button className="btn btn-sm btn-ghost" onClick={() => setAudioURL(null)}>Re-record</button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {contributeType === "url" && (
+                <div className="form-group">
+                  <label className="form-label">Link</label>
+                  <input
+                    className="form-input"
+                    type="url"
+                    placeholder="Paste a YouTube link, or any URL"
+                    value={linkUrl}
+                    onChange={(e) => { setLinkUrl(e.target.value); setLinkPreview(null); setLinkPreviewError(""); }}
+                    onBlur={fetchLinkPreview}
+                  />
+                  {linkPreviewLoading && <span className="form-hint">Loading preview&hellip;</span>}
+                  {linkPreviewError && <span className="form-error">{linkPreviewError}</span>}
+                  {linkPreview && (
+                    <div className="link-preview-card">
+                      {linkPreview.image ? (
+                        <img src={linkPreview.image} alt="" className="link-preview-thumb" />
+                      ) : (
+                        <div className="link-preview-thumb link-preview-thumb-fallback">🔗</div>
+                      )}
+                      <div>
+                        <div className="link-preview-title">{linkPreview.title || linkUrl.trim()}</div>
+                        <div className="link-preview-provider">{linkPreview.provider === "youtube" ? "YouTube" : linkPreview.hostname}</div>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -707,6 +798,14 @@ function MosaicItem({ story: s, isPullQuote, isAccent, hidden }) {
     return <PhotoItem story={s} id={`story-${s.id}`} hiddenClass={hiddenClass} />;
   }
 
+  if (s.type === "url" && s.link_meta) {
+    return (
+      <div id={`story-${s.id}`} className={`mosaic-item mi-col-2${hiddenClass}`}>
+        <LinkCard story={s} relLabel={relLabel} />
+      </div>
+    );
+  }
+
   // A story with an attached photo — one linked card, not two entries
   // sitting near each other. Sized like a photo entry (mi-col-1) rather
   // than by text length, since it carries a photo.
@@ -770,6 +869,67 @@ function LinkedCard({ story: s, relLabel }) {
           <span className="contributor-time">{timeAgo(s.created_at)}</span>
         </span>
         <span className={`tag tag-${s.type}`}>{TYPE_LABEL[s.type] || "Story"}</span>
+      </div>
+    </div>
+  );
+}
+
+// A pasted link. YouTube links expand to an inline embed on click (using
+// the saved start-time offset, if any); anything else opens in a new tab,
+// since there's no universal embeddable player for an arbitrary site.
+// media_url doubles as the thumbnail (YouTube's own thumbnail, or a
+// scraped og:image) — absent for a link whose preview fetch failed, which
+// still renders fine as a title-only (or bare-URL) card, never blocked.
+function LinkCard({ story: s, relLabel }) {
+  const [expanded, setExpanded] = useState(false);
+  const meta = s.link_meta || {};
+  const isYouTube = meta.provider === "youtube" && meta.videoId;
+
+  if (expanded && isYouTube) {
+    const src = `https://www.youtube.com/embed/${meta.videoId}?autoplay=1${meta.start ? `&start=${meta.start}` : ""}`;
+    return (
+      <div className="card link-card">
+        <div className="link-card-embed">
+          <iframe
+            src={src}
+            title={meta.title || "YouTube video"}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+          />
+        </div>
+        <div className="meta">
+          <span className="contributor">
+            &mdash; {relLabel}
+            <span className="contributor-time">{timeAgo(s.created_at)}</span>
+          </span>
+          <span className="tag tag-url">Link</span>
+        </div>
+      </div>
+    );
+  }
+
+  const handleActivate = () => {
+    if (isYouTube) setExpanded(true);
+    else window.open(meta.url, "_blank", "noopener,noreferrer");
+  };
+
+  return (
+    <div className="card link-card" role="button" tabIndex={0} onClick={handleActivate} onKeyDown={(e) => e.key === "Enter" && handleActivate()}>
+      <div className="link-card-thumb">
+        {s.media_url ? (
+          <img src={s.media_url} alt="" loading="lazy" />
+        ) : (
+          <div className="link-card-thumb-fallback">🔗</div>
+        )}
+        {isYouTube && <div className="media-play-btn" />}
+      </div>
+      <p className="link-card-title">{meta.title || meta.hostname || meta.url}</p>
+      <div className="meta">
+        <span className="contributor">
+          &mdash; {relLabel}
+          <span className="contributor-time">{timeAgo(s.created_at)}</span>
+        </span>
+        <span className="tag tag-url">Link</span>
       </div>
     </div>
   );
