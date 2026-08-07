@@ -242,7 +242,9 @@ function SubmissionCard({ submission: s, requireApproval, onApprove, onReject })
       </div>
 
       {s.text && <p className="submission-text">"{s.text}"</p>}
-      {s.media_url && s.type === "photo" && <img className="submission-media" src={s.media_url} alt="" />}
+      {s.media_url && s.type === "photo" && (
+        <img className="submission-media" src={s.media_url} alt="" style={{ objectPosition: `${s.crop_x ?? 50}% ${s.crop_y ?? 50}%` }} />
+      )}
       {s.media_url && s.type === "video" && (
         <video className="submission-media" controls src={s.media_url} style={{ maxHeight: 240 }} />
       )}

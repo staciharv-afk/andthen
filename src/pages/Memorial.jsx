@@ -11,11 +11,11 @@ const FILTER_ORDER = ["all", "story", "photo", "video", "voice"];
 
 // -- mosaic layout tuning --
 // Text entries span more columns as they get longer (a simple length
-// threshold, not manual tagging). Photos get a wide span once their loaded
-// aspect ratio reads as landscape-ish. Video/audio spans are fixed by type.
+// threshold, not manual tagging). Photos are always a single square tile
+// (see PhotoItem) so they don't need a span rule of their own. Video/audio
+// spans are fixed by type.
 const TEXT_SPAN_LONG = 220;   // > this many characters -> span 3
 const TEXT_SPAN_MED = 80;     // > this many characters -> span 2, else span 1
-const PHOTO_WIDE_RATIO = 1.3; // naturalWidth / naturalHeight at or above this -> span 2
 
 // The pull-quote is one short, standalone-readable text entry rendered
 // full-width as a magazine-style break in the grid. Bounded on both ends —
@@ -62,6 +62,42 @@ const seedFor = (id) => {
   return h;
 };
 
+const clamp = (n, lo, hi) => Math.min(hi, Math.max(lo, n));
+
+// object-fit: cover's rendered size for a natural image inside a box —
+// used to convert a pixel drag distance into an object-position percentage.
+function coverSize({ w, h }, boxW, boxH) {
+  const scale = Math.max(boxW / w, boxH / h);
+  return { w: w * scale, h: h * scale };
+}
+
+// Smart default crop anchor for a freshly-selected photo, run at upload
+// time (before the file is even uploaded). Tries the browser's built-in
+// Shape Detection API where it exists — support is spotty (mainly older
+// Android Chrome; Safari and Firefox never implemented it, and it's not a
+// dependency worth adding a real face-detection library for) — and falls
+// back to a plain center crop everywhere else, silently, never blocking
+// the upload.
+async function detectCropPosition(file) {
+  try {
+    if (!("FaceDetector" in window)) return { x: 50, y: 50 };
+    const bitmap = await createImageBitmap(file);
+    const detector = new window.FaceDetector({ maxDetectedFaces: 5, fastMode: true });
+    const faces = await detector.detect(bitmap);
+    if (!faces?.length) return { x: 50, y: 50 };
+    const largest = faces.reduce((a, b) =>
+      a.boundingBox.width * a.boundingBox.height >= b.boundingBox.width * b.boundingBox.height ? a : b
+    );
+    const { x, y, width, height } = largest.boundingBox;
+    return {
+      x: clamp(((x + width / 2) / bitmap.width) * 100, 10, 90),
+      y: clamp(((y + height / 2) / bitmap.height) * 100, 10, 90),
+    };
+  } catch {
+    return { x: 50, y: 50 }; // detection failing is never a reason to block the upload
+  }
+}
+
 export function MemorialPage({ inviteCode, showToast, onNavigate }) {
   const [memorial, setMemorial] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -73,6 +109,8 @@ export function MemorialPage({ inviteCode, showToast, onNavigate }) {
   const [storyText, setStoryText] = useState("");
   const [mediaFile, setMediaFile] = useState(null);
   const [mediaPreview, setMediaPreview] = useState(null);
+  const [cropPos, setCropPos] = useState({ x: 50, y: 50 });
+  const [showCropAdjuster, setShowCropAdjuster] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [promptIdx, setPromptIdx] = useState(0);
@@ -138,7 +176,7 @@ export function MemorialPage({ inviteCode, showToast, onNavigate }) {
     // outright for anonymous visitors. List the public columns explicitly.
     let query = supabase
       .from("contributions")
-      .select("id, memorial_id, contributor_name, contributor_relation, type, text, media_url, status, created_at")
+      .select("id, memorial_id, contributor_name, contributor_relation, type, text, media_url, status, created_at, crop_x, crop_y")
       .eq("memorial_id", memorialId)
       .order("created_at", { ascending: false });
     if (requireApproval) query = query.eq("status", "approved");
@@ -155,6 +193,11 @@ export function MemorialPage({ inviteCode, showToast, onNavigate }) {
     setMediaFile(file);
     const preview = await fileToDataURL(file);
     setMediaPreview(preview);
+    if (contributeType === "photo") {
+      setCropPos(await detectCropPosition(file));
+    } else {
+      setCropPos({ x: 50, y: 50 });
+    }
   };
 
   const startRecording = async () => {
@@ -222,6 +265,8 @@ export function MemorialPage({ inviteCode, showToast, onNavigate }) {
         text: storyText.trim() || null,
         media_url: mediaUrl,
         status: memorial.require_approval ? "pending" : "approved",
+        crop_x: contributeType === "photo" && mediaUrl ? cropPos.x : null,
+        crop_y: contributeType === "photo" && mediaUrl ? cropPos.y : null,
       };
 
       if (memorial.require_approval) {
@@ -380,7 +425,7 @@ export function MemorialPage({ inviteCode, showToast, onNavigate }) {
                   { key: "video", icon: "🎬", label: "Video" },
                   { key: "voice", icon: "🎙️", label: "Voice memo" },
                 ].map((t) => (
-                  <button key={t.key} className={`type-btn ${contributeType === t.key ? "active" : ""}`} onClick={() => { setContributeType(t.key); setMediaFile(null); setMediaPreview(null); setAudioURL(null); }}>
+                  <button key={t.key} className={`type-btn ${contributeType === t.key ? "active" : ""}`} onClick={() => { setContributeType(t.key); setMediaFile(null); setMediaPreview(null); setAudioURL(null); setCropPos({ x: 50, y: 50 }); setShowCropAdjuster(false); }}>
                     {t.icon} {t.label}
                   </button>
                 ))}
@@ -420,13 +465,16 @@ export function MemorialPage({ inviteCode, showToast, onNavigate }) {
                       <input ref={fileInputRef} type="file" accept={contributeType === "photo" ? "image/*" : "video/*"} style={{ display: "none" }} onChange={(e) => handleMediaSelect(e.target.files[0])} />
                     </div>
                   ) : (
-                    <div style={{ position: "relative" }}>
+                    <div>
                       {contributeType === "photo" ? (
-                        <img src={mediaPreview} alt="" style={{ width: "100%", maxHeight: 300, objectFit: "cover", borderRadius: 4 }} />
+                        <div className="photo-preview-crop">
+                          <img src={mediaPreview} alt="" style={{ objectPosition: `${cropPos.x}% ${cropPos.y}%` }} />
+                          <button type="button" className="crop-adjust-btn" onClick={() => setShowCropAdjuster(true)}>Adjust crop</button>
+                        </div>
                       ) : (
                         <video src={mediaPreview} controls style={{ width: "100%", maxHeight: 300, borderRadius: 4 }} />
                       )}
-                      <button className="btn btn-sm btn-ghost" style={{ marginTop: 8 }} onClick={() => { setMediaFile(null); setMediaPreview(null); }}>Remove</button>
+                      <button className="btn btn-sm btn-ghost" style={{ marginTop: 8 }} onClick={() => { setMediaFile(null); setMediaPreview(null); setCropPos({ x: 50, y: 50 }); }}>Remove</button>
                     </div>
                   )}
                   <div className="form-group" style={{ marginTop: 16 }}>
@@ -480,15 +528,114 @@ export function MemorialPage({ inviteCode, showToast, onNavigate }) {
         )}
         </div>
       )}
+
+      {/* Rendered at the top level, not nested in .contribute-card — that
+          card is a .fade-up element, and a completed fill-mode animation
+          leaves a lingering `transform` on it, which makes it a new
+          containing block for `position: fixed` descendants and breaks
+          this overlay's viewport-relative centering. */}
+      {showCropAdjuster && mediaFile && (
+        <CropAdjuster
+          file={mediaFile}
+          initialPos={cropPos}
+          onCancel={() => setShowCropAdjuster(false)}
+          onConfirm={(pos) => { setCropPos(pos); setShowCropAdjuster(false); }}
+        />
+      )}
+    </div>
+  );
+}
+
+// Manual crop reposition — drag the full photo behind a fixed square
+// window (no zoom/rotate, matching a Facebook/LinkedIn profile-photo
+// repositioner). Renders the same object-fit: cover + object-position the
+// final tile uses, so what's shown while dragging is exactly what gets
+// saved — the drag math just needs to convert a pixel offset into the
+// object-position percentage that would produce that same view.
+function CropAdjuster({ file, initialPos, onCancel, onConfirm }) {
+  const CROP_SIZE = 300;
+  const [pos, setPos] = useState(initialPos);
+  const [naturalSize, setNaturalSize] = useState(null);
+  const [dragging, setDragging] = useState(false);
+  const dragStart = useRef(null);
+  const [imgUrl, setImgUrl] = useState(null);
+
+  // Create and revoke the object URL in the same effect (keyed to `file`,
+  // not a lazily-initialized ref) — StrictMode double-invokes effects in
+  // dev (mount, cleanup, mount again), and a ref-cached "create once" URL
+  // would get revoked by the first synthetic cleanup and never recreated.
+  useEffect(() => {
+    const url = URL.createObjectURL(file);
+    setImgUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+
+  const rendered = naturalSize ? coverSize(naturalSize, CROP_SIZE, CROP_SIZE) : null;
+  const overflowX = rendered ? Math.max(0, rendered.w - CROP_SIZE) : 0;
+  const overflowY = rendered ? Math.max(0, rendered.h - CROP_SIZE) : 0;
+
+  const beginDrag = (clientX, clientY) => {
+    dragStart.current = { x: clientX, y: clientY, posX: pos.x, posY: pos.y };
+    setDragging(true);
+  };
+  const onMouseDown = (e) => beginDrag(e.clientX, e.clientY);
+  const onTouchStart = (e) => beginDrag(e.touches[0].clientX, e.touches[0].clientY);
+
+  useEffect(() => {
+    if (!dragging) return;
+    const onMove = (e) => {
+      const point = e.touches ? e.touches[0] : e;
+      if (e.touches) e.preventDefault(); // don't let the page scroll while repositioning
+      const dx = point.clientX - dragStart.current.x;
+      const dy = point.clientY - dragStart.current.y;
+      // Dragging the photo right reveals more of its left side, i.e. the
+      // object-position anchor moves the opposite direction of the drag.
+      setPos({
+        x: overflowX ? clamp(dragStart.current.posX - (dx / overflowX) * 100, 0, 100) : 50,
+        y: overflowY ? clamp(dragStart.current.posY - (dy / overflowY) * 100, 0, 100) : 50,
+      });
+    };
+    const onUp = () => setDragging(false);
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    window.addEventListener("touchmove", onMove, { passive: false });
+    window.addEventListener("touchend", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      window.removeEventListener("touchmove", onMove);
+      window.removeEventListener("touchend", onUp);
+    };
+  }, [dragging, overflowX, overflowY]);
+
+  return (
+    <div className="crop-adjust-overlay fade-in" role="dialog" aria-label="Adjust photo crop">
+      <div className="crop-adjust-card">
+        <h3 className="crop-adjust-title">Reposition photo</h3>
+        <p className="crop-adjust-sub">Drag to choose what shows in the square.</p>
+        <div className="crop-adjust-window" onMouseDown={onMouseDown} onTouchStart={onTouchStart}>
+          {imgUrl && (
+            <img
+              src={imgUrl}
+              alt=""
+              className="crop-adjust-img"
+              draggable={false}
+              onLoad={(e) => setNaturalSize({ w: e.target.naturalWidth, h: e.target.naturalHeight })}
+              style={{ objectPosition: `${pos.x}% ${pos.y}%` }}
+            />
+          )}
+        </div>
+        <div className="crop-adjust-actions">
+          <button type="button" className="btn btn-ghost" onClick={onCancel}>Cancel</button>
+          <button type="button" className="btn btn-rust" onClick={() => onConfirm(pos)}>Save position</button>
+        </div>
+      </div>
     </div>
   );
 }
 
 // Mosaic grid item — one entry, sized and treated by type. Each branch
-// returns its own complete .mosaic-item grid child (rather than a shared
-// wrapper around a variable inner card) so the photo branch can hold its
-// own aspect-ratio state without breaking the rules of hooks in a
-// conditionally-branching parent.
+// returns its own complete .mosaic-item grid child.
 function MosaicItem({ story: s, isPullQuote, isAccent, hidden }) {
   const relLabel = s.contributor_relation ? `${s.contributor_name}, ${s.contributor_relation}` : s.contributor_name;
   const hiddenClass = hidden ? " hidden-card" : "";
@@ -546,20 +693,15 @@ function MosaicItem({ story: s, isPullQuote, isAccent, hidden }) {
   );
 }
 
-// Photo span (1 or 2 columns) depends on the image's own aspect ratio, only
-// known once it loads — so this owns its own state rather than being decided
-// by the parent ahead of render.
+// Uniform square tile (Instagram-grid style) — cropped via object-position
+// from the entry's saved crop_x/crop_y (face-detected or manually
+// repositioned at contribute time; null falls back to a plain center crop).
 function PhotoItem({ story: s, id, hiddenClass }) {
-  const [wide, setWide] = useState(false);
+  const objectPosition = `${s.crop_x ?? 50}% ${s.crop_y ?? 50}%`;
   return (
-    <div id={id} className={`mosaic-item mi-col-${wide ? 2 : 1}${hiddenClass}`}>
+    <div id={id} className={`mosaic-item mi-col-1${hiddenClass}`}>
       <div className="photo-item">
-        <img
-          src={s.media_url}
-          alt=""
-          loading="lazy"
-          onLoad={(e) => setWide(e.target.naturalWidth / e.target.naturalHeight >= PHOTO_WIDE_RATIO)}
-        />
+        <img src={s.media_url} alt="" loading="lazy" style={{ objectPosition }} />
       </div>
     </div>
   );

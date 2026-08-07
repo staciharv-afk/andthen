@@ -34,7 +34,7 @@ export async function exportMemorial(memorial) {
         const ext = ((m.media_url.split("?")[0].split(".").pop()) || "bin").slice(0, 5);
         const filename = `${String(i + 1).padStart(3, "0")}-${slug(m.contributor_name)}.${ext}`;
         mediaFolder.file(filename, blob);
-        if (m.type === "photo") mediaTag = `<img src="media/${filename}" alt="" />`;
+        if (m.type === "photo") mediaTag = `<img src="media/${filename}" alt="" style="object-fit: cover; object-position: ${m.crop_x ?? 50}% ${m.crop_y ?? 50}%;" />`;
         else if (m.type === "video") mediaTag = `<video controls src="media/${filename}"></video>`;
         else if (m.type === "voice") mediaTag = `<audio controls src="media/${filename}"></audio>`;
       } catch {

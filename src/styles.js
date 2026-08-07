@@ -391,11 +391,30 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .pullquote-card blockquote::after { content: '”'; color: var(--mem-rose-soft); font-size: 1.2em; line-height: 0; vertical-align: -0.5em; margin-left: 3px; }
 .pullquote-attr { font-size: 0.85rem; color: rgba(245,239,225,0.65); }
 
-/* -- photo entries: image only, no caption/overlay, sized by its own
-   aspect ratio via the mi-col-1/mi-col-2 class the component picks after
-   the image loads. */
-.photo-item { border-radius: 6px; overflow: hidden; box-shadow: var(--mem-shadow); height: 100%; }
+/* -- photo entries: uniform square tile (Instagram-grid style), no caption/
+   overlay — just the image, cropped via object-position (crop_x/crop_y). */
+.photo-item { aspect-ratio: 1; border-radius: 6px; overflow: hidden; box-shadow: var(--mem-shadow); }
 .photo-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* -- contribute form: photo preview + crop reposition UI -- */
+.photo-preview-crop { position: relative; width: 100%; aspect-ratio: 1; border-radius: 4px; overflow: hidden; background: var(--warm-faint); }
+.photo-preview-crop img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.crop-adjust-btn { position: absolute; right: 10px; bottom: 10px; background: rgba(45,33,24,0.72); color: var(--cream); border: none; border-radius: 100px; padding: 6px 14px; font-size: 12px; font-weight: 500; font-family: inherit; cursor: pointer; transition: background 0.15s ease; }
+.crop-adjust-btn:hover { background: rgba(45,33,24,0.9); }
+
+.crop-adjust-overlay { position: fixed; inset: 0; z-index: 500; background: rgba(26,14,8,0.6); display: flex; align-items: center; justify-content: center; padding: 24px; }
+.crop-adjust-card { background: var(--cream); border-radius: 6px; padding: 28px; max-width: 380px; width: 100%; box-shadow: 0 24px 60px -20px rgba(0,0,0,0.4); }
+.crop-adjust-title { font-family: 'Lora', serif; font-size: 18px; color: var(--bark); margin-bottom: 4px; }
+.crop-adjust-sub { font-size: 13px; color: var(--warm-light); margin-bottom: 16px; }
+.crop-adjust-window { position: relative; width: 100%; aspect-ratio: 1; border-radius: 4px; overflow: hidden; cursor: grab; touch-action: none; background: var(--warm-faint); }
+.crop-adjust-window:active { cursor: grabbing; }
+.crop-adjust-img { width: 100%; height: 100%; object-fit: cover; display: block; user-select: none; -webkit-user-drag: none; }
+.crop-adjust-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .crop-adjust-overlay.fade-in { animation: none; opacity: 1; }
+  .crop-adjust-btn { transition: none; }
+}
 
 /* -- video entries: thumbnail + play icon, caption bar with just the
    contributor (not a text block) -- */
