@@ -313,10 +313,7 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .memorial-hero-desc { font-size: 15px; color: var(--mem-ink-soft); max-width: 560px; margin: 16px auto 0; line-height: 1.75; }
 .stat-line { font-size: 0.92rem; color: var(--mem-ink-soft); margin-top: 18px; }
 
-/* -- archive intro + filters -- */
-.archive-intro { text-align: center; padding: 32px 24px 24px; max-width: 640px; margin: 0 auto; }
-.archive-intro .cluster-eyebrow { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--mem-rose); margin-bottom: 10px; }
-.archive-intro p { margin-top: 12px; color: var(--mem-ink-soft); font-size: 0.98rem; line-height: 1.55; }
+/* -- filters -- */
 .filter-bar { position: sticky; top: 0; z-index: 200; background: rgba(245,239,225,0.9); backdrop-filter: blur(8px); border-bottom: 1px solid rgba(44,36,32,0.1); padding: 14px 20px; margin-top: 40px; }
 .filter-inner { max-width: 1100px; margin: 0 auto; display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
 .chip { font-family: 'DM Sans', sans-serif; font-size: 0.85rem; font-weight: 600; padding: 8px 16px; border-radius: 999px; background: var(--mem-card); border: 1.5px solid rgba(44,36,32,0.14); color: var(--mem-ink-soft); cursor: pointer; transition: all 0.18s ease; }

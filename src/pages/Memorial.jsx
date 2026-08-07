@@ -4,6 +4,10 @@ import { uid, fmtDate, timeAgo, fileToDataURL, sendThankYou, notifyCreator } fro
 
 const TYPE_LABEL = { photo: "Photo", story: "Story", video: "Video", voice: "Audio" };
 const FILTER_LABEL = { all: "Everything", photo: "Photos", story: "Stories", video: "Videos", voice: "Audio" };
+// Always show every filter, even types with zero entries yet — a page
+// shouldn't lose its Audio/Video filter just because nothing's been
+// added in that type so far.
+const FILTER_ORDER = ["all", "story", "photo", "video", "voice"];
 
 // -- mosaic layout tuning --
 // Text entries span more columns as they get longer (a simple length
@@ -259,7 +263,7 @@ export function MemorialPage({ inviteCode, showToast, onNavigate }) {
   const promptList = memorial.prompts?.length ? memorial.prompts : (memorial.prompt ? [memorial.prompt] : []);
   const currentPrompt = promptList.length ? promptList[promptIdx % promptList.length] : "";
 
-  const filterTypes = ["all", ...new Set(stories.map((s) => s.type))];
+  const filterTypes = FILTER_ORDER;
   const contributorCount = new Set(stories.map((s) => s.contributor_name)).size;
 
   const pullQuoteId = pickPullQuoteId(stories);
@@ -320,12 +324,6 @@ export function MemorialPage({ inviteCode, showToast, onNavigate }) {
         </div>
       ) : (
         <>
-          <section className="archive-intro">
-            <div className="cluster-eyebrow">Every Contribution</div>
-            <h2>The Full Archive</h2>
-            <p>Every photo, story, and memory that's been shared for {memorial.name} &mdash; all in one place. There's no right order, so jump in anywhere.</p>
-          </section>
-
           <nav className="filter-bar">
             <div className="filter-inner">
               {filterTypes.map((f) => (
@@ -506,7 +504,12 @@ function MosaicItem({ story: s, isPullQuote, isAccent, hidden }) {
     );
   }
 
-  if (s.type === "video") {
+  // Guarded by media_url, not just type — a handful of real entries on
+  // production are tagged photo/video/voice but never finished uploading
+  // (a pre-existing data issue, not something to hide). Falling through to
+  // the text-card branch below shows their actual text instead of an
+  // empty media box.
+  if (s.type === "video" && s.media_url) {
     return (
       <div id={`story-${s.id}`} className={`mosaic-item mi-col-2 mi-row-2${hiddenClass}`}>
         <VideoCard story={s} relLabel={relLabel} />
@@ -514,7 +517,7 @@ function MosaicItem({ story: s, isPullQuote, isAccent, hidden }) {
     );
   }
 
-  if (s.type === "voice") {
+  if (s.type === "voice" && s.media_url) {
     return (
       <div id={`story-${s.id}`} className={`mosaic-item mi-col-2${hiddenClass}`}>
         <AudioCard story={s} relLabel={relLabel} />
@@ -522,7 +525,7 @@ function MosaicItem({ story: s, isPullQuote, isAccent, hidden }) {
     );
   }
 
-  if (s.type === "photo") {
+  if (s.type === "photo" && s.media_url) {
     return <PhotoItem story={s} id={`story-${s.id}`} hiddenClass={hiddenClass} />;
   }
 
