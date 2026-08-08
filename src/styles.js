@@ -563,51 +563,45 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .pricing-hero { padding: 80px 0 56px; }
 .pricing-hero-body { margin-bottom: 0; }
 
-.pricing-free { padding: 40px 0 56px; border-top: 1px solid var(--warm-faint); }
-.pricing-free-row { display: flex; align-items: baseline; gap: 14px; margin-bottom: 10px; }
-.pricing-free-heading { font-family: 'Lora', serif; font-weight: 400; font-size: 24px; color: var(--bark); margin: 0; }
-.pricing-price-tag { font-family: 'Lora', serif; font-style: italic; font-size: 18px; color: var(--rust); }
-.pricing-free-body { color: var(--warm-mid); max-width: 56ch; margin: 0; font-size: 15px; font-weight: 300; }
+/* Two ways to pay — a light "pay as you go" card and a dark "pay once"
+   card, side by side. Dark card reuses var(--bark), the site's existing
+   dark-surface color (footer, final-cta), and var(--rust-light) for its
+   gold/tan-on-dark label + ring mark, the warmest existing token that
+   still reads clearly against --bark — no new colors introduced. */
+.pricing-paths { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: stretch; padding: 8px 0 64px; }
+@media (max-width: 720px) { .pricing-paths { grid-template-columns: 1fr; } }
 
-.pricing-timeline-section { padding: 72px 0 88px; }
-.pricing-section-heading { font-family: 'Lora', serif; font-weight: 400; font-size: clamp(24px, 3vw, 30px); color: var(--bark); margin: 0 0 10px; }
-.pricing-section-sub { color: var(--warm-mid); font-size: 15px; font-weight: 300; margin: 0 0 56px; max-width: 52ch; }
+.pricing-path-card { display: flex; flex-direction: column; height: 100%; border-radius: 10px; padding: 36px 32px; }
+.pricing-path-card-light { background: var(--white); border: 1px solid var(--warm-faint); }
+.pricing-path-card-dark { background: var(--bark); }
 
-.pricing-timeline { position: relative; padding: 0 0 0 4px; }
-.pricing-timeline-track { position: relative; height: 2px; background: linear-gradient(to right, var(--warm-mid) 0%, var(--warm-mid) 78%, transparent 100%); margin: 0 40px; }
-.pricing-timeline-fade-dots { position: absolute; right: -34px; top: -9px; font-size: 20px; letter-spacing: 3px; color: var(--warm-light); }
+.pricing-path-label { font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 14px; }
+.pricing-path-label-rust { color: var(--rust); }
+.pricing-path-label-gold { color: var(--rust-light); }
 
-.pricing-timeline-points { display: grid; grid-template-columns: repeat(5, 1fr); margin: 0 40px; position: relative; top: -2px; }
-.pricing-point { position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; padding-top: 22px; }
-.pricing-point::before { content: ''; position: absolute; top: 0; width: 12px; height: 12px; border-radius: 50%; background: var(--cream); border: 2px solid var(--warm-mid); }
-.pricing-point-origin::before { width: 16px; height: 16px; background: var(--rust); border-color: var(--rust); }
-.pricing-point-yr { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--warm-mid); margin-bottom: 6px; }
-.pricing-point-amt { font-family: 'Lora', serif; font-size: 19px; color: var(--bark); font-weight: 500; }
-.pricing-point-origin .pricing-point-amt { color: var(--rust); font-size: 22px; }
-.pricing-point-tag { font-size: 12.5px; color: var(--warm-mid); margin-top: 4px; max-width: 11ch; }
+.pricing-path-price { font-family: 'Lora', serif; font-weight: 500; font-size: 30px; margin-bottom: 4px; }
+.pricing-path-card-light .pricing-path-price { color: var(--bark); }
+.pricing-path-card-dark .pricing-path-price { color: var(--cream); }
 
-.pricing-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 56px; padding: 64px 0 80px; border-top: 1px solid var(--warm-faint); }
-.pricing-kicker { font-family: 'Lora', serif; font-style: italic; font-size: 14px; color: var(--rust); margin-bottom: 8px; }
-.pricing-detail-heading { font-family: 'Lora', serif; font-weight: 400; font-size: 22px; color: var(--bark); margin: 0 0 16px; }
-.pricing-detail-list { list-style: none; padding: 0; margin: 0; }
-.pricing-detail-list li { padding: 10px 0; border-top: 1px solid var(--warm-faint); color: var(--warm-mid); font-size: 15px; font-weight: 300; }
-.pricing-detail-list li:first-of-type { border-top: none; }
-.pricing-detail-list li strong { color: var(--bark); font-weight: 500; }
+.pricing-path-sub { font-size: 14px; margin-bottom: 22px; }
+.pricing-path-card-light .pricing-path-sub { color: var(--warm-mid); }
+.pricing-path-card-dark .pricing-path-sub { color: rgba(253,250,245,0.6); }
 
-.pricing-prepay-box { background: var(--bark); border-radius: var(--radius); padding: 26px 36px; margin: 0 0 72px; display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
-.pricing-prepay-label { font-family: 'Lora', serif; font-style: italic; font-size: 17px; color: var(--cream); }
-.pricing-prepay-price { font-family: 'Lora', serif; font-weight: 500; font-size: 22px; color: var(--rust-light); }
+.pricing-path-dots { display: flex; gap: 6px; margin-bottom: 6px; }
+.pricing-path-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--warm-faint); }
+.pricing-path-dot.filled { background: var(--rust); }
+.pricing-path-dots-caption { display: block; font-size: 12px; color: var(--warm-light); margin-bottom: 20px; }
+
+.pricing-path-ring { width: 34px; height: 34px; border-radius: 50%; border: 2px solid var(--rust-light); display: flex; align-items: center; justify-content: center; margin-bottom: 20px; }
+.pricing-path-ring-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--rust-light); }
+
+.pricing-path-body { font-size: 14.5px; font-weight: 300; line-height: 1.7; margin: 0; margin-top: auto; }
+.pricing-path-card-light .pricing-path-body { color: var(--warm-mid); }
+.pricing-path-card-dark .pricing-path-body { color: rgba(253,250,245,0.75); }
 
 .pricing-closing { padding: 56px 0 100px; border-top: 1px solid var(--warm-faint); text-align: center; }
-.pricing-closing-quote { font-family: 'Lora', serif; font-style: italic; font-size: 21px; color: var(--bark); max-width: 30ch; margin: 0 auto 32px; }
+.pricing-closing-line { font-size: 16px; font-weight: 300; color: var(--warm-mid); max-width: 40ch; margin: 0 auto 32px; line-height: 1.6; }
 .pricing-cta-note { display: block; margin-top: 14px; font-size: 13px; color: var(--warm-light); }
-
-@media (max-width: 720px) {
-  .pricing-detail-grid { grid-template-columns: 1fr; gap: 40px; }
-  .pricing-point-tag { display: none; }
-  .pricing-timeline-track, .pricing-timeline-points { margin: 0 12px; }
-  .pricing-prepay-box { flex-direction: column; align-items: flex-start; padding: 22px 24px; }
-}
 
 @media (prefers-reduced-motion: reduce) {
   .pricing-page .fade-up,
