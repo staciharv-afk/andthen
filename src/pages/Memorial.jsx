@@ -28,6 +28,37 @@ const seedFor = (id) => {
 
 const clamp = (n, lo, hi) => Math.min(hi, Math.max(lo, n));
 
+// Existing brand hues already used elsewhere on this page (rose/gold/sage
+// from the memorial palette, plus the video/link tag colors) rather than
+// inventing new ones — hashed per contributor via seedFor so the same
+// person always lands on the same color, not a fresh random one per render.
+const AVATAR_COLORS = ["#C1515A", "#B8863B", "#6E7F5C", "#33425E", "#4A3B66"];
+const colorForContributor = (name) => AVATAR_COLORS[seedFor(name) % AVATAR_COLORS.length];
+const initialsFor = (name) =>
+  name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() || "").join("") || "?";
+
+const AVATAR_STACK_MAX = 5;
+
+// Same overlapping-circle pattern as the homepage's preview-crowd, adapted
+// to real contributor names (not the homepage's fixed JM/KL/DP example) and
+// a per-contributor color instead of one flat avatar background.
+function ContributorAvatars({ stories }) {
+  const names = [...new Set(stories.map((s) => s.contributor_name).filter(Boolean))];
+  const visible = names.slice(0, AVATAR_STACK_MAX);
+  const overflow = names.length - visible.length;
+
+  return (
+    <div className="mem-avatar-stack">
+      {visible.map((name) => (
+        <span key={name} className="mem-avatar" style={{ background: colorForContributor(name) }} title={name}>
+          {initialsFor(name)}
+        </span>
+      ))}
+      {overflow > 0 && <span className="mem-avatar mem-avatar-overflow">+{overflow}</span>}
+    </div>
+  );
+}
+
 // object-fit: cover's rendered size for a natural image inside a box —
 // used to convert a pixel drag distance into an object-position percentage.
 function coverSize({ w, h }, boxW, boxH) {
@@ -391,9 +422,12 @@ export function MemorialPage({ inviteCode, showToast, onNavigate }) {
         <div className="hero-below">
           {memorial.description && <p className="memorial-hero-desc">{memorial.description}</p>}
           {stories.length > 0 && (
-            <div className="stat-line">
-              {contributorCount} {contributorCount === 1 ? "person has" : "people have"} shared {stories.length} {stories.length === 1 ? "memory" : "memories"}
-            </div>
+            <>
+              <ContributorAvatars stories={stories} />
+              <div className="stat-line">
+                <strong>{contributorCount}</strong> {contributorCount === 1 ? "person has" : "people have"} shared <strong>{stories.length}</strong> {stories.length === 1 ? "memory" : "memories"}
+              </div>
+            </>
           )}
         </div>
       </header>
@@ -746,34 +780,63 @@ function pickRandomMemoryId(stories, excludeId) {
   return pool[Math.floor(Math.random() * pool.length)]?.id ?? null;
 }
 
-// "One memory at a time" — a single random entry shown full-bleed above
-// the grid, picked fresh on every page load (no per-visitor persistence,
-// same experience every visit, per spec). Shared across every memorial
-// page — driven entirely by that page's own stories, nothing Deb-specific.
+// "Featured memory" — a single random entry shown full-bleed above the
+// grid, picked fresh on every page load (no per-visitor persistence, same
+// experience every visit, per spec). Shared across every memorial page —
+// driven entirely by that page's own stories, nothing Deb-specific.
+//
+// Session history is a simple array + pointer, not just a currentId: the
+// left zone needs something to go back TO, and "forward always picks a
+// fresh random entry" (not "redo") means going next after going back must
+// discard whatever was ahead and push a new pick, same as browser history
+// after a back-then-navigate.
 function MemoryOfTheMoment({ stories, memorialName, onSeeAll }) {
-  const [currentId, setCurrentId] = useState(() => pickRandomMemoryId(stories, null));
+  const [history, setHistory] = useState(() => [pickRandomMemoryId(stories, null)]);
+  const [pointer, setPointer] = useState(0);
   const [cycleCount, setCycleCount] = useState(0);
+  const currentId = history[pointer];
   const current = stories.find((s) => s.id === currentId) || stories[0];
   if (!current) return null;
 
   const relLabel = current.contributor_relation ? `${current.contributor_name}, ${current.contributor_relation}` : current.contributor_name;
+  const canGoBack = pointer > 0;
 
   const handleNext = () => {
-    setCurrentId((prevId) => pickRandomMemoryId(stories, prevId));
-    setCycleCount((c) => c + 1);
+    const nextId = pickRandomMemoryId(stories, currentId);
+    setHistory((h) => [...h.slice(0, pointer + 1), nextId]);
+    setPointer((p) => p + 1);
+    setCycleCount((c) => c + 1); // only forward navigations count toward the nudge
+  };
+
+  const handleBack = () => {
+    if (!canGoBack) return;
+    setPointer((p) => p - 1);
   };
 
   return (
     <section className="momo">
-      <div className="momo-card">
-        <div className="momo-eyebrow">One memory at a time</div>
-        <MomoContent story={current} relLabel={relLabel} />
+      <div className="momo-card-wrap">
+        <div className="momo-card">
+          <div className="momo-eyebrow">Featured memory</div>
+          <MomoContent story={current} relLabel={relLabel} />
+        </div>
+        {canGoBack && (
+          <button type="button" className="momo-zone momo-zone-left" onClick={handleBack} aria-label="Previous memory">
+            <span className="momo-zone-hint">&lsaquo;</span>
+          </button>
+        )}
+        <button type="button" className="momo-zone momo-zone-right" onClick={handleNext} aria-label="Next memory">
+          <span className="momo-zone-hint">&rsaquo;</span>
+        </button>
       </div>
-      <div className="momo-controls">
-        <button type="button" className="momo-btn momo-btn-primary" onClick={handleNext}>Next memory</button>
-        <button type="button" className="momo-btn momo-btn-ghost" onClick={() => onSeeAll(current.id)}>See all memories</button>
-      </div>
-      {/* Doesn't block Next from continuing to work — just a nudge toward the archive. */}
+      <a
+        className="momo-see-all"
+        href="#archive"
+        onClick={(e) => { e.preventDefault(); onSeeAll(current.id); }}
+      >
+        See all memories
+      </a>
+      {/* Doesn't block the zones from continuing to work — just a nudge toward the archive. */}
       {cycleCount >= 4 && (
         <p className="momo-nudge">You've seen a few &mdash; the rest of {memorialName}'s story is waiting.</p>
       )}

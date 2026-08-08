@@ -333,6 +333,28 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 @media (max-width: 600px) { .memory-grid { grid-template-columns: repeat(2, 1fr); gap: 16px; } }
 
 .mem-tile { position: relative; aspect-ratio: 1; border-radius: 4px; box-shadow: var(--mem-shadow); overflow: hidden; display: flex; flex-direction: column; scroll-margin-top: 100px; }
+/* Shared hover state for every tile regardless of content type — a
+   dedicated container-level state, not per-type styling. z-index lifts the
+   tile above its grid neighbors so the scale-up doesn't get clipped by
+   them; outline (not border) so the highlight doesn't shift layout or get
+   clipped by the tile's own overflow: hidden. */
+.mem-tile:hover {
+  position: relative;
+  z-index: 5;
+  outline: 3px solid var(--mem-gold);
+  outline-offset: 2px;
+  box-shadow: 0 18px 40px -8px rgba(20,18,15,0.4);
+  animation: memTileWiggle 0.35s ease-out forwards;
+}
+@keyframes memTileWiggle {
+  0% { transform: scale(1) rotate(0deg); }
+  30% { transform: scale(1.06) rotate(-2deg); }
+  60% { transform: scale(1.06) rotate(2deg); }
+  100% { transform: scale(1.06) rotate(0deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mem-tile:hover { animation: none; }
+}
 .mem-tile.hidden-card { display: none !important; }
 
 .mem-tile-body { flex: 1; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; background: var(--mem-paper-deep); }
@@ -408,13 +430,14 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .memorial-page .link-preview-title { color: var(--mem-ink); }
 .memorial-page .link-preview-provider { color: var(--mem-ink-soft); }
 
-/* -- "one memory at a time" — a single random entry, full-bleed, above the
+/* -- "featured memory" — a single random entry, full-bleed, above the
    grid. Dark card + gold accents (var(--mem-ink)/var(--mem-gold*), the same
    substitution already used for the pull-quote, rather than a teal that
    doesn't exist anywhere in this palette). Every content type renders
    inside the same shell — see MomoContent. */
 .momo { padding: 8px 24px 56px; text-align: center; }
-.momo-card { max-width: 640px; margin: 0 auto; background: var(--mem-ink); border-radius: 8px; padding: 48px 40px 36px; box-shadow: var(--mem-shadow); }
+.momo-card-wrap { position: relative; max-width: 640px; margin: 0 auto; }
+.momo-card { background: var(--mem-ink); border-radius: 8px; padding: 48px 40px 36px; box-shadow: var(--mem-shadow); }
 .momo-eyebrow { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--mem-gold-soft); margin-bottom: 22px; }
 .momo-photo, .momo-video { aspect-ratio: 4 / 3; max-width: 420px; margin: 0 auto 24px; border-radius: 6px; overflow: hidden; background: rgba(255,255,255,0.06); }
 .momo-photo img, .momo-video video { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -424,6 +447,11 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .momo-attr { font-size: 0.85rem; color: rgba(245,239,225,0.65); }
 .momo-attr-time { margin-left: 6px; opacity: 0.75; }
 
+/* Elevated above .momo-zone (see below) so their own controls stay fully
+   clickable across their whole width — the invisible next/back zones sit
+   behind actual interactive content, only catching clicks on the passive
+   parts of the card (background, quote text, attribution). */
+.momo-video, .momo-audio, .momo-link { position: relative; z-index: 3; }
 .momo-audio { max-width: 420px; margin: 0 auto 20px; }
 
 .momo-link { display: block; width: 100%; max-width: 420px; margin: 0 auto 20px; background: none; border: none; padding: 0; cursor: pointer; text-align: left; font-family: inherit; }
@@ -434,16 +462,27 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .momo-link-embed { aspect-ratio: 16 / 9; max-width: 420px; margin: 0 auto 20px; border-radius: 6px; overflow: hidden; background: #000; }
 .momo-link-embed iframe { width: 100%; height: 100%; border: none; display: block; }
 
-.momo-controls { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 28px; flex-wrap: wrap; }
-.momo-btn { font-family: inherit; font-size: 14px; font-weight: 600; padding: 11px 22px; border-radius: 100px; cursor: pointer; transition: all 0.2s ease; }
-.momo-btn-primary { background: var(--mem-gold); color: #2C2005; border: none; }
-.momo-btn-primary:hover { background: var(--mem-gold-soft); }
-/* .momo-controls sits below/outside the dark .momo-card, on the page's own
-   light background — this needs dark-on-light contrast, not the pale
-   on-dark treatment .momo-card's own content uses. */
-.momo-btn-ghost { background: none; border: 1.5px solid rgba(44,36,32,0.18); color: var(--mem-ink-soft); }
-.momo-btn-ghost:hover { border-color: var(--mem-gold); color: var(--mem-ink); }
-.momo-nudge { margin: 18px auto 0; max-width: 420px; font-size: 13px; color: var(--mem-ink-soft); }
+/* Invisible click zones over the outer third of the card, full height —
+   right advances (fresh random pick), left returns to the previous entry
+   in this session's history (only rendered once there's history to return
+   to). A chevron + dark gradient fades in on hover/focus/press so the
+   zone is discoverable without needing a visible button. z-index: 2 sits
+   below the interactive content above but above the plain card. */
+.momo-zone { position: absolute; top: 0; bottom: 0; width: 33%; z-index: 2; display: flex; align-items: center; background: none; border: none; padding: 0; margin: 0; cursor: pointer; }
+.momo-zone-left { left: 0; justify-content: flex-start; }
+.momo-zone-right { right: 0; justify-content: flex-end; }
+.momo-zone-hint {
+  display: flex; align-items: center; width: 64px; height: 100%; opacity: 0;
+  font-family: 'Fraunces', serif; font-size: 30px; line-height: 1; color: var(--mem-paper);
+  transition: opacity 0.2s ease;
+}
+.momo-zone-left .momo-zone-hint { justify-content: flex-start; padding-left: 16px; border-radius: 8px 0 0 8px; background: linear-gradient(to right, rgba(15,13,10,0.55), transparent); }
+.momo-zone-right .momo-zone-hint { justify-content: flex-end; padding-right: 16px; border-radius: 0 8px 8px 0; background: linear-gradient(to left, rgba(15,13,10,0.55), transparent); }
+.momo-zone:hover .momo-zone-hint, .momo-zone:focus-visible .momo-zone-hint, .momo-zone:active .momo-zone-hint { opacity: 1; }
+
+.momo-see-all { display: inline-block; margin-top: 22px; font-size: 14px; font-weight: 500; color: var(--mem-ink-soft); text-decoration: underline; text-underline-offset: 3px; }
+.momo-see-all:hover { color: var(--mem-ink); }
+.momo-nudge { margin: 14px auto 0; max-width: 420px; font-size: 13px; color: var(--mem-ink-soft); }
 
 @media (max-width: 600px) {
   .momo { padding: 0 16px 40px; }
@@ -460,9 +499,17 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .momo-btn { transition: none; }
+  .momo-zone-hint { transition: none; }
   .momo-highlight { animation: none; }
 }
+
+/* -- contributor avatar stack — same overlapping-circle pattern as the
+   homepage's preview-crowd, adapted to the memorial page's own tokens and
+   a per-contributor hashed color instead of one flat avatar background. */
+.mem-avatar-stack { display: flex; align-items: center; justify-content: center; margin-top: 18px; }
+.mem-avatar { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: var(--mem-paper); border: 2px solid var(--mem-paper); margin-left: -10px; flex-shrink: 0; }
+.mem-avatar:first-child { margin-left: 0; }
+.mem-avatar-overflow { background: var(--mem-ink-soft) !important; }
 
 
 /* -- share-a-memory panel: form widgets are used only on this page -- */
