@@ -134,6 +134,22 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .memory-card-quote::after { content: '”'; color: var(--rust); font-size: 1.3em; line-height: 0; vertical-align: -0.42em; margin-left: 1px; }
 .memory-card-attr { display: block; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--warm-faint); font-family: 'DM Sans', sans-serif; font-size: 12px; color: var(--warm-light); }
 
+/* -- hero collage voicemail tile — reads as audio, not styled to look
+   like the photo tiles around it. Dark bg (var(--bark), the site's
+   existing dark surface) with the same shadow/radius as .memory-card so
+   it belongs in the same collage, but its own horizontal layout (play
+   button, then label/waveform/caption) since a photo-on-top shape
+   doesn't fit audio. Purely decorative, matching the rest of this
+   illustrative collage — the video tile beside it is just autoplaying
+   muted, nothing here is wired to real playback either. */
+.hero-voicemail-card { flex: 1; display: flex; align-items: center; gap: 14px; padding: 16px 18px; background: var(--bark); border-radius: 8px; box-shadow: 0 16px 40px -22px rgba(45,33,24,0.22); }
+.hero-voicemail-play { flex-shrink: 0; width: 34px; height: 34px; border-radius: 50%; background: var(--rust); display: flex; align-items: center; justify-content: center; }
+.hero-voicemail-body { flex: 1; min-width: 0; }
+.hero-voicemail-label { display: block; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(253,250,245,0.55); margin-bottom: 6px; }
+.hero-voicemail-wave { display: flex; align-items: center; gap: 2px; height: 22px; margin-bottom: 8px; }
+.hero-voicemail-wave span { width: 3px; border-radius: 2px; background: var(--rust-light); flex-shrink: 0; }
+.hero-voicemail-caption { display: block; font-family: 'DM Sans', sans-serif; font-size: 11.5px; color: rgba(253,250,245,0.7); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
 .hero-media-cta { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; margin-top: 14px; background: none; border: none; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; color: var(--rust); transition: color 0.2s; }
 .hero-media-cta:hover { color: var(--rust-light); text-decoration: underline; }
 

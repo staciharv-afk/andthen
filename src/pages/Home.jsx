@@ -255,6 +255,25 @@ export function HomePage({ onNavigate }) {
                     </div>
                   </div>
                   <div className="hero-media-small">
+                    {/* Decorative, like the rest of this collage (the video
+                        tile below just autoplays muted, nothing here is
+                        wired to real playback either) — same real Deb
+                        content as the "What you get" voice example
+                        (CAROUSEL_EXAMPLES) below, not new data. */}
+                    <div className="hero-voicemail-card">
+                      <div className="hero-voicemail-play"><span className="icon-play" /></div>
+                      <div className="hero-voicemail-body">
+                        <span className="hero-voicemail-label">Voicemail</span>
+                        <div className="hero-voicemail-wave">
+                          {[8, 15, 20, 11, 18, 22, 9, 16, 13, 19, 10, 15].map((h, i) => (
+                            <span key={i} style={{ height: `${h}px` }} />
+                          ))}
+                        </div>
+                        <span className="hero-voicemail-caption">Left by Meredith, Deb's daughter · 0:17</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="hero-media-small">
                     <div className="memory-card">
                       <div className="memory-card-photo">
                         <video src="/home/hero-video.mp4" poster="/home/hero-video-poster.jpg" muted loop autoPlay playsInline />
