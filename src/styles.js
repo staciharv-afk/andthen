@@ -144,11 +144,10 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
    illustrative collage — the video tile beside it is just autoplaying
    muted, nothing here is wired to real playback either. */
 .hero-voicemail-card { flex: 1; display: flex; align-items: center; gap: 14px; padding: 16px 18px; background: var(--bark); border-radius: 8px; box-shadow: 0 16px 40px -22px rgba(45,33,24,0.22); }
-.hero-voicemail-play { flex-shrink: 0; width: 34px; height: 34px; border-radius: 50%; background: var(--rust); display: flex; align-items: center; justify-content: center; }
 .hero-voicemail-body { flex: 1; min-width: 0; }
 .hero-voicemail-label { display: block; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(253,250,245,0.55); margin-bottom: 6px; }
-.hero-voicemail-wave { display: flex; align-items: center; gap: 2px; height: 22px; margin-bottom: 8px; }
-.hero-voicemail-wave span { width: 3px; border-radius: 2px; background: var(--rust-light); flex-shrink: 0; }
+.hero-voicemail-wave { margin-bottom: 8px; }
+.hero-voicemail-wave span { flex-shrink: 0; }
 .hero-voicemail-caption { display: block; font-family: 'DM Sans', sans-serif; font-size: 11.5px; color: rgba(253,250,245,0.7); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .hero-media-cta { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; margin-top: 14px; background: none; border: none; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; color: var(--rust); transition: color 0.2s; }

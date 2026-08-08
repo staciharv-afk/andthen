@@ -115,6 +115,49 @@ function VoiceCard({ example, onPlay }) {
   );
 }
 
+// Real playback for the hero collage's voicemail tile — same audio file and
+// attribution as the "What you get" voice example above (CAROUSEL_EXAMPLES),
+// just its own play state since it's a separate on-screen instance.
+function HeroVoicemail() {
+  const audioRef = useRef(null);
+  const [playing, setPlaying] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const progress = duration ? elapsed / duration : 0;
+
+  const toggle = () => {
+    const a = audioRef.current;
+    if (!a) return;
+    if (playing) a.pause();
+    else a.play();
+    setPlaying((p) => !p);
+  };
+
+  return (
+    <div className="hero-voicemail-card">
+      <audio
+        ref={audioRef}
+        src="/home/mom-voicemail.m4a"
+        onLoadedMetadata={(e) => setDuration(e.target.duration)}
+        onTimeUpdate={(e) => setElapsed(e.target.currentTime)}
+        onEnded={() => { setPlaying(false); setElapsed(0); }}
+      />
+      <button type="button" className="voice-play-btn hero-voicemail-play" onClick={toggle} aria-label={playing ? "Pause voicemail" : "Play voicemail"}>
+        {playing ? <span className="icon-pause" /> : <span className="icon-play" />}
+      </button>
+      <div className="hero-voicemail-body">
+        <span className="hero-voicemail-label">Voicemail</span>
+        <div className="voice-waveform hero-voicemail-wave">
+          {[8, 15, 20, 11, 18, 22, 9, 16, 13, 19, 10, 15].map((h, i) => (
+            <span key={i} className={i / 12 <= progress ? "played" : ""} style={{ height: `${h}px` }} />
+          ))}
+        </div>
+        <span className="hero-voicemail-caption">Left by Meredith, Deb's daughter · {fmtTime(elapsed)} / {duration ? fmtTime(duration) : "0:17"}</span>
+      </div>
+    </div>
+  );
+}
+
 function WhatYouGetPreview() {
   const [active, setActive] = useState(0);
   const [autoCycle, setAutoCycle] = useState(true);
@@ -255,23 +298,7 @@ export function HomePage({ onNavigate }) {
                     </div>
                   </div>
                   <div className="hero-media-small">
-                    {/* Decorative, like the rest of this collage (the video
-                        tile below just autoplays muted, nothing here is
-                        wired to real playback either) — same real Deb
-                        content as the "What you get" voice example
-                        (CAROUSEL_EXAMPLES) below, not new data. */}
-                    <div className="hero-voicemail-card">
-                      <div className="hero-voicemail-play"><span className="icon-play" /></div>
-                      <div className="hero-voicemail-body">
-                        <span className="hero-voicemail-label">Voicemail</span>
-                        <div className="hero-voicemail-wave">
-                          {[8, 15, 20, 11, 18, 22, 9, 16, 13, 19, 10, 15].map((h, i) => (
-                            <span key={i} style={{ height: `${h}px` }} />
-                          ))}
-                        </div>
-                        <span className="hero-voicemail-caption">Left by Meredith, Deb's daughter · 0:17</span>
-                      </div>
-                    </div>
+                    <HeroVoicemail />
                   </div>
                   <div className="hero-media-small">
                     <div className="memory-card">
