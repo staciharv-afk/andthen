@@ -13,6 +13,7 @@ import { CreateMemorialPage } from "./pages/CreateMemorial";
 import { DashboardPage } from "./pages/Dashboard";
 import { MemorialPage } from "./pages/Memorial";
 import { PricingPage } from "./pages/Pricing";
+import { OurStoryPage } from "./pages/OurStory";
 
 export default function App() {
   const [route, setRoute] = useState(() => parseLocation().page);
@@ -118,12 +119,14 @@ export default function App() {
       )}
 
       {route !== "login" && route !== "memorial" && route !== "onboarding" && (
-        <Nav currentUser={currentUser} onSignOut={handleSignOut} onNavigate={navigate} />
+        <Nav currentUser={currentUser} onSignOut={handleSignOut} onNavigate={navigate} currentRoute={route} />
       )}
 
       {route === "home" && <HomePage onNavigate={navigate} />}
 
       {route === "pricing" && <PricingPage onNavigate={navigate} />}
+
+      {route === "story" && <OurStoryPage onNavigate={navigate} />}
 
       {route === "onboarding" && (
         <OnboardingPage showToast={showToast} />

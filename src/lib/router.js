@@ -1,4 +1,4 @@
-export const APP_VIEWS = ["login", "create", "dashboard", "edit", "pricing", "onboarding"];
+export const APP_VIEWS = ["login", "create", "dashboard", "edit", "pricing", "onboarding", "story"];
 
 // Slugs a memorial can't use — they'd collide with a real app route or
 // static asset path. Shared with CreateMemorial's slug field validation.
