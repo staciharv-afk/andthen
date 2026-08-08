@@ -282,9 +282,9 @@ export function HomePage({ onNavigate }) {
         <div className="page-wrap">
           <div className="narrative">
             <div className="section-label">What you get</div>
-            <h2 className="narrative-headline">The photos and voicemails already exist. They're just scattered across a hundred phones.</h2>
+            <h2 className="narrative-headline">Not just a page — a way to collect.</h2>
             <p className="narrative-body">
-              Somebody has a video you've never seen. Somebody else has a voicemail they left. Without a place for it to go, you never will. And Then is that place — one page everyone can add to, for as long as they have something left to give it.
+              The photos and voicemails already exist. They're just scattered across a hundred phones. And Then does the collecting: it asks each person the right question, at the right time, and gathers what comes back into one place that keeps growing.
             </p>
 
             <WhatYouGetPreview />
