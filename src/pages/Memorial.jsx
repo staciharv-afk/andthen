@@ -127,6 +127,7 @@ export function MemorialPage({ inviteCode, showToast, onNavigate }) {
   const [recordDuration, setRecordDuration] = useState(0);
   const [showContribute, setShowContribute] = useState(false);
   const [activeFilter, setActiveFilter] = useState("all");
+  const [pendingScrollId, setPendingScrollId] = useState(null); // "See all memories" target, see the effect below
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
   const timerRef = useRef(null);
@@ -161,6 +162,27 @@ export function MemorialPage({ inviteCode, showToast, onNavigate }) {
   useEffect(() => {
     if (showContribute) contributeRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [showContribute]);
+
+  // "See all memories" (from MemoryOfTheMoment) sets pendingScrollId and
+  // switches to the "all" filter so the target tile is guaranteed visible
+  // even if a different filter was active; this effect runs after that
+  // re-render commits, once the tile actually exists in the DOM.
+  useEffect(() => {
+    if (!pendingScrollId) return;
+    const el = document.querySelector(`[data-memory-id="${pendingScrollId}"]`);
+    if (!el) return;
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    el.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "center" });
+    el.classList.add("momo-highlight");
+    const t = setTimeout(() => el.classList.remove("momo-highlight"), 1500);
+    setPendingScrollId(null);
+    return () => clearTimeout(t);
+  }, [pendingScrollId, activeFilter, stories]);
+
+  const handleSeeAllMemories = (id) => {
+    setActiveFilter("all");
+    setPendingScrollId(id);
+  };
 
   const openContribute = () => { setSubmitted(false); setShowContribute(true); };
 
@@ -429,6 +451,8 @@ export function MemorialPage({ inviteCode, showToast, onNavigate }) {
         </div>
       ) : (
         <>
+          <MemoryOfTheMoment stories={stories} memorialName={memorial.name} onSeeAll={handleSeeAllMemories} />
+
           <nav className="filter-bar">
             <div className="filter-inner">
               {filterTypes.map((f) => (
@@ -756,6 +780,190 @@ function CropAdjuster({ file, initialPos, onCancel, onConfirm }) {
   );
 }
 
+// Picks a random entry, excluding the one just shown (unless there's only
+// one entry total, in which case there's nothing else to pick).
+function pickRandomMemoryId(stories, excludeId) {
+  const pool = excludeId && stories.length > 1 ? stories.filter((s) => s.id !== excludeId) : stories;
+  return pool[Math.floor(Math.random() * pool.length)]?.id ?? null;
+}
+
+// "One memory at a time" — a single random entry shown full-bleed above
+// the grid, picked fresh on every page load (no per-visitor persistence,
+// same experience every visit, per spec). Shared across every memorial
+// page — driven entirely by that page's own stories, nothing Deb-specific.
+function MemoryOfTheMoment({ stories, memorialName, onSeeAll }) {
+  const [currentId, setCurrentId] = useState(() => pickRandomMemoryId(stories, null));
+  const [cycleCount, setCycleCount] = useState(0);
+  const current = stories.find((s) => s.id === currentId) || stories[0];
+  if (!current) return null;
+
+  const relLabel = current.contributor_relation ? `${current.contributor_name}, ${current.contributor_relation}` : current.contributor_name;
+
+  const handleNext = () => {
+    setCurrentId((prevId) => pickRandomMemoryId(stories, prevId));
+    setCycleCount((c) => c + 1);
+  };
+
+  return (
+    <section className="momo">
+      <div className="momo-card">
+        <div className="momo-eyebrow">One memory at a time</div>
+        <MomoContent story={current} relLabel={relLabel} />
+      </div>
+      <div className="momo-controls">
+        <button type="button" className="momo-btn momo-btn-primary" onClick={handleNext}>Next memory</button>
+        <button type="button" className="momo-btn momo-btn-ghost" onClick={() => onSeeAll(current.id)}>See all memories</button>
+      </div>
+      {/* Doesn't block Next from continuing to work — just a nudge toward the archive. */}
+      {cycleCount >= 4 && (
+        <p className="momo-nudge">You've seen a few &mdash; the rest of {memorialName}'s story is waiting.</p>
+      )}
+    </section>
+  );
+}
+
+function MomoAttr({ story: s, relLabel }) {
+  return (
+    <div className="momo-attr">
+      &mdash; {relLabel}
+      <span className="momo-attr-time">{timeAgo(s.created_at)}</span>
+    </div>
+  );
+}
+
+// Every content type renders inside the same card shell, matched to
+// whatever MosaicItem uses for that type (crop position, YouTube embed,
+// waveform) so "one memory at a time" and the grid never disagree about
+// how an entry looks.
+function MomoContent({ story: s, relLabel }) {
+  if (s.type === "video" && s.media_url) {
+    return (
+      <>
+        <div className="momo-video">
+          <video src={s.media_url} controls playsInline />
+        </div>
+        <MomoAttr story={s} relLabel={relLabel} />
+      </>
+    );
+  }
+
+  if (s.type === "voice" && s.media_url) {
+    return (
+      <>
+        <MomoAudio story={s} />
+        <MomoAttr story={s} relLabel={relLabel} />
+      </>
+    );
+  }
+
+  if (s.type === "url" && s.link_meta) {
+    return (
+      <>
+        <MomoLink story={s} />
+        <MomoAttr story={s} relLabel={relLabel} />
+      </>
+    );
+  }
+
+  // Photo (standalone or attached to a story) and plain text all share this
+  // shape — an optional photo, optional text, never neither.
+  const objectPosition = `${s.crop_x ?? 50}% ${s.crop_y ?? 50}%`;
+  return (
+    <>
+      {s.media_url && (
+        <div className="momo-photo">
+          <img src={s.media_url} alt="" style={{ objectPosition }} />
+        </div>
+      )}
+      {s.text && <blockquote className="momo-quote">{s.text}</blockquote>}
+      <MomoAttr story={s} relLabel={relLabel} />
+    </>
+  );
+}
+
+// Reuses the homepage's voice-play-btn/icon-play/icon-pause/voice-waveform
+// pattern as-is (unlike AudioCard in the grid, which had to re-color it for
+// a light card) — that pattern was built for a dark background, which is
+// exactly what the momo card shell is, so no adaptation needed here.
+function MomoAudio({ story: s }) {
+  const audioRef = useRef(null);
+  const [playing, setPlaying] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const progress = duration ? elapsed / duration : 0;
+  const seed = seedFor(s.id);
+
+  const toggle = () => {
+    const a = audioRef.current;
+    if (!a) return;
+    if (playing) a.pause();
+    else a.play();
+    setPlaying((p) => !p);
+  };
+
+  return (
+    <div className="momo-audio">
+      <audio
+        ref={audioRef}
+        src={s.media_url}
+        onLoadedMetadata={(e) => setDuration(e.target.duration)}
+        onTimeUpdate={(e) => setElapsed(e.target.currentTime)}
+        onEnded={() => { setPlaying(false); setElapsed(0); }}
+      />
+      <div className="voice-controls">
+        <button type="button" className="voice-play-btn" onClick={toggle} aria-label={playing ? "Pause voice memo" : "Play voice memo"}>
+          {playing ? <span className="icon-pause" /> : <span className="icon-play" />}
+        </button>
+        <div className="voice-waveform">
+          {Array.from({ length: 40 }).map((_, i) => (
+            <span
+              key={i}
+              className={i / 40 <= progress ? "played" : ""}
+              style={{ height: `${8 + Math.round(Math.abs(Math.sin(i * 0.7 + seed)) * 20)}px` }}
+            />
+          ))}
+        </div>
+        <span className="voice-time">{fmtTime(elapsed)} / {fmtTime(duration)}</span>
+      </div>
+    </div>
+  );
+}
+
+// Simplified variant of LinkCard for this shell — same expand-inline-for-
+// YouTube / open-new-tab-otherwise behavior.
+function MomoLink({ story: s }) {
+  const [expanded, setExpanded] = useState(false);
+  const meta = s.link_meta || {};
+  const isYouTube = meta.provider === "youtube" && meta.videoId;
+
+  if (expanded && isYouTube) {
+    return (
+      <div className="momo-link-embed">
+        <iframe
+          src={`https://www.youtube.com/embed/${meta.videoId}?autoplay=1${meta.start ? `&start=${meta.start}` : ""}`}
+          title={meta.title || "YouTube video"}
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+        />
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      className="momo-link"
+      onClick={() => (isYouTube ? setExpanded(true) : window.open(meta.url, "_blank", "noopener,noreferrer"))}
+    >
+      <div className="momo-link-thumb">
+        {s.media_url ? <img src={s.media_url} alt="" /> : <div className="momo-link-thumb-fallback">🔗</div>}
+        {isYouTube && <div className="media-play-btn" />}
+      </div>
+      <p className="momo-link-title">{meta.title || meta.hostname || meta.url}</p>
+    </button>
+  );
+}
+
 // Mosaic grid item — one entry, sized and treated by type. Each branch
 // returns its own complete .mosaic-item grid child.
 function MosaicItem({ story: s, isPullQuote, isAccent, hidden }) {
@@ -764,7 +972,7 @@ function MosaicItem({ story: s, isPullQuote, isAccent, hidden }) {
 
   if (isPullQuote) {
     return (
-      <div id={`story-${s.id}`} className={`mosaic-item mi-col-full${hiddenClass}`}>
+      <div id={`story-${s.id}`} data-memory-id={s.id} className={`mosaic-item mi-col-full${hiddenClass}`}>
         <div className="pullquote-card">
           <blockquote>{s.text}</blockquote>
           <span className="pullquote-attr">&mdash; {relLabel}</span>
@@ -780,7 +988,7 @@ function MosaicItem({ story: s, isPullQuote, isAccent, hidden }) {
   // empty media box.
   if (s.type === "video" && s.media_url) {
     return (
-      <div id={`story-${s.id}`} className={`mosaic-item mi-col-2 mi-row-2${hiddenClass}`}>
+      <div id={`story-${s.id}`} data-memory-id={s.id} className={`mosaic-item mi-col-2 mi-row-2${hiddenClass}`}>
         <VideoCard story={s} relLabel={relLabel} />
       </div>
     );
@@ -788,7 +996,7 @@ function MosaicItem({ story: s, isPullQuote, isAccent, hidden }) {
 
   if (s.type === "voice" && s.media_url) {
     return (
-      <div id={`story-${s.id}`} className={`mosaic-item mi-col-2${hiddenClass}`}>
+      <div id={`story-${s.id}`} data-memory-id={s.id} className={`mosaic-item mi-col-2${hiddenClass}`}>
         <AudioCard story={s} relLabel={relLabel} />
       </div>
     );
@@ -800,7 +1008,7 @@ function MosaicItem({ story: s, isPullQuote, isAccent, hidden }) {
 
   if (s.type === "url" && s.link_meta) {
     return (
-      <div id={`story-${s.id}`} className={`mosaic-item mi-col-2${hiddenClass}`}>
+      <div id={`story-${s.id}`} data-memory-id={s.id} className={`mosaic-item mi-col-2${hiddenClass}`}>
         <LinkCard story={s} relLabel={relLabel} />
       </div>
     );
@@ -811,7 +1019,7 @@ function MosaicItem({ story: s, isPullQuote, isAccent, hidden }) {
   // than by text length, since it carries a photo.
   if (s.type === "story" && s.media_url) {
     return (
-      <div id={`story-${s.id}`} className={`mosaic-item mi-col-1${hiddenClass}`}>
+      <div id={`story-${s.id}`} data-memory-id={s.id} className={`mosaic-item mi-col-1${hiddenClass}`}>
         <LinkedCard story={s} relLabel={relLabel} />
       </div>
     );
@@ -819,7 +1027,7 @@ function MosaicItem({ story: s, isPullQuote, isAccent, hidden }) {
 
   const span = textColSpan(s.text);
   return (
-    <div id={`story-${s.id}`} className={`mosaic-item mi-col-${span}${hiddenClass}`}>
+    <div id={`story-${s.id}`} data-memory-id={s.id} className={`mosaic-item mi-col-${span}${hiddenClass}`}>
       <div className={`card${isAccent ? " card-accent" : ""}`}>
         {s.text && <blockquote>{s.text}</blockquote>}
         <div className="meta">
@@ -840,7 +1048,7 @@ function MosaicItem({ story: s, isPullQuote, isAccent, hidden }) {
 function PhotoItem({ story: s, id, hiddenClass }) {
   const objectPosition = `${s.crop_x ?? 50}% ${s.crop_y ?? 50}%`;
   return (
-    <div id={id} className={`mosaic-item mi-col-1${hiddenClass}`}>
+    <div id={id} data-memory-id={s.id} className={`mosaic-item mi-col-1${hiddenClass}`}>
       <div className="photo-item">
         <img src={s.media_url} alt="" loading="lazy" style={{ objectPosition }} />
       </div>

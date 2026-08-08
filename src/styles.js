@@ -451,6 +451,62 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .memorial-page .link-preview-title { color: var(--mem-ink); }
 .memorial-page .link-preview-provider { color: var(--mem-ink-soft); }
 
+/* -- "one memory at a time" — a single random entry, full-bleed, above the
+   grid. Dark card + gold accents (var(--mem-ink)/var(--mem-gold*), the same
+   substitution already used for the pull-quote, rather than a teal that
+   doesn't exist anywhere in this palette). Every content type renders
+   inside the same shell — see MomoContent. */
+.momo { padding: 8px 24px 56px; text-align: center; }
+.momo-card { max-width: 640px; margin: 0 auto; background: var(--mem-ink); border-radius: 8px; padding: 48px 40px 36px; box-shadow: var(--mem-shadow); }
+.momo-eyebrow { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--mem-gold-soft); margin-bottom: 22px; }
+.momo-photo, .momo-video { aspect-ratio: 4 / 3; max-width: 420px; margin: 0 auto 24px; border-radius: 6px; overflow: hidden; background: rgba(255,255,255,0.06); }
+.momo-photo img, .momo-video video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.momo-quote { margin: 0 0 20px; font-family: 'Fraunces', serif; font-style: italic; font-weight: 500; font-size: clamp(1.25rem, 2.6vw, 1.6rem); line-height: 1.45; color: var(--mem-paper); }
+.momo-quote::before { content: '“'; color: var(--mem-gold-soft); }
+.momo-quote::after { content: '”'; color: var(--mem-gold-soft); }
+.momo-attr { font-size: 0.85rem; color: rgba(245,239,225,0.65); }
+.momo-attr-time { margin-left: 6px; opacity: 0.75; }
+
+.momo-audio { max-width: 420px; margin: 0 auto 20px; }
+
+.momo-link { display: block; width: 100%; max-width: 420px; margin: 0 auto 20px; background: none; border: none; padding: 0; cursor: pointer; text-align: left; font-family: inherit; }
+.momo-link-thumb { position: relative; aspect-ratio: 16 / 9; border-radius: 6px; overflow: hidden; background: rgba(255,255,255,0.08); margin-bottom: 10px; }
+.momo-link-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.momo-link-thumb-fallback { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 1.6rem; opacity: 0.5; }
+.momo-link-title { margin: 0; font-size: 0.9rem; color: var(--mem-paper); text-align: center; }
+.momo-link-embed { aspect-ratio: 16 / 9; max-width: 420px; margin: 0 auto 20px; border-radius: 6px; overflow: hidden; background: #000; }
+.momo-link-embed iframe { width: 100%; height: 100%; border: none; display: block; }
+
+.momo-controls { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 28px; flex-wrap: wrap; }
+.momo-btn { font-family: inherit; font-size: 14px; font-weight: 600; padding: 11px 22px; border-radius: 100px; cursor: pointer; transition: all 0.2s ease; }
+.momo-btn-primary { background: var(--mem-gold); color: #2C2005; border: none; }
+.momo-btn-primary:hover { background: var(--mem-gold-soft); }
+/* .momo-controls sits below/outside the dark .momo-card, on the page's own
+   light background — this needs dark-on-light contrast, not the pale
+   on-dark treatment .momo-card's own content uses. */
+.momo-btn-ghost { background: none; border: 1.5px solid rgba(44,36,32,0.18); color: var(--mem-ink-soft); }
+.momo-btn-ghost:hover { border-color: var(--mem-gold); color: var(--mem-ink); }
+.momo-nudge { margin: 18px auto 0; max-width: 420px; font-size: 13px; color: var(--mem-ink-soft); }
+
+@media (max-width: 600px) {
+  .momo { padding: 0 16px 40px; }
+  .momo-card { padding: 36px 24px 28px; }
+}
+
+/* "See all memories" locates the matching grid tile via data-memory-id and
+   glows it on arrival — gold border, expanding shadow that fades over
+   ~1.4s, so it's identifiable even in a dense grid. */
+.momo-highlight { border-radius: 6px; outline: 3px solid var(--mem-gold); outline-offset: 2px; animation: momoGlow 1.4s ease-out; }
+@keyframes momoGlow {
+  0% { box-shadow: 0 0 0 0 rgba(184,134,59,0.55); }
+  100% { box-shadow: 0 0 0 26px rgba(184,134,59,0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .momo-btn { transition: none; }
+  .momo-highlight { animation: none; }
+}
+
 /* -- audio entries: waveform visual + duration + contributor, not a
    text card. Reuses the homepage's voice-play-btn/icon-play/icon-pause
    pattern; the waveform bars get their own light-card-friendly colors
