@@ -320,87 +320,62 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .chip:hover { border-color: var(--mem-rose); color: var(--mem-ink); }
 .chip.active { background: var(--mem-ink); border-color: var(--mem-ink); color: var(--mem-paper); }
 
-/* -- mosaic archive --
-   CSS Grid, not the old column-count masonry: entries span different
-   column/row counts by media type and (for text) content length, so a
-   page reads as a varied mosaic rather than a wall of identical cards.
-   grid-auto-flow: dense lets shorter items backfill the gaps a wide/tall
-   item leaves, so spans don't have to line up in strict rows. Sizing
-   comes from content, not manual tagging, so a text-only page (the
-   common starting state, before photos/video/audio get added) still
-   varies by quote length + the pull-quote/accent treatments below,
-   rather than falling back to a separate "empty" layout. */
+/* -- uniform memory-tile archive --
+   Every entry — photo, video, voicemail, written story, link — renders as
+   the same square tile: a content body plus a dark bottom bar with the
+   type label and (for a media entry with attached text) a story-flag.
+   Replaces the old variable-span mosaic (pull-quote/accent/text-length
+   spans) entirely; this is a deliberate, spec-driven pivot away from that
+   system, not an incremental tweak to it. */
 .clusters { max-width: 1180px; margin: 0 auto; padding: 56px 24px 40px; }
-.mosaic-grid { display: grid; grid-template-columns: repeat(4, 1fr); grid-auto-flow: dense; gap: 26px; }
-.mosaic-item { scroll-margin-top: 100px; }
-.mosaic-item.hidden-card { display: none !important; }
-.mi-col-1 { grid-column: span 1; }
-.mi-col-2 { grid-column: span 2; }
-.mi-col-3 { grid-column: span 3; }
-.mi-col-full { grid-column: 1 / -1; }
-.mi-row-2 { grid-row: span 2; }
+.memory-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 22px; }
+@media (max-width: 900px) { .memory-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 600px) { .memory-grid { grid-template-columns: repeat(2, 1fr); gap: 16px; } }
 
-/* Scrapbook tilt, kept from the old masonry — only on regular (non-media,
-   non-full-width) cards, so it doesn't make the big video/pull-quote
-   blocks look crooked. */
-.mosaic-item:nth-child(4n+1) .card { transform: rotate(-1deg); }
-.mosaic-item:nth-child(4n+2) .card { transform: rotate(0.8deg); }
-.mosaic-item:nth-child(4n+3) .card { transform: rotate(-0.5deg); }
-.mosaic-item:nth-child(4n+4) .card { transform: rotate(0.4deg); }
+.mem-tile { position: relative; aspect-ratio: 1; border-radius: 4px; box-shadow: var(--mem-shadow); overflow: hidden; display: flex; flex-direction: column; scroll-margin-top: 100px; }
+.mem-tile.hidden-card { display: none !important; }
 
-@media (max-width: 900px) {
-  .mosaic-grid { grid-template-columns: repeat(2, 1fr); }
-  .mi-col-3 { grid-column: span 2; }
-}
-@media (max-width: 600px) {
-  .mosaic-grid { grid-template-columns: 1fr; gap: 20px; }
-  .mi-col-1, .mi-col-2, .mi-col-3 { grid-column: span 1; }
-  .mi-row-2 { grid-row: span 1; }
-  .mosaic-item .card { transform: none !important; }
-}
+.mem-tile-body { flex: 1; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; background: var(--mem-paper-deep); }
+.mem-tile-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.mem-tile-video, .mem-tile-voice, .mem-tile-url { cursor: pointer; background: var(--mem-ink); }
+.mem-tile-video video, .mem-tile-url img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.mem-tile-url-fallback { font-size: 1.6rem; opacity: 0.5; color: var(--mem-paper); }
+.mem-tile-url-embed { flex: 1; background: #000; }
+.mem-tile-url-embed iframe { width: 100%; height: 100%; border: none; display: block; }
+.mem-tile-yt-badge { position: absolute; top: 10px; left: 10px; z-index: 1; background: #E13B33; color: #fff; font-size: 9px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; padding: 3px 7px; border-radius: 3px; }
+
+.mem-tile-play { position: absolute; inset: 0; margin: auto; width: 44px; height: 44px; border-radius: 50%; background: rgba(255,255,255,0.9); display: flex; align-items: center; justify-content: center; }
+.mem-tile-play::after { content: ''; border-left: 14px solid #1D2523; border-top: 9px solid transparent; border-bottom: 9px solid transparent; margin-left: 4px; }
+
+/* Reuses the homepage's cream-on-dark waveform coloring as-is — this
+   tile's background is already dark, the exact context that pattern was
+   built for. */
+.mem-tile-wave { display: flex; align-items: center; gap: 2px; height: 44px; }
+.mem-tile-wave span { width: 3px; background: rgba(253,250,245,0.3); border-radius: 2px; }
+.mem-tile-wave span.played { background: var(--mem-gold); }
+
+.mem-tile-story { background: var(--mem-card); padding: 18px; }
+.mem-tile-story blockquote { margin: 0; font-family: 'Fraunces', serif; font-style: italic; font-size: 0.85rem; line-height: 1.5; color: var(--mem-ink); text-align: left; }
+
+/* Caption reveal for a media entry with attached text — visible on
+   :hover (desktop) or via the .revealed class MemoryTile toggles on
+   first tap (touch, no hover). pointer-events: none always, even when
+   visible, so a second tap/click passes through to the tile body
+   underneath rather than hitting the overlay — "tap the media once
+   revealed" from the spec. */
+.mem-tile-caption { position: absolute; inset: 0; background: linear-gradient(to top, rgba(15,13,10,0.88) 0%, rgba(15,13,10,0.55) 45%, transparent 75%); display: flex; align-items: flex-end; padding: 16px; opacity: 0; transition: opacity 0.18s ease; pointer-events: none; }
+.mem-tile:hover .mem-tile-caption, .mem-tile.revealed .mem-tile-caption { opacity: 1; }
+.mem-tile-caption p { margin: 0; font-family: 'Fraunces', serif; font-style: italic; font-size: 0.8rem; line-height: 1.45; color: var(--mem-paper); text-align: left; }
+
+.mem-tile-bar { height: 17%; min-height: 32px; flex-shrink: 0; background: var(--mem-ink); display: flex; align-items: center; gap: 8px; padding: 0 12px; }
+.mem-tile-type { text-transform: uppercase; font-size: 9px; letter-spacing: 0.08em; color: rgba(245,239,225,0.55); white-space: nowrap; }
+.mem-tile-flag { display: inline-flex; align-items: center; justify-content: center; color: var(--mem-gold); font-family: 'Fraunces', serif; font-style: italic; font-size: 13px; line-height: 1; }
+.mem-tile-meta { margin-left: auto; font-size: 10px; color: rgba(245,239,225,0.45); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 45%; }
+
 @media (prefers-reduced-motion: reduce) {
-  /* voice-play-btn's hover scale (defined globally, reused here by AudioCard) */
-  .audio-mosaic-card .voice-play-btn { transition: none; }
+  .mem-tile-caption { transition: none; }
+  .mem-tile .voice-play-btn { transition: none; }
 }
-
-.card { position: relative; background: var(--mem-card); border-radius: 4px; padding: 26px 26px 20px; box-shadow: var(--mem-shadow); border: 1px solid rgba(44,36,32,0.06); height: 100%; }
-/* A story with an attached photo — the photo bleeds to the card's own
-   edges (negative margin against .card's padding) rather than sitting
-   inset, so it reads as "photo on top" instead of a small illustration. */
-.linked-card-photo { aspect-ratio: 1; margin: -26px -26px 14px; border-radius: 4px 4px 0 0; overflow: hidden; }
-.linked-card-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
-/* Rare secondary accent treatment (roughly 1 in 8-10 text entries) — a
-   warm/gold-tinted card, so the grid gets a color break even with zero
-   photos yet. Reuses the existing tag-photo gold token rather than a new
-   color. */
-.card-accent { background: var(--mem-gold-soft); border-color: rgba(107,78,30,0.18); }
-.card-accent .contributor, .card-accent .contributor-time { color: #6B4E1E; }
-.card blockquote { margin: 0 0 14px; font-family: 'Fraunces', serif; font-style: italic; font-size: 1.05rem; line-height: 1.5; color: var(--mem-ink); }
-.card blockquote::before { content: '“'; color: var(--mem-rose); font-size: 1.4em; line-height: 0; vertical-align: -0.3em; margin-right: 2px; }
-.card blockquote::after { content: '”'; color: var(--mem-rose); font-size: 1.4em; line-height: 0; vertical-align: -0.5em; margin-left: 2px; }
-.card .meta { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-top: 12px; border-top: 1px dashed rgba(44,36,32,0.15); font-size: 0.82rem; }
-.card .contributor { color: var(--mem-ink-soft); font-weight: 500; }
-.card .contributor-time { color: var(--mem-ink-soft); opacity: 0.6; font-size: 0.75rem; margin-left: 6px; }
-.tag { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; padding: 4px 10px; border-radius: 999px; white-space: nowrap; }
-.tag-photo { background: var(--mem-gold-soft); color: #6B4E1E; }
-.tag-story { background: var(--mem-sage-soft); color: #3F4B31; }
-.tag-video { background: #DCE3EE; color: #33425E; }
-.tag-voice { background: var(--mem-rose-soft); color: #7A2E33; }
-.tag-url { background: #E4DCF0; color: #4A3B66; }
-
-/* -- pull-quote: one short entry, full-width, dark, larger type — a
-   magazine-style break in the grid. Uses --mem-ink (the page's own dark
-   tone) rather than introducing a teal not otherwise in this palette. */
-.pullquote-card { background: var(--mem-ink); border-radius: 6px; padding: 48px 40px; text-align: center; box-shadow: var(--mem-shadow); }
-.pullquote-card blockquote { margin: 0 auto 18px; max-width: 640px; font-family: 'Fraunces', serif; font-style: italic; font-weight: 500; font-size: clamp(1.4rem, 3vw, 2rem); line-height: 1.4; color: var(--mem-paper); }
-.pullquote-card blockquote::before { content: '“'; color: var(--mem-rose-soft); font-size: 1.2em; line-height: 0; vertical-align: -0.32em; margin-right: 3px; }
-.pullquote-card blockquote::after { content: '”'; color: var(--mem-rose-soft); font-size: 1.2em; line-height: 0; vertical-align: -0.5em; margin-left: 3px; }
-.pullquote-attr { font-size: 0.85rem; color: rgba(245,239,225,0.65); }
-
-/* -- photo entries: uniform square tile (Instagram-grid style), no caption/
-   overlay — just the image, cropped via object-position (crop_x/crop_y). */
-.photo-item { aspect-ratio: 1; border-radius: 6px; overflow: hidden; box-shadow: var(--mem-shadow); }
-.photo-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
 /* -- contribute form: photo preview + crop reposition UI -- */
 .photo-preview-crop { position: relative; width: 100%; aspect-ratio: 1; border-radius: 4px; overflow: hidden; background: var(--warm-faint); }
@@ -422,24 +397,6 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
   .crop-adjust-btn { transition: none; }
 }
 
-/* -- video entries: thumbnail + play icon, caption bar with just the
-   contributor (not a text block) -- */
-.video-mosaic-card { display: flex; flex-direction: column; height: 100%; border-radius: 6px; overflow: hidden; box-shadow: var(--mem-shadow); background: var(--mem-ink); }
-.video-mosaic-frame { position: relative; display: block; width: 100%; aspect-ratio: 4 / 3; border: none; padding: 0; cursor: pointer; background: var(--mem-ink); flex: 1; }
-.video-mosaic-frame video { width: 100%; height: 100%; object-fit: cover; display: block; }
-.video-mosaic-caption { padding: 12px 16px; font-size: 0.82rem; color: rgba(245,239,225,0.8); }
-
-/* -- link entries: thumbnail (YouTube's own, or a scraped og:image) + a
-   plain title line, not a quote — this is a page someone's pointing to,
-   not a memory being told. YouTube expands inline on click; anything else
-   opens in a new tab, so the whole card acts as a button. */
-.link-card { cursor: pointer; }
-.link-card-thumb { position: relative; aspect-ratio: 16 / 9; margin: -26px -26px 14px; border-radius: 4px 4px 0 0; overflow: hidden; background: var(--mem-paper-deep); }
-.link-card-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.link-card-thumb-fallback { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 2rem; opacity: 0.4; }
-.link-card-title { margin: 0 0 14px; font-size: 0.95rem; font-weight: 500; color: var(--mem-ink); line-height: 1.4; }
-.link-card-embed { aspect-ratio: 16 / 9; margin: -26px -26px 14px; border-radius: 4px 4px 0 0; overflow: hidden; background: #000; }
-.link-card-embed iframe { width: 100%; height: 100%; border: none; display: block; }
 
 /* -- contribute form: link preview -- */
 .link-preview-card { display: flex; align-items: center; gap: 12px; margin-top: 10px; padding: 10px; border: 1px solid var(--warm-faint); border-radius: 4px; background: var(--white); }
@@ -496,7 +453,7 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 /* "See all memories" locates the matching grid tile via data-memory-id and
    glows it on arrival — gold border, expanding shadow that fades over
    ~1.4s, so it's identifiable even in a dense grid. */
-.momo-highlight { border-radius: 6px; outline: 3px solid var(--mem-gold); outline-offset: 2px; animation: momoGlow 1.4s ease-out; }
+.momo-highlight { border-radius: 4px; outline: 3px solid var(--mem-gold); outline-offset: 2px; animation: momoGlow 1.4s ease-out; }
 @keyframes momoGlow {
   0% { box-shadow: 0 0 0 0 rgba(184,134,59,0.55); }
   100% { box-shadow: 0 0 0 26px rgba(184,134,59,0); }
@@ -507,17 +464,6 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
   .momo-highlight { animation: none; }
 }
 
-/* -- audio entries: waveform visual + duration + contributor, not a
-   text card. Reuses the homepage's voice-play-btn/icon-play/icon-pause
-   pattern; the waveform bars get their own light-card-friendly colors
-   since that pattern was built for a dark background. -- */
-.audio-mosaic-card { height: 100%; display: flex; flex-direction: column; justify-content: center; gap: 12px; background: var(--mem-card); border: 1px solid rgba(44,36,32,0.06); border-radius: 6px; padding: 20px 22px; box-shadow: var(--mem-shadow); }
-.audio-mosaic-controls { display: flex; align-items: center; gap: 12px; }
-.audio-mosaic-waveform { flex: 1; display: flex; align-items: center; gap: 2px; height: 24px; min-width: 0; }
-.audio-mosaic-waveform span { flex: 1; background: rgba(44,36,32,0.14); border-radius: 2px; transition: background 0.15s ease; }
-.audio-mosaic-waveform span.played { background: var(--mem-rose); }
-.audio-mosaic-time { flex-shrink: 0; font-size: 11px; font-variant-numeric: tabular-nums; color: var(--mem-ink-soft); }
-.audio-mosaic-attr { font-size: 0.82rem; color: var(--mem-ink-soft); }
 
 /* -- share-a-memory panel: form widgets are used only on this page -- */
 .contribute-type-row { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }

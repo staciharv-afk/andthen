@@ -2,59 +2,19 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { uid, fmtDate, timeAgo, fileToDataURL, sendThankYou, notifyCreator } from "../lib/utils";
 
-const TYPE_LABEL = { photo: "Photo", story: "Story", video: "Video", voice: "Audio", url: "Link" };
 const FILTER_LABEL = { all: "Everything", photo: "Photos", story: "Stories", video: "Videos", voice: "Audio", url: "Links" };
 // Always show every filter, even types with zero entries yet — a page
 // shouldn't lose its Audio/Video filter just because nothing's been
 // added in that type so far.
 const FILTER_ORDER = ["all", "story", "photo", "video", "voice", "url"];
 
-// -- mosaic layout tuning --
-// Text entries span more columns as they get longer (a simple length
-// threshold, not manual tagging). Photos are always a single square tile
-// (see PhotoItem) so they don't need a span rule of their own. Video/audio
-// spans are fixed by type.
-const TEXT_SPAN_LONG = 220;   // > this many characters -> span 3
-const TEXT_SPAN_MED = 80;     // > this many characters -> span 2, else span 1
-
-// The pull-quote is one short, standalone-readable text entry rendered
-// full-width as a magazine-style break in the grid. Bounded on both ends —
-// too short reads as a fragment out of context, too long stops looking like
-// a "pull" quote — and picks the shortest candidate so the choice is stable
-// and deterministic rather than arbitrary.
-const PULLQUOTE_MIN_LEN = 20;
-const PULLQUOTE_MAX_LEN = 90;
-
-// One accent-tinted text card roughly every N entries, so the grid gets a
-// color break even on a page with no photos yet.
-const ACCENT_EVERY = 9;
-
-// Excludes linked story+photo entries from both — pulling just the text out
-// as a quote (or tinting it) would discard the attached photo, and a linked
-// entry already has its own visual distinctiveness from the image. Both
-// treatments exist to add variety specifically to plain text entries.
-function pickPullQuoteId(stories) {
-  const candidates = stories.filter(
-    (s) => s.type === "story" && !s.media_url && s.text && s.text.trim().length >= PULLQUOTE_MIN_LEN && s.text.trim().length <= PULLQUOTE_MAX_LEN
-  );
-  if (!candidates.length) return null;
-  return candidates.reduce((shortest, s) => (s.text.trim().length < shortest.text.trim().length ? s : shortest)).id;
-}
-
-function pickAccentIds(stories, pullQuoteId) {
-  const ids = new Set();
-  stories
-    .filter((s) => s.type === "story" && !s.media_url && s.id !== pullQuoteId)
-    .forEach((s, i) => { if (i % ACCENT_EVERY === 0) ids.add(s.id); });
-  return ids;
-}
-
-function textColSpan(text) {
-  const len = (text || "").trim().length;
-  if (len > TEXT_SPAN_LONG) return 3;
-  if (len > TEXT_SPAN_MED) return 2;
-  return 1;
-}
+// Grid-tile type label is deliberately its own map, distinct from
+// FILTER_LABEL above — "Voicemail"/"Written story" read right on a tile,
+// "Audio"/"Stories" read right on a filter chip, and a media entry with
+// attached text still labels as its media type (e.g. a photo with a
+// caption is "Photo", not "Story") regardless of what's stored in the
+// type column. See MemoryTile.
+const TILE_LABEL = { photo: "Photo", video: "Video", voice: "Voicemail", story: "Written story", url: "Link" };
 
 const fmtTime = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 
@@ -393,9 +353,6 @@ export function MemorialPage({ inviteCode, showToast, onNavigate }) {
   const filterTypes = FILTER_ORDER;
   const contributorCount = new Set(stories.map((s) => s.contributor_name)).size;
 
-  const pullQuoteId = pickPullQuoteId(stories);
-  const accentIds = pickAccentIds(stories, pullQuoteId);
-
   const heroTitle = (
     <>
       <span className="eyebrow-script">as told by everyone who loves them</span>
@@ -464,13 +421,11 @@ export function MemorialPage({ inviteCode, showToast, onNavigate }) {
           </nav>
 
           <main className="clusters">
-            <div className="mosaic-grid">
+            <div className="memory-grid">
               {stories.map((s) => (
-                <MosaicItem
+                <MemoryTile
                   key={s.id}
                   story={s}
-                  isPullQuote={s.id === pullQuoteId}
-                  isAccent={accentIds.has(s.id)}
                   hidden={activeFilter !== "all" && s.type !== activeFilter}
                 />
               ))}
@@ -620,6 +575,10 @@ export function MemorialPage({ inviteCode, showToast, onNavigate }) {
                       <button className="btn btn-sm btn-ghost" onClick={() => setAudioURL(null)}>Re-record</button>
                     </div>
                   )}
+                  <div className="form-group" style={{ marginTop: 16 }}>
+                    <label className="form-label">Caption (optional)</label>
+                    <input className="form-input" placeholder="Add context or a caption..." value={storyText} onChange={(e) => setStoryText(e.target.value)} />
+                  </div>
                 </div>
               )}
 
@@ -964,190 +923,86 @@ function MomoLink({ story: s }) {
   );
 }
 
-// Mosaic grid item — one entry, sized and treated by type. Each branch
-// returns its own complete .mosaic-item grid child.
-function MosaicItem({ story: s, isPullQuote, isAccent, hidden }) {
-  const relLabel = s.contributor_relation ? `${s.contributor_name}, ${s.contributor_relation}` : s.contributor_name;
-  const hiddenClass = hidden ? " hidden-card" : "";
+// Real mouse+hover devices already see a media entry's attached caption on
+// :hover (pure CSS, no JS needed) — a click there just performs the tile's
+// primary action right away. Touch devices have no hover, so the
+// story-flag would be purely decorative there unless a tap reveals the
+// caption first and a second tap (or a tap once revealed) performs the
+// action — see MemoryTile's gate().
+const hasHoverInput = () =>
+  typeof window !== "undefined" && window.matchMedia("(hover: hover) and (pointer: fine)").matches;
 
-  if (isPullQuote) {
-    return (
-      <div id={`story-${s.id}`} data-memory-id={s.id} className={`mosaic-item mi-col-full${hiddenClass}`}>
-        <div className="pullquote-card">
-          <blockquote>{s.text}</blockquote>
-          <span className="pullquote-attr">&mdash; {relLabel}</span>
-        </div>
-      </div>
-    );
-  }
+// One entry, one square tile, regardless of type — the whole point of the
+// uniform grid. A media entry (photo/video/voice) with attached text gets
+// a story-flag in the bar and its caption on hover/tap; a plain photo or a
+// plain story has neither. crop_x/crop_y, YouTube embedding, and the
+// waveform pattern are unchanged from the previous per-type components,
+// just unified into one shell.
+function MemoryTile({ story: s, hidden }) {
+  const [revealed, setRevealed] = useState(false);
+  const relLabel = s.contributor_name || "Someone";
+  // A story-type row can carry an attached photo (see the earlier
+  // linked-entries work) — treat it as a photo entry with a caption for
+  // tile purposes, not as "written story" — the media (whatever it is) is
+  // always the primary content, text is the optional attachment.
+  const hasStory = !!s.media_url && !!s.text?.trim();
+  const tileLabel = s.type === "story" && s.media_url ? "Photo" : (TILE_LABEL[s.type] || "Written story");
 
-  // Guarded by media_url, not just type — a handful of real entries on
-  // production are tagged photo/video/voice but never finished uploading
-  // (a pre-existing data issue, not something to hide). Falling through to
-  // the text-card branch below shows their actual text instead of an
-  // empty media box.
-  if (s.type === "video" && s.media_url) {
-    return (
-      <div id={`story-${s.id}`} data-memory-id={s.id} className={`mosaic-item mi-col-2 mi-row-2${hiddenClass}`}>
-        <VideoCard story={s} relLabel={relLabel} />
-      </div>
-    );
-  }
-
-  if (s.type === "voice" && s.media_url) {
-    return (
-      <div id={`story-${s.id}`} data-memory-id={s.id} className={`mosaic-item mi-col-2${hiddenClass}`}>
-        <AudioCard story={s} relLabel={relLabel} />
-      </div>
-    );
-  }
-
-  if (s.type === "photo" && s.media_url) {
-    return <PhotoItem story={s} id={`story-${s.id}`} hiddenClass={hiddenClass} />;
-  }
-
-  if (s.type === "url" && s.link_meta) {
-    return (
-      <div id={`story-${s.id}`} data-memory-id={s.id} className={`mosaic-item mi-col-2${hiddenClass}`}>
-        <LinkCard story={s} relLabel={relLabel} />
-      </div>
-    );
-  }
-
-  // A story with an attached photo — one linked card, not two entries
-  // sitting near each other. Sized like a photo entry (mi-col-1) rather
-  // than by text length, since it carries a photo.
-  if (s.type === "story" && s.media_url) {
-    return (
-      <div id={`story-${s.id}`} data-memory-id={s.id} className={`mosaic-item mi-col-1${hiddenClass}`}>
-        <LinkedCard story={s} relLabel={relLabel} />
-      </div>
-    );
-  }
-
-  const span = textColSpan(s.text);
-  return (
-    <div id={`story-${s.id}`} data-memory-id={s.id} className={`mosaic-item mi-col-${span}${hiddenClass}`}>
-      <div className={`card${isAccent ? " card-accent" : ""}`}>
-        {s.text && <blockquote>{s.text}</blockquote>}
-        <div className="meta">
-          <span className="contributor">
-            &mdash; {relLabel}
-            <span className="contributor-time">{timeAgo(s.created_at)}</span>
-          </span>
-          <span className={`tag tag-${s.type}`}>{TYPE_LABEL[s.type] || "Story"}</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Uniform square tile (Instagram-grid style) — cropped via object-position
-// from the entry's saved crop_x/crop_y (face-detected or manually
-// repositioned at contribute time; null falls back to a plain center crop).
-function PhotoItem({ story: s, id, hiddenClass }) {
-  const objectPosition = `${s.crop_x ?? 50}% ${s.crop_y ?? 50}%`;
-  return (
-    <div id={id} data-memory-id={s.id} className={`mosaic-item mi-col-1${hiddenClass}`}>
-      <div className="photo-item">
-        <img src={s.media_url} alt="" loading="lazy" style={{ objectPosition }} />
-      </div>
-    </div>
-  );
-}
-
-// A story with an attached photo — one card: photo on top (same square
-// crop treatment as a standalone PhotoItem), quote below (skipped entirely
-// for a photo-alone entry submitted with no caption — see the !storyText
-// && !mediaFile check in handleSubmit), attribution below that. Not
-// eligible for the pull-quote/accent treatments (see pickPullQuoteId/
-// pickAccentIds) — those exist to add variety to plain text entries, and
-// this already has a photo doing that job.
-function LinkedCard({ story: s, relLabel }) {
-  const objectPosition = `${s.crop_x ?? 50}% ${s.crop_y ?? 50}%`;
-  return (
-    <div className="card linked-card">
-      <div className="linked-card-photo">
-        <img src={s.media_url} alt="" loading="lazy" style={{ objectPosition }} />
-      </div>
-      {s.text && <blockquote>{s.text}</blockquote>}
-      <div className="meta">
-        <span className="contributor">
-          &mdash; {relLabel}
-          <span className="contributor-time">{timeAgo(s.created_at)}</span>
-        </span>
-        <span className={`tag tag-${s.type}`}>{TYPE_LABEL[s.type] || "Story"}</span>
-      </div>
-    </div>
-  );
-}
-
-// A pasted link. YouTube links expand to an inline embed on click (using
-// the saved start-time offset, if any); anything else opens in a new tab,
-// since there's no universal embeddable player for an arbitrary site.
-// media_url doubles as the thumbnail (YouTube's own thumbnail, or a
-// scraped og:image) — absent for a link whose preview fetch failed, which
-// still renders fine as a title-only (or bare-URL) card, never blocked.
-function LinkCard({ story: s, relLabel }) {
-  const [expanded, setExpanded] = useState(false);
-  const meta = s.link_meta || {};
-  const isYouTube = meta.provider === "youtube" && meta.videoId;
-
-  if (expanded && isYouTube) {
-    const src = `https://www.youtube.com/embed/${meta.videoId}?autoplay=1${meta.start ? `&start=${meta.start}` : ""}`;
-    return (
-      <div className="card link-card">
-        <div className="link-card-embed">
-          <iframe
-            src={src}
-            title={meta.title || "YouTube video"}
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-          />
-        </div>
-        <div className="meta">
-          <span className="contributor">
-            &mdash; {relLabel}
-            <span className="contributor-time">{timeAgo(s.created_at)}</span>
-          </span>
-          <span className="tag tag-url">Link</span>
-        </div>
-      </div>
-    );
-  }
-
-  const handleActivate = () => {
-    if (isYouTube) setExpanded(true);
-    else window.open(meta.url, "_blank", "noopener,noreferrer");
+  // Gates a tile's primary action (play, expand, open) behind the caption
+  // reveal on touch devices; on hover-capable devices the caption's
+  // already visible via :hover, so a click just acts immediately.
+  const gate = (action) => () => {
+    if (hasStory && !revealed && !hasHoverInput()) { setRevealed(true); return; }
+    action();
   };
 
   return (
-    <div className="card link-card" role="button" tabIndex={0} onClick={handleActivate} onKeyDown={(e) => e.key === "Enter" && handleActivate()}>
-      <div className="link-card-thumb">
-        {s.media_url ? (
-          <img src={s.media_url} alt="" loading="lazy" />
-        ) : (
-          <div className="link-card-thumb-fallback">🔗</div>
-        )}
-        {isYouTube && <div className="media-play-btn" />}
-      </div>
-      <p className="link-card-title">{meta.title || meta.hostname || meta.url}</p>
-      <div className="meta">
-        <span className="contributor">
-          &mdash; {relLabel}
-          <span className="contributor-time">{timeAgo(s.created_at)}</span>
-        </span>
-        <span className="tag tag-url">Link</span>
+    <div
+      data-memory-id={s.id}
+      className={`mem-tile${hidden ? " hidden-card" : ""}${revealed ? " revealed" : ""}`}
+    >
+      <TileBody story={s} gate={gate} />
+      {hasStory && (
+        <div className="mem-tile-caption"><p>{s.text}</p></div>
+      )}
+      <div className="mem-tile-bar">
+        <span className="mem-tile-type">{tileLabel}</span>
+        {hasStory && <span className="mem-tile-flag" aria-hidden="true">&rdquo;</span>}
+        <span className="mem-tile-meta">{relLabel}</span>
       </div>
     </div>
   );
 }
 
-function VideoCard({ story: s, relLabel }) {
+// Guarded by media_url, not just type — a handful of real entries on
+// production are tagged photo/video/voice but never finished uploading (a
+// pre-existing data issue, not something to hide). Falling through to the
+// plain-story render at the bottom shows their actual text instead of an
+// empty media box.
+function TileBody({ story: s, gate }) {
+  if ((s.type === "photo" || s.type === "story") && s.media_url) {
+    return (
+      <div className="mem-tile-body mem-tile-photo">
+        <img src={s.media_url} alt="" loading="lazy" style={{ objectPosition: `${s.crop_x ?? 50}% ${s.crop_y ?? 50}%` }} />
+      </div>
+    );
+  }
+  if (s.type === "video" && s.media_url) return <TileVideo story={s} gate={gate} />;
+  if (s.type === "voice" && s.media_url) return <TileVoice story={s} gate={gate} />;
+  if (s.type === "url" && s.link_meta) return <TileUrl story={s} gate={gate} />;
+
+  return (
+    <div className="mem-tile-body mem-tile-story">
+      {s.text ? <blockquote>{s.text}</blockquote> : null}
+    </div>
+  );
+}
+
+function TileVideo({ story: s, gate }) {
   const videoRef = useRef(null);
   const [playing, setPlaying] = useState(false);
 
-  const togglePlay = () => {
+  const activate = () => {
     const v = videoRef.current;
     if (!v) return;
     if (playing) v.pause();
@@ -1156,17 +1011,17 @@ function VideoCard({ story: s, relLabel }) {
   };
 
   return (
-    <div className="video-mosaic-card">
-      <button type="button" className="video-mosaic-frame" onClick={togglePlay} aria-label={playing ? "Pause video" : "Play video"}>
-        <video ref={videoRef} src={s.media_url} preload="metadata" playsInline controls={playing} onEnded={() => setPlaying(false)} />
-        {!playing && <div className="media-play-btn" />}
-      </button>
-      <div className="video-mosaic-caption">&mdash; {relLabel}</div>
+    <div className="mem-tile-body mem-tile-video" onClick={gate(activate)}>
+      <video ref={videoRef} src={s.media_url} preload="metadata" playsInline controls={playing} onEnded={() => setPlaying(false)} />
+      {!playing && <div className="mem-tile-play" />}
     </div>
   );
 }
 
-function AudioCard({ story: s, relLabel }) {
+// Reuses the homepage's waveform pattern (cream bars on a dark background)
+// unmodified — this tile's own background is dark, exactly the context
+// that pattern was built for.
+function TileVoice({ story: s, gate }) {
   const audioRef = useRef(null);
   const [playing, setPlaying] = useState(false);
   const [elapsed, setElapsed] = useState(0);
@@ -1174,7 +1029,7 @@ function AudioCard({ story: s, relLabel }) {
   const progress = duration ? elapsed / duration : 0;
   const seed = seedFor(s.id);
 
-  const toggle = () => {
+  const activate = () => {
     const a = audioRef.current;
     if (!a) return;
     if (playing) a.pause();
@@ -1183,7 +1038,7 @@ function AudioCard({ story: s, relLabel }) {
   };
 
   return (
-    <div className="audio-mosaic-card">
+    <div className="mem-tile-body mem-tile-voice" onClick={gate(activate)}>
       <audio
         ref={audioRef}
         src={s.media_url}
@@ -1191,22 +1046,50 @@ function AudioCard({ story: s, relLabel }) {
         onTimeUpdate={(e) => setElapsed(e.target.currentTime)}
         onEnded={() => { setPlaying(false); setElapsed(0); }}
       />
-      <div className="audio-mosaic-controls">
-        <button type="button" className="voice-play-btn" onClick={toggle} aria-label={playing ? "Pause voice memo" : "Play voice memo"}>
-          {playing ? <span className="icon-pause" /> : <span className="icon-play" />}
-        </button>
-        <div className="audio-mosaic-waveform">
-          {Array.from({ length: 28 }).map((_, i) => (
-            <span
-              key={i}
-              className={i / 28 <= progress ? "played" : ""}
-              style={{ height: `${6 + Math.round(Math.abs(Math.sin(i * 0.7 + seed)) * 16)}px` }}
-            />
-          ))}
-        </div>
-        <span className="audio-mosaic-time">{fmtTime(elapsed)} / {fmtTime(duration)}</span>
+      <div className="mem-tile-wave">
+        {Array.from({ length: 20 }).map((_, i) => (
+          <span
+            key={i}
+            className={i / 20 <= progress ? "played" : ""}
+            style={{ height: `${6 + Math.round(Math.abs(Math.sin(i * 0.7 + seed)) * 32)}px` }}
+          />
+        ))}
       </div>
-      <div className="audio-mosaic-attr">&mdash; {relLabel}</div>
+    </div>
+  );
+}
+
+// YouTube links expand to an inline embed (honoring the saved start-time
+// offset, if any) once activated; anything else opens in a new tab, since
+// there's no universal embeddable player for an arbitrary site. media_url
+// doubles as the thumbnail (YouTube's own, or a scraped og:image) — absent
+// for a link whose preview fetch failed, which still renders fine with a
+// fallback icon, never blocked.
+function TileUrl({ story: s, gate }) {
+  const [expanded, setExpanded] = useState(false);
+  const meta = s.link_meta || {};
+  const isYouTube = meta.provider === "youtube" && meta.videoId;
+
+  if (expanded && isYouTube) {
+    return (
+      <div className="mem-tile-body mem-tile-url-embed">
+        <iframe
+          src={`https://www.youtube.com/embed/${meta.videoId}?autoplay=1${meta.start ? `&start=${meta.start}` : ""}`}
+          title={meta.title || "YouTube video"}
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+        />
+      </div>
+    );
+  }
+
+  const activate = () => (isYouTube ? setExpanded(true) : window.open(meta.url, "_blank", "noopener,noreferrer"));
+
+  return (
+    <div className="mem-tile-body mem-tile-url" onClick={gate(activate)}>
+      {isYouTube && <span className="mem-tile-yt-badge">YouTube</span>}
+      {s.media_url ? <img src={s.media_url} alt="" loading="lazy" /> : <div className="mem-tile-url-fallback">🔗</div>}
+      {isYouTube && <div className="mem-tile-play" />}
     </div>
   );
 }
