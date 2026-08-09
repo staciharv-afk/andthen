@@ -528,15 +528,7 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .mem-avatar-overflow { background: var(--mem-ink-soft) !important; }
 
 
-/* -- share-a-memory panel: form widgets are used only on this page -- */
-.contribute-type-row { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
-.type-btn { font-size: 13px; padding: 8px 16px; border-radius: 100px; border: 1.5px solid var(--warm-faint); background: none; cursor: pointer; color: var(--warm-mid); font-family: inherit; transition: all 0.2s; display: flex; align-items: center; gap: 6px; }
-.media-drop { width: 100%; border: 2px dashed var(--warm-faint); border-radius: 4px; padding: 32px; text-align: center; cursor: pointer; transition: all 0.2s; }
-.media-drop-text { font-size: 14px; color: var(--warm-light); }
-/* Lighter-weight than .media-drop — attaching a photo to a story is a
-   secondary, optional action, not the primary thing being submitted. */
-.attach-photo-btn { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--warm-mid); background: none; border: 1.5px dashed var(--warm-faint); border-radius: 100px; padding: 8px 16px; cursor: pointer; font-family: inherit; transition: all 0.2s; }
-.attach-photo-btn:hover { border-color: var(--rust); color: var(--rust); }
+/* -- share-a-memory modal: form widgets are used only on this page -- */
 .voice-recorder { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 24px 0; }
 .record-btn { width: 64px; height: 64px; border-radius: 50%; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; font-size: 24px; }
 .record-btn-recording { background: #e74c3c; animation: pulse 1.5s ease-in-out infinite; }
@@ -544,22 +536,56 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .record-time { font-size: 24px; font-family: monospace; color: var(--bark); }
 .record-sub { font-size: 13px; color: var(--warm-light); }
 
-.memorial-page .contribute-card { background: var(--mem-card); border: 1px solid rgba(44,36,32,0.08); border-radius: 4px; box-shadow: var(--mem-shadow); padding: 32px; margin: 0 auto 48px; max-width: 640px; }
-.memorial-page .contribute-title { font-size: 22px; font-weight: 600; color: var(--mem-ink); margin-bottom: 6px; }
-.memorial-page .contribute-sub { font-size: 14px; color: var(--mem-ink-soft); margin-bottom: 24px; line-height: 1.6; }
 .memorial-page .form-label { color: var(--mem-ink); }
 .memorial-page .form-input { border-color: rgba(44,36,32,0.14); }
 .memorial-page .form-input:focus { border-color: var(--mem-rose); }
-.memorial-page .type-btn { border-color: rgba(44,36,32,0.14); color: var(--mem-ink-soft); }
-.memorial-page .type-btn.active { border-color: var(--mem-rose); color: var(--mem-rose); background: rgba(193,81,90,0.06); }
-.memorial-page .media-drop { border-color: rgba(44,36,32,0.14); }
-.memorial-page .media-drop:hover { border-color: var(--mem-rose); background: rgba(193,81,90,0.03); }
-.memorial-page .attach-photo-btn { border-color: rgba(44,36,32,0.18); color: var(--mem-ink-soft); }
-.memorial-page .attach-photo-btn:hover { border-color: var(--mem-rose); color: var(--mem-rose); }
 .memorial-page .record-btn-idle { background: var(--mem-rose); }
 .memorial-page .record-btn-idle:hover { background: #a8434b; }
 .memorial-page .btn-rust { background: var(--mem-rose); }
 .memorial-page .btn-rust:hover { background: #a8434b; }
+
+/* Overlay sits below .crop-adjust-overlay's z-index (500) so the crop
+   adjuster — opened from a photo attached inside this modal — stacks on
+   top of it rather than behind it. */
+.share-modal-overlay { position: fixed; inset: 0; z-index: 480; background: rgba(26,14,8,0.6); display: flex; align-items: center; justify-content: center; padding: 20px; }
+.share-modal { background: var(--mem-card); border-radius: 12px; max-width: 480px; width: 100%; max-height: calc(100vh - 40px); overflow-y: auto; padding: 36px 34px; position: relative; box-shadow: 0 20px 50px -12px rgba(44,36,32,0.35); }
+.share-modal-close { position: absolute; top: 18px; right: 18px; background: none; border: none; font-size: 22px; line-height: 1; color: var(--mem-ink-soft); cursor: pointer; }
+.share-modal-eyebrow { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--mem-rose); margin-bottom: 10px; }
+.share-modal h2 { font-family: 'Fraunces', serif; font-weight: 500; font-size: 24px; line-height: 1.3; margin: 0 0 22px; color: var(--mem-ink); }
+
+.share-orient-actions { display: flex; flex-direction: column; gap: 10px; }
+.share-orient-btn { text-align: left; padding: 16px 18px; border-radius: 8px; border: 1px solid rgba(44,36,32,0.14); background: var(--mem-paper); cursor: pointer; font-family: 'DM Sans', sans-serif; transition: border-color 0.15s ease; }
+.share-orient-btn:hover { border-color: var(--mem-rose); }
+.share-orient-btn .title { font-size: 15px; font-weight: 600; color: var(--mem-ink); display: block; margin-bottom: 3px; }
+.share-orient-btn .sub { font-size: 12.5px; color: var(--mem-ink-soft); }
+.share-orient-btn.primary { background: var(--mem-rose); border-color: var(--mem-rose); }
+.share-orient-btn.primary .title { color: #fff; }
+.share-orient-btn.primary .sub { color: rgba(255,255,255,0.85); }
+
+.share-rel-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 22px; }
+.share-rel-chip { font-family: 'DM Sans', sans-serif; font-size: 14px; padding: 12px 14px; border-radius: 8px; border: 1px solid rgba(44,36,32,0.14); background: var(--mem-paper); color: var(--mem-ink); cursor: pointer; text-align: left; transition: border-color 0.15s ease; }
+.share-rel-chip:hover { border-color: var(--mem-rose); }
+.share-freewrite-link { display: block; text-align: center; font-size: 13px; color: var(--mem-ink-soft); text-decoration: underline; cursor: pointer; }
+
+.share-question-box { background: var(--mem-paper); border-radius: 8px; padding: 20px; margin-bottom: 16px; }
+.share-question-text { font-family: 'Fraunces', serif; font-style: italic; font-size: 19px; line-height: 1.45; margin: 0; color: var(--mem-ink); }
+.share-shuffle-link { display: inline-block; font-size: 12px; color: var(--mem-rose); text-decoration: underline; cursor: pointer; margin-top: 12px; }
+
+.share-attach-row { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
+.share-attach-btn { font-size: 12px; color: var(--mem-ink-soft); border: 1px solid rgba(44,36,32,0.14); background: transparent; padding: 8px 12px; border-radius: 16px; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.15s ease; }
+.share-attach-btn:hover { border-color: var(--mem-rose); color: var(--mem-rose); }
+.share-attach-btn.spotlight { border-color: var(--mem-rose); color: var(--mem-rose); background: rgba(193,81,90,0.06); }
+.share-submit-btn { width: 100%; }
+.share-back-link { display: block; text-align: center; font-size: 12px; color: var(--mem-ink-soft); margin-top: 16px; cursor: pointer; }
+
+.share-thanks-icon { width: 44px; height: 44px; border-radius: 50%; background: var(--mem-rose); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 20px; margin: 0 auto 18px; }
+.share-thanks-text { text-align: center; font-size: 15px; color: var(--mem-ink-soft); margin-bottom: 24px; }
+.share-thanks-actions { display: flex; gap: 10px; }
+.share-thanks-actions .btn { flex: 1; justify-content: center; }
+
+@media (prefers-reduced-motion: reduce) {
+  .share-modal-overlay.fade-in { animation: none; opacity: 1; }
+}
 
 /* -- closing / add-a-memory cta -- */
 .closing { text-align: center; padding: 90px 24px 100px; background: var(--mem-paper-deep); border-top: 1px solid rgba(44,36,32,0.1); }
