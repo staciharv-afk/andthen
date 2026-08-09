@@ -93,66 +93,213 @@ async function detectCropPosition(file) {
   }
 }
 
+// Relationship-tailored, tense-aware question bank for the Share a Memory
+// modal — ported verbatim (including gendered "she/her" phrasing) from the
+// and-then-share-memory-modal.html prototype. Do not rewrite, shorten, or
+// gender-neutralize this copy without checking with Staci first; the
+// gendered pronouns are a known content gap carried over from the
+// prototype, not an oversight.
+const SHARE_QUESTION_BANK = {
+  adult: {
+    relationships: [
+      { id: "child", label: "Her child" },
+      { id: "spouse", label: "Her spouse" },
+      { id: "friend", label: "A friend" },
+      { id: "coworker", label: "A coworker" },
+      { id: "grandchild", label: "Her grandchild" },
+      { id: "other", label: "Someone else" },
+    ],
+    banks: {
+      living: {
+        child: [
+          "What's something she always says that you can still hear in her voice?",
+          "What does she do that only a mom would do?",
+          "What's something she's taught you without meaning to?",
+        ],
+        spouse: [
+          "What's something about her most people don't get to see?",
+          "What does she do that still makes you fall for her?",
+          "What's your version of a perfect ordinary day together?",
+        ],
+        friend: [
+          "What's the most \"her\" thing she does?",
+          "What do you two always end up talking about?",
+          "Is there a trip or night out you still think about?",
+        ],
+        coworker: [
+          "What's she like under pressure?",
+          "What's something she does that makes the job better for everyone?",
+        ],
+        grandchild: [
+          "What does she let you get away with?",
+          "What's something at her house that's just hers?",
+        ],
+        other: [
+          "What's a memory of her that makes you smile?",
+          "What's something she says that sticks with you?",
+          "What's a small habit of hers you think about?",
+        ],
+      },
+      passed: {
+        child: [
+          "What's something she always said that you can still hear in her voice?",
+          "What did she do that only a mom would do?",
+          "What's something she taught you without meaning to?",
+        ],
+        spouse: [
+          "What's something about her most people never got to see?",
+          "What did she do that made you fall for her, looking back?",
+          "What was your version of a perfect ordinary day together?",
+        ],
+        friend: [
+          "What's the most \"her\" thing she ever did?",
+          "What did you two always end up talking about?",
+          "Is there a trip or night out you still think about?",
+        ],
+        coworker: [
+          "What was she like under pressure?",
+          "What's something she did that made the job better for everyone?",
+        ],
+        grandchild: [
+          "What did she let you get away with?",
+          "What's something at her house that was just hers?",
+        ],
+        other: [
+          "What's a memory of her that still makes you smile?",
+          "What's something she said that stuck with you?",
+          "What's a small habit of hers you still think about?",
+        ],
+      },
+    },
+    universal: [
+      "Do you have a photo of her you keep coming back to?",
+      "Is there a voicemail from her still sitting on your phone?",
+      "Do you have a video of her that nobody else has seen?",
+    ],
+  },
+  child: {
+    relationships: [
+      { id: "parent", label: "Her parent" },
+      { id: "sibling", label: "Her sibling" },
+      { id: "grandparent", label: "Her grandparent" },
+      { id: "friend", label: "A friend" },
+      { id: "teacher", label: "A teacher or coach" },
+      { id: "other", label: "Someone else" },
+    ],
+    banks: {
+      living: {
+        parent: [
+          "What does she love more than anything right now?",
+          "What makes her laugh the hardest?",
+          "What's something she's learning to do?",
+        ],
+        sibling: [
+          "What do you two always play together?",
+          "What's she like to share a room with?",
+        ],
+        grandparent: [
+          "What does she call you, or you call her?",
+          "What's something she does that's just her?",
+        ],
+        friend: [
+          "What do you two always do together?",
+          "What's recess or lunch with her like?",
+        ],
+        teacher: [
+          "What does she love learning about?",
+          "What's she like in class or on the team?",
+        ],
+        other: [
+          "What's a memory of her that makes you smile?",
+          "What's something she does that's just her?",
+        ],
+      },
+      passed: {
+        parent: [
+          "What did she love more than anything?",
+          "What made her laugh the hardest?",
+          "What was she learning to do?",
+        ],
+        sibling: [
+          "What did you two always play together?",
+          "What was she like to share a room with?",
+        ],
+        grandparent: [
+          "What did she call you, or you call her?",
+          "What was something she did that was just her?",
+        ],
+        friend: [
+          "What did you two always do together?",
+          "What was recess or lunch with her like?",
+        ],
+        teacher: [
+          "What did she love learning about?",
+          "What was she like in class or on the team?",
+        ],
+        other: [
+          "What's a memory of her that makes you smile?",
+          "What's something she said that was just her?",
+        ],
+      },
+    },
+    universal: [
+      "Do you have a photo of her being completely herself?",
+      "Do you have a video of her that nobody else has seen?",
+      "Do you have something she made, drew, or wrote?",
+    ],
+  },
+};
+
+function ageInYears(dateStr) {
+  const birth = new Date(dateStr);
+  const now = new Date();
+  let age = now.getFullYear() - birth.getFullYear();
+  const monthDiff = now.getMonth() - birth.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < birth.getDate())) age--;
+  return age;
+}
+
+// Silent, date-derived — never asked directly. See SHARE_QUESTION_BANK's
+// header comment and the DO NOT list in the modal's build spec.
+function deriveSubjectType(memorial) {
+  if (!memorial.born) return "adult";
+  return ageInYears(memorial.born) < 18 ? "child" : "adult";
+}
+function deriveLivingStatus(memorial) {
+  return memorial.passed ? "passed" : "living";
+}
+function deriveModerationMode(memorial) {
+  return memorial.require_approval ? "moderated" : "auto";
+}
+
+const shareRelationshipKey = (memorialId) => `andthen_share_relationship_${memorialId}`;
+
+// A stored relationship only counts as valid if it's still one of the
+// current subject type's relationship options — guards against a stale
+// value from before a steward correction changed born/passed and flipped
+// the derived subjectType out from under it.
+function loadStoredRelationship(memorialId, subjectType, relationships) {
+  const raw = localStorage.getItem(shareRelationshipKey(memorialId));
+  if (!raw) return null;
+  const [savedSubject, savedRel] = raw.split(":");
+  if (savedSubject !== subjectType) return null;
+  return relationships.some((r) => r.id === savedRel) ? savedRel : null;
+}
+function storeRelationship(memorialId, subjectType, relId) {
+  localStorage.setItem(shareRelationshipKey(memorialId), `${subjectType}:${relId}`);
+}
+
 export function MemorialPage({ inviteCode, showToast, onNavigate }) {
   const [memorial, setMemorial] = useState(null);
   const [loading, setLoading] = useState(true);
   const [stories, setStories] = useState([]);
-  const [contributeType, setContributeType] = useState("story");
-  const [contributorName, setContributorName] = useState("");
-  const [contributorRelation, setContributorRelation] = useState("");
-  const [contributorEmail, setContributorEmail] = useState("");
-  const [storyText, setStoryText] = useState("");
-  const [mediaFile, setMediaFile] = useState(null);
-  const [mediaPreview, setMediaPreview] = useState(null);
-  const [cropPos, setCropPos] = useState({ x: 50, y: 50 });
-  const [showCropAdjuster, setShowCropAdjuster] = useState(false);
-  const [linkUrl, setLinkUrl] = useState("");
-  const [linkPreview, setLinkPreview] = useState(null); // { provider, videoId, start, title, image } | null
-  const [linkPreviewLoading, setLinkPreviewLoading] = useState(false);
-  const [linkPreviewError, setLinkPreviewError] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
-  const [promptIdx, setPromptIdx] = useState(0);
-  const [recording, setRecording] = useState(false);
-  const [audioURL, setAudioURL] = useState(null);
-  const [recordDuration, setRecordDuration] = useState(0);
   const [showContribute, setShowContribute] = useState(false);
   const [activeFilter, setActiveFilter] = useState("all");
   const [pendingScrollId, setPendingScrollId] = useState(null); // "See all memories" target, see the effect below
-  const mediaRecorderRef = useRef(null);
-  const chunksRef = useRef([]);
-  const timerRef = useRef(null);
-  const maxTimerRef = useRef(null);
-  const fileInputRef = useRef();
-  const contributeRef = useRef(null);
-
-  const MAX_SECONDS = 60;
-
-  // Reject videos longer than the cap (read duration without uploading).
-  const videoWithinCap = (file) =>
-    new Promise((resolve) => {
-      const v = document.createElement("video");
-      v.preload = "metadata";
-      v.onloadedmetadata = () => { URL.revokeObjectURL(v.src); resolve(v.duration <= MAX_SECONDS + 0.5); };
-      v.onerror = () => resolve(true); // unreadable — let it through rather than block
-      v.src = URL.createObjectURL(file);
-    });
-
-  // Rotate through the memorial's prompts on the contribute form.
-  useEffect(() => {
-    const list = memorial?.prompts?.length ? memorial.prompts : (memorial?.prompt ? [memorial.prompt] : []);
-    if (list.length < 2) return;
-    const t = setInterval(() => setPromptIdx((i) => (i + 1) % list.length), 4500);
-    return () => clearInterval(t);
-  }, [memorial]);
 
   useEffect(() => {
     loadMemorial();
   }, [inviteCode]);
-
-  useEffect(() => {
-    if (showContribute) contributeRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, [showContribute]);
 
   // "See all memories" (from MemoryOfTheMoment) sets pendingScrollId and
   // switches to the "all" filter so the target tile is guaranteed visible
@@ -175,7 +322,7 @@ export function MemorialPage({ inviteCode, showToast, onNavigate }) {
     setPendingScrollId(id);
   };
 
-  const openContribute = () => { setSubmitted(false); setShowContribute(true); };
+  const openContribute = () => setShowContribute(true);
 
   const loadMemorial = async () => {
     setLoading(true);
@@ -205,166 +352,6 @@ export function MemorialPage({ inviteCode, showToast, onNavigate }) {
     setStories(data || []);
   };
 
-  const handleMediaSelect = async (file) => {
-    if (!file) return;
-    if (file.type.startsWith("video/") && !(await videoWithinCap(file))) {
-      showToast("Videos must be 60 seconds or less.", "error");
-      return;
-    }
-    setMediaFile(file);
-    const preview = await fileToDataURL(file);
-    setMediaPreview(preview);
-    // Any image gets a crop anchor — a standalone photo entry and a photo
-    // attached to a story are cropped the same way, only the video accept
-    // ever passes a non-image file here.
-    setCropPos(file.type.startsWith("image/") ? await detectCropPosition(file) : { x: 50, y: 50 });
-  };
-
-  // Fetches a title/thumbnail preview for a pasted URL. Best-effort — a
-  // failed fetch still lets the link be shared (handleSubmit falls back to
-  // the bare URL with no preview), it just means no thumbnail. Fires once
-  // the field loses focus rather than on every keystroke.
-  const fetchLinkPreview = async () => {
-    const url = linkUrl.trim();
-    if (!url) { setLinkPreview(null); setLinkPreviewError(""); return; }
-    let hostname;
-    try {
-      hostname = new URL(url).hostname.replace(/^www\./, ""); // must at least be well-formed before we ask the server
-    } catch {
-      setLinkPreview(null);
-      setLinkPreviewError("That doesn't look like a valid URL.");
-      return;
-    }
-    setLinkPreviewLoading(true);
-    setLinkPreviewError("");
-    try {
-      const res = await fetch("/api/link-preview", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url }),
-      });
-      if (!res.ok) throw new Error("preview failed");
-      setLinkPreview({ ...(await res.json()), hostname });
-    } catch {
-      setLinkPreview(null);
-      setLinkPreviewError("Couldn't load a preview — you can still share the link.");
-    } finally {
-      setLinkPreviewLoading(false);
-    }
-  };
-
-  const startRecording = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mr = new MediaRecorder(stream);
-      mediaRecorderRef.current = mr;
-      chunksRef.current = [];
-      mr.ondataavailable = (e) => chunksRef.current.push(e.data);
-      mr.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-        setAudioURL(URL.createObjectURL(blob));
-        stream.getTracks().forEach((t) => t.stop());
-      };
-      mr.start();
-      setRecording(true);
-      setRecordDuration(0);
-      timerRef.current = setInterval(() => setRecordDuration((d) => Math.min(d + 1, MAX_SECONDS)), 1000);
-      maxTimerRef.current = setTimeout(stopRecording, MAX_SECONDS * 1000); // hard 60s cap
-    } catch { showToast("Please allow microphone access to record.", "error"); }
-  };
-
-  const stopRecording = () => {
-    mediaRecorderRef.current?.stop();
-    setRecording(false);
-    clearInterval(timerRef.current);
-    clearTimeout(maxTimerRef.current);
-  };
-
-  const fmtDuration = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
-
-  const handleSubmit = async () => {
-    if (!contributorName.trim()) { showToast("Please enter your name.", "error"); return; }
-    if (contributorEmail.trim() && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(contributorEmail.trim())) { showToast("That email doesn't look right.", "error"); return; }
-    // A story needs text OR an attached photo — never neither. Photo-alone
-    // (no caption) is a valid entry now, same as the dedicated Photo type.
-    if (contributeType === "story" && !storyText.trim() && !mediaFile) { showToast("Please write a story or attach a photo.", "error"); return; }
-    if ((contributeType === "photo" || contributeType === "video") && !mediaFile) { showToast("Please select a file.", "error"); return; }
-    if (contributeType === "voice" && !audioURL) { showToast("Please record a voice memo.", "error"); return; }
-    if (contributeType === "url" && !linkUrl.trim()) { showToast("Please paste a link.", "error"); return; }
-
-    setSubmitting(true);
-    try {
-      let mediaUrl = null;
-
-      if (mediaFile) {
-        const path = `contributions/${memorial.invite_code}/${uid()}.${mediaFile.name.split(".").pop()}`;
-        const { error: upErr } = await supabase.storage.from("memorial-media").upload(path, mediaFile);
-        if (upErr) throw upErr; // don't save a media-less memory on a failed upload
-        mediaUrl = supabase.storage.from("memorial-media").getPublicUrl(path).data?.publicUrl;
-      }
-
-      if (contributeType === "voice" && audioURL) {
-        const resp = await fetch(audioURL);
-        const blob = await resp.blob();
-        const path = `contributions/${memorial.invite_code}/${uid()}.webm`;
-        const { error: upErr } = await supabase.storage.from("memorial-media").upload(path, blob, { contentType: "audio/webm" });
-        if (upErr) throw upErr;
-        mediaUrl = supabase.storage.from("memorial-media").getPublicUrl(path).data?.publicUrl;
-      }
-
-      // A link entry's "media" is the fetched preview thumbnail, not an
-      // upload — reuses media_url for that, consistent with every other
-      // type's primary-visual convention.
-      const isLink = contributeType === "url";
-      const row = {
-        memorial_id: memorial.id,
-        contributor_name: contributorName.trim(),
-        contributor_relation: contributorRelation.trim() || null,
-        contributor_email: contributorEmail.trim() || null,
-        type: contributeType,
-        text: storyText.trim() || null,
-        media_url: isLink ? (linkPreview?.image || null) : mediaUrl,
-        status: memorial.require_approval ? "pending" : "approved",
-        // Applies to a standalone photo entry and a story with an attached
-        // photo alike — the crop only means anything when the uploaded file
-        // was actually an image.
-        crop_x: mediaUrl && mediaFile?.type.startsWith("image/") ? cropPos.x : null,
-        crop_y: mediaUrl && mediaFile?.type.startsWith("image/") ? cropPos.y : null,
-        link_meta: isLink
-          ? {
-              url: linkUrl.trim(),
-              provider: linkPreview?.provider || null,
-              videoId: linkPreview?.videoId || null,
-              start: linkPreview?.start ?? null,
-              title: linkPreview?.title || null,
-              hostname: linkPreview?.hostname || null,
-            }
-          : null,
-      };
-
-      if (memorial.require_approval) {
-        // Pending rows are hidden from anonymous contributors by RLS, so we must
-        // NOT ask for them back — a plain insert, or the insert itself is rejected.
-        // The thank-you fires later, when the steward approves.
-        const { error } = await supabase.from("contributions").insert(row);
-        if (error) throw error;
-      } else {
-        // Auto-approved rows are publicly readable, so we can read the id back
-        // and thank the contributor right away.
-        const { data: inserted, error } = await supabase.from("contributions").insert(row).select("id");
-        if (error) throw error;
-        if (contributorEmail.trim()) sendThankYou(inserted?.[0]?.id);
-      }
-
-      // Let the creator know a new memory arrived (server caps at 5/day + dedupes).
-      notifyCreator(memorial.id);
-
-      setSubmitted(true);
-      showToast(memorial.require_approval ? "Your memory was submitted! The family will review it soon." : "Your memory was added. Thank you for sharing.");
-    } catch { showToast("Something went wrong. Please try again.", "error"); }
-    finally { setSubmitting(false); }
-  };
-
   if (loading) return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "80vh" }}>
       <span className="spinner spinner-dark" />
@@ -377,9 +364,6 @@ export function MemorialPage({ inviteCode, showToast, onNavigate }) {
       <p style={{ color: "var(--warm-light)" }}>This link may be invalid or the memorial may have been removed.</p>
     </div>
   );
-
-  const promptList = memorial.prompts?.length ? memorial.prompts : (memorial.prompt ? [memorial.prompt] : []);
-  const currentPrompt = promptList.length ? promptList[promptIdx % promptList.length] : "";
 
   const filterTypes = FILTER_ORDER;
   const contributorCount = new Set(stories.map((s) => s.contributor_name)).size;
@@ -476,211 +460,518 @@ export function MemorialPage({ inviteCode, showToast, onNavigate }) {
       </footer>
 
       {showContribute && (
-        <div ref={contributeRef} className="page-wrap" style={{ paddingBottom: 64 }}>
-          <button className="btn btn-ghost btn-sm" style={{ marginBottom: 16 }} onClick={() => setShowContribute(false)}>Close</button>
-          {!submitted ? (
-          <div className="contribute-card fade-up">
-            <h2 className="contribute-title">Share a memory</h2>
-            <p className="contribute-sub">What's your story? A moment, a habit, something they said — anything that captures who they really were.</p>
-            {currentPrompt && (
-              <p style={{ fontFamily: "'Lora', serif", fontStyle: "italic", color: "var(--rust)", fontSize: 16, lineHeight: 1.5, marginBottom: 24, transition: "opacity 0.3s" }}>
-                "{currentPrompt}"
-              </p>
-            )}
+        <ShareMemoryModal memorial={memorial} showToast={showToast} onClose={() => setShowContribute(false)} />
+      )}
+    </div>
+  );
+}
 
-            {/* Free memorials collect written memories only; photo/video/voice/
-                link are unlocked when the family upgrades the page. */}
-            {memorial.is_paid && (
-              <div className="contribute-type-row">
-                {[
-                  { key: "story", icon: "✍️", label: "Story" },
-                  { key: "photo", icon: "📷", label: "Photo" },
-                  { key: "video", icon: "🎬", label: "Video" },
-                  { key: "voice", icon: "🎙️", label: "Voice memo" },
-                  { key: "url", icon: "🔗", label: "Add a link" },
-                ].map((t) => (
-                  <button
-                    key={t.key}
-                    className={`type-btn ${contributeType === t.key ? "active" : ""}`}
-                    onClick={() => {
-                      setContributeType(t.key);
-                      setMediaFile(null); setMediaPreview(null); setAudioURL(null);
-                      setCropPos({ x: 50, y: 50 }); setShowCropAdjuster(false);
-                      setLinkUrl(""); setLinkPreview(null); setLinkPreviewError("");
-                    }}
-                  >
-                    {t.icon} {t.label}
+const SHARE_MAX_SECONDS = 60;
+
+// Reject videos longer than the cap (read duration without uploading).
+const shareVideoWithinCap = (file) =>
+  new Promise((resolve) => {
+    const v = document.createElement("video");
+    v.preload = "metadata";
+    v.onloadedmetadata = () => { URL.revokeObjectURL(v.src); resolve(v.duration <= SHARE_MAX_SECONDS + 0.5); };
+    v.onerror = () => resolve(true); // unreadable — let it through rather than block
+    v.src = URL.createObjectURL(file);
+  });
+
+// "Share a memory" modal — orient-first choice, relationship-tailored and
+// tense-aware questions (SHARE_QUESTION_BANK), and moderation-aware
+// confirmation copy. Fully remounts each time it opens (see showContribute
+// in MemorialPage), which is what gives the orient screen its "shown every
+// fresh open" behavior for free.
+function ShareMemoryModal({ memorial, showToast, onClose }) {
+  const subjectType = deriveSubjectType(memorial);
+  const livingStatus = deriveLivingStatus(memorial);
+  const moderationMode = deriveModerationMode(memorial);
+  const firstName = memorial.name.split(" ")[0];
+  const relationships = SHARE_QUESTION_BANK[subjectType].relationships;
+  const universal = SHARE_QUESTION_BANK[subjectType].universal;
+
+  const [screen, setScreen] = useState("orient"); // orient | relationship | question | thanks
+  const [relationship, setRelationship] = useState(null);
+  const [freeform, setFreeform] = useState(false);
+  const [question, setQuestion] = useState(null);
+  const usedQuestions = useRef([]);
+
+  const [contributorName, setContributorName] = useState("");
+  const [contributorEmail, setContributorEmail] = useState("");
+  const [answerText, setAnswerText] = useState("");
+  const [attachment, setAttachment] = useState(null); // { kind: 'photo'|'video'|'voice'|'link', ... } | null
+  const [avMode, setAvMode] = useState(null); // null | 'chooser' | 'recording'
+  const [showCropAdjuster, setShowCropAdjuster] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const [recordDuration, setRecordDuration] = useState(0);
+  const [submitting, setSubmitting] = useState(false);
+
+  const photoInputRef = useRef();
+  const videoInputRef = useRef();
+  const mediaRecorderRef = useRef(null);
+  const chunksRef = useRef([]);
+  const timerRef = useRef(null);
+  const maxTimerRef = useRef(null);
+
+  const isMediaPrompt = !freeform && question && universal.includes(question);
+
+  const pickQuestion = (relId) => {
+    const bank = SHARE_QUESTION_BANK[subjectType].banks[livingStatus];
+    const relBank = bank[relId] || bank[relationships[0].id];
+    const pool = relBank.concat(universal);
+    let available = pool.filter((q) => !usedQuestions.current.includes(q));
+    if (!available.length) { usedQuestions.current = []; available = pool; }
+    const q = available[Math.floor(Math.random() * available.length)];
+    usedQuestions.current.push(q);
+    setQuestion(q);
+    setAnswerText("");
+  };
+
+  const goToQuestionScreen = (relId) => {
+    setFreeform(false);
+    pickQuestion(relId);
+    setScreen("question");
+  };
+
+  const proceedToShare = () => {
+    const stored = loadStoredRelationship(memorial.id, subjectType, relationships);
+    if (stored) {
+      setRelationship(stored);
+      goToQuestionScreen(stored);
+    } else {
+      setScreen("relationship");
+    }
+  };
+
+  const lookAround = () => {
+    onClose();
+    document.getElementById("archive")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const chooseRelationship = (relId) => {
+    setRelationship(relId);
+    storeRelationship(memorial.id, subjectType, relId);
+    goToQuestionScreen(relId);
+  };
+
+  const skipToFreewrite = () => {
+    const relId = relationship || relationships[relationships.length - 1].id;
+    setRelationship(relId);
+    setFreeform(true);
+    setAnswerText("");
+    setScreen("question");
+  };
+
+  const addAnother = () => {
+    setAnswerText("");
+    setAttachment(null);
+    setAvMode(null);
+    setFreeform(false);
+    pickQuestion(relationship || relationships[relationships.length - 1].id);
+    setScreen("question");
+  };
+
+  const clearAttachment = () => { setAttachment(null); setAvMode(null); };
+
+  const handlePhotoSelect = async (file) => {
+    if (!file) return;
+    const preview = await fileToDataURL(file);
+    const cropPos = await detectCropPosition(file);
+    setAttachment({ kind: "photo", file, preview, cropPos });
+    setAvMode(null);
+  };
+
+  const handleVideoSelect = async (file) => {
+    if (!file) return;
+    if (!(await shareVideoWithinCap(file))) { showToast("Videos must be 60 seconds or less.", "error"); return; }
+    const preview = await fileToDataURL(file);
+    setAttachment({ kind: "video", file, preview });
+    setAvMode(null);
+  };
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mr = new MediaRecorder(stream);
+      mediaRecorderRef.current = mr;
+      chunksRef.current = [];
+      mr.ondataavailable = (e) => chunksRef.current.push(e.data);
+      mr.onstop = () => {
+        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+        setAttachment({ kind: "voice", url: URL.createObjectURL(blob) });
+        stream.getTracks().forEach((t) => t.stop());
+      };
+      mr.start();
+      setRecording(true);
+      setRecordDuration(0);
+      timerRef.current = setInterval(() => setRecordDuration((d) => Math.min(d + 1, SHARE_MAX_SECONDS)), 1000);
+      maxTimerRef.current = setTimeout(stopRecording, SHARE_MAX_SECONDS * 1000);
+    } catch { showToast("Please allow microphone access to record.", "error"); }
+  };
+
+  const stopRecording = () => {
+    mediaRecorderRef.current?.stop();
+    setRecording(false);
+    clearInterval(timerRef.current);
+    clearTimeout(maxTimerRef.current);
+  };
+
+  const fmtDuration = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+
+  const openLinkInput = () => setAttachment({ kind: "link", url: "", preview: null, loading: false, error: "" });
+
+  const fetchLinkPreview = async () => {
+    setAttachment((a) => {
+      if (a?.kind !== "link") return a;
+      const url = a.url.trim();
+      if (!url) return { ...a, preview: null, error: "" };
+      let hostname;
+      try {
+        hostname = new URL(url).hostname.replace(/^www\./, "");
+      } catch {
+        return { ...a, preview: null, error: "That doesn't look like a valid URL." };
+      }
+      fetch("/api/link-preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      })
+        .then((res) => { if (!res.ok) throw new Error("preview failed"); return res.json(); })
+        .then((data) => setAttachment((cur) => (cur?.kind === "link" ? { ...cur, preview: { ...data, hostname }, loading: false, error: "" } : cur)))
+        .catch(() => setAttachment((cur) => (cur?.kind === "link" ? { ...cur, preview: null, loading: false, error: "Couldn't load a preview — you can still share the link." } : cur)));
+      return { ...a, loading: true, error: "" };
+    });
+  };
+
+  const hasValidAttachment = attachment && (attachment.kind !== "link" || attachment.url.trim());
+  const canSubmit = answerText.trim() || hasValidAttachment;
+
+  const handleSubmit = async () => {
+    if (!contributorName.trim()) { showToast("Please enter your name.", "error"); return; }
+    if (contributorEmail.trim() && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(contributorEmail.trim())) { showToast("That email doesn't look right.", "error"); return; }
+    if (!canSubmit) { showToast("Please write something, or attach a photo, audio, video, or link.", "error"); return; }
+
+    setSubmitting(true);
+    try {
+      let mediaUrl = null;
+      let type = "story";
+      let cropX = null, cropY = null;
+      let linkMeta = null;
+
+      if (attachment?.kind === "photo") {
+        type = "photo";
+        const path = `contributions/${memorial.invite_code}/${uid()}.${attachment.file.name.split(".").pop()}`;
+        const { error: upErr } = await supabase.storage.from("memorial-media").upload(path, attachment.file);
+        if (upErr) throw upErr;
+        mediaUrl = supabase.storage.from("memorial-media").getPublicUrl(path).data?.publicUrl;
+        cropX = attachment.cropPos.x;
+        cropY = attachment.cropPos.y;
+      } else if (attachment?.kind === "video") {
+        type = "video";
+        const path = `contributions/${memorial.invite_code}/${uid()}.${attachment.file.name.split(".").pop()}`;
+        const { error: upErr } = await supabase.storage.from("memorial-media").upload(path, attachment.file);
+        if (upErr) throw upErr;
+        mediaUrl = supabase.storage.from("memorial-media").getPublicUrl(path).data?.publicUrl;
+      } else if (attachment?.kind === "voice") {
+        type = "voice";
+        const resp = await fetch(attachment.url);
+        const blob = await resp.blob();
+        const path = `contributions/${memorial.invite_code}/${uid()}.webm`;
+        const { error: upErr } = await supabase.storage.from("memorial-media").upload(path, blob, { contentType: "audio/webm" });
+        if (upErr) throw upErr;
+        mediaUrl = supabase.storage.from("memorial-media").getPublicUrl(path).data?.publicUrl;
+      } else if (attachment?.kind === "link" && attachment.url.trim()) {
+        type = "url";
+        mediaUrl = attachment.preview?.image || null;
+        linkMeta = {
+          url: attachment.url.trim(),
+          provider: attachment.preview?.provider || null,
+          videoId: attachment.preview?.videoId || null,
+          start: attachment.preview?.start ?? null,
+          title: attachment.preview?.title || null,
+          hostname: attachment.preview?.hostname || null,
+        };
+      }
+
+      const relLabel = relationships.find((r) => r.id === relationship)?.label || null;
+
+      const row = {
+        memorial_id: memorial.id,
+        contributor_name: contributorName.trim(),
+        contributor_relation: relLabel,
+        contributor_email: contributorEmail.trim() || null,
+        type,
+        text: answerText.trim() || null,
+        media_url: mediaUrl,
+        status: memorial.require_approval ? "pending" : "approved",
+        crop_x: cropX,
+        crop_y: cropY,
+        link_meta: linkMeta,
+      };
+
+      if (memorial.require_approval) {
+        // Pending rows are hidden from anonymous contributors by RLS, so we must
+        // NOT ask for them back — a plain insert, or the insert itself is rejected.
+        const { error } = await supabase.from("contributions").insert(row);
+        if (error) throw error;
+      } else {
+        const { data: inserted, error } = await supabase.from("contributions").insert(row).select("id");
+        if (error) throw error;
+        if (contributorEmail.trim()) sendThankYou(inserted?.[0]?.id);
+      }
+
+      notifyCreator(memorial.id);
+      setScreen("thanks");
+    } catch { showToast("Something went wrong. Please try again.", "error"); }
+    finally { setSubmitting(false); }
+  };
+
+  return (
+    <>
+      <div className="share-modal-overlay fade-in" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+        <div className="share-modal" role="dialog" aria-label={`Share a memory of ${memorial.name}`}>
+          <button type="button" className="share-modal-close" aria-label="Close" onClick={onClose}>&times;</button>
+
+          {screen === "orient" && (
+            <div>
+              <div className="share-modal-eyebrow">SHARE A MEMORY OF {memorial.name.toUpperCase()}</div>
+              <h2>Want to look around first?</h2>
+              <div className="share-orient-actions">
+                <button type="button" className="share-orient-btn" onClick={lookAround}>
+                  <span className="title">Look around first</span>
+                  <span className="sub">See what's already been shared before you add your own.</span>
+                </button>
+                <button type="button" className="share-orient-btn primary" onClick={proceedToShare}>
+                  <span className="title">I'm ready to share</span>
+                  <span className="sub">Jump straight into adding a memory.</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {screen === "relationship" && (
+            <div>
+              <div className="share-modal-eyebrow">SHARE A MEMORY OF {memorial.name.toUpperCase()}</div>
+              <h2>{livingStatus === "living" ? `How do you know ${firstName}?` : `How did you know ${firstName}?`}</h2>
+              <div className="share-rel-grid">
+                {relationships.map((r) => (
+                  <button key={r.id} type="button" className="share-rel-chip" onClick={() => chooseRelationship(r.id)}>
+                    {r.label}
                   </button>
                 ))}
               </div>
-            )}
+              <span className="share-freewrite-link" onClick={skipToFreewrite}>I already know what I want to share &rarr;</span>
+            </div>
+          )}
 
-            <div className="create-form">
+          {screen === "question" && (
+            <div>
+              <div className="share-modal-eyebrow">
+                SHARE A MEMORY OF {memorial.name.toUpperCase()}
+                {!freeform && relationship && ` · AS ${relationships.find((r) => r.id === relationship)?.label.toUpperCase()}`}
+              </div>
+
+              {freeform ? (
+                <p className="share-question-text" style={{ marginBottom: 16 }}>Share whatever you'd like — no prompt needed.</p>
+              ) : (
+                <div className="share-question-box">
+                  <p className="share-question-text">{question}</p>
+                  <span className="share-shuffle-link" onClick={() => pickQuestion(relationship)}>Give me a different question</span>
+                </div>
+              )}
+
               <div className="form-row">
                 <div className="form-group">
                   <label className="form-label">Your name *</label>
                   <input className="form-input" placeholder="How you were known to them" value={contributorName} onChange={(e) => setContributorName(e.target.value)} />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Your relation</label>
-                  <input className="form-input" placeholder="e.g. daughter, neighbor, colleague" value={contributorRelation} onChange={(e) => setContributorRelation(e.target.value)} />
+                  <label className="form-label">Your email (optional)</label>
+                  <input className="form-input" type="email" placeholder="So the family can say thank you" value={contributorEmail} onChange={(e) => setContributorEmail(e.target.value)} />
                 </div>
               </div>
 
-              <div className="form-group">
-                <label className="form-label">Your email (optional)</label>
-                <input className="form-input" type="email" placeholder="So the family can say thank you" value={contributorEmail} onChange={(e) => setContributorEmail(e.target.value)} />
-              </div>
+              <textarea
+                className="form-input"
+                placeholder={freeform ? "Type the memory here..." : (isMediaPrompt ? "Add the file below, or describe it here..." : "Type the memory here...")}
+                value={answerText}
+                onChange={(e) => setAnswerText(e.target.value)}
+                rows={5}
+                style={{ marginBottom: 16 }}
+              />
 
-              {contributeType === "story" && (
-                <div className="form-group">
-                  <label className="form-label">Your story</label>
-                  <textarea className="form-input" placeholder={currentPrompt || `And then ${memorial.name.split(" ")[0]}...`} value={storyText} onChange={(e) => setStoryText(e.target.value)} rows={5} />
-                </div>
+              {memorial.is_paid && (
+                <ShareAttachRow
+                  attachment={attachment}
+                  avMode={avMode}
+                  setAvMode={setAvMode}
+                  recording={recording}
+                  recordDuration={recordDuration}
+                  spotlight={isMediaPrompt}
+                  onPhotoClick={() => photoInputRef.current?.click()}
+                  onStartRecording={startRecording}
+                  onStopRecording={stopRecording}
+                  onVideoClick={() => videoInputRef.current?.click()}
+                  onLinkClick={openLinkInput}
+                  onLinkUrlChange={(url) => setAttachment((a) => ({ ...a, url, preview: null, error: "" }))}
+                  onLinkBlur={fetchLinkPreview}
+                  onAdjustCrop={() => setShowCropAdjuster(true)}
+                  onRemove={clearAttachment}
+                  fmtDuration={fmtDuration}
+                />
               )}
+              <input ref={photoInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => handlePhotoSelect(e.target.files[0])} />
+              <input ref={videoInputRef} type="file" accept="video/*" style={{ display: "none" }} onChange={(e) => handleVideoSelect(e.target.files[0])} />
 
-              {/* Optional — a story doesn't need a photo to submit. Someone who
-                  wants to share just a photo with no story still has the
-                  standalone Photo type above for that. */}
-              {contributeType === "story" && (
-                <div className="form-group">
-                  <label className="form-label">Attach a photo (optional)</label>
-                  {!mediaPreview ? (
-                    <button type="button" className="attach-photo-btn" onClick={() => fileInputRef.current?.click()}>
-                      + Add a photo
-                    </button>
-                  ) : (
-                    <div className="photo-preview-crop">
-                      <img src={mediaPreview} alt="" style={{ objectPosition: `${cropPos.x}% ${cropPos.y}%` }} />
-                      <button type="button" className="crop-adjust-btn" onClick={() => setShowCropAdjuster(true)}>Adjust crop</button>
-                    </div>
-                  )}
-                  <input ref={fileInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => handleMediaSelect(e.target.files[0])} />
-                  {mediaPreview && (
-                    <button className="btn btn-sm btn-ghost" style={{ marginTop: 8 }} onClick={() => { setMediaFile(null); setMediaPreview(null); setCropPos({ x: 50, y: 50 }); }}>Remove photo</button>
-                  )}
-                </div>
-              )}
-
-              {(contributeType === "photo" || contributeType === "video") && (
-                <div>
-                  {!mediaPreview ? (
-                    <div className="media-drop" onClick={() => fileInputRef.current?.click()}>
-                      <div style={{ fontSize: 32, marginBottom: 8 }}>{contributeType === "photo" ? "📷" : "🎬"}</div>
-                      <div className="media-drop-text">Click to select a {contributeType === "photo" ? "photo" : "video"}</div>
-                      <input ref={fileInputRef} type="file" accept={contributeType === "photo" ? "image/*" : "video/*"} style={{ display: "none" }} onChange={(e) => handleMediaSelect(e.target.files[0])} />
-                    </div>
-                  ) : (
-                    <div>
-                      {contributeType === "photo" ? (
-                        <div className="photo-preview-crop">
-                          <img src={mediaPreview} alt="" style={{ objectPosition: `${cropPos.x}% ${cropPos.y}%` }} />
-                          <button type="button" className="crop-adjust-btn" onClick={() => setShowCropAdjuster(true)}>Adjust crop</button>
-                        </div>
-                      ) : (
-                        <video src={mediaPreview} controls style={{ width: "100%", maxHeight: 300, borderRadius: 4 }} />
-                      )}
-                      <button className="btn btn-sm btn-ghost" style={{ marginTop: 8 }} onClick={() => { setMediaFile(null); setMediaPreview(null); setCropPos({ x: 50, y: 50 }); }}>Remove</button>
-                    </div>
-                  )}
-                  <div className="form-group" style={{ marginTop: 16 }}>
-                    <label className="form-label">Caption (optional)</label>
-                    <input className="form-input" placeholder="Add context or a caption..." value={storyText} onChange={(e) => setStoryText(e.target.value)} />
-                  </div>
-                </div>
-              )}
-
-              {contributeType === "voice" && (
-                <div className="voice-recorder">
-                  {!audioURL ? (
-                    <>
-                      <button
-                        className={`record-btn ${recording ? "record-btn-recording" : "record-btn-idle"}`}
-                        onClick={recording ? stopRecording : startRecording}
-                      >
-                        {recording ? "⏹" : "🎙️"}
-                      </button>
-                      {recording && <div className="record-time">{fmtDuration(recordDuration)}</div>}
-                      <div className="record-sub">{recording ? "Recording... tap to stop" : "Tap to start recording"}</div>
-                    </>
-                  ) : (
-                    <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 12 }}>
-                      <audio controls src={audioURL} style={{ width: "100%" }} />
-                      <button className="btn btn-sm btn-ghost" onClick={() => setAudioURL(null)}>Re-record</button>
-                    </div>
-                  )}
-                  <div className="form-group" style={{ marginTop: 16 }}>
-                    <label className="form-label">Caption (optional)</label>
-                    <input className="form-input" placeholder="Add context or a caption..." value={storyText} onChange={(e) => setStoryText(e.target.value)} />
-                  </div>
-                </div>
-              )}
-
-              {contributeType === "url" && (
-                <div className="form-group">
-                  <label className="form-label">Link</label>
-                  <input
-                    className="form-input"
-                    type="url"
-                    placeholder="Paste a YouTube link, or any URL"
-                    value={linkUrl}
-                    onChange={(e) => { setLinkUrl(e.target.value); setLinkPreview(null); setLinkPreviewError(""); }}
-                    onBlur={fetchLinkPreview}
-                  />
-                  {linkPreviewLoading && <span className="form-hint">Loading preview&hellip;</span>}
-                  {linkPreviewError && <span className="form-error">{linkPreviewError}</span>}
-                  {linkPreview && (
-                    <div className="link-preview-card">
-                      {linkPreview.image ? (
-                        <img src={linkPreview.image} alt="" className="link-preview-thumb" />
-                      ) : (
-                        <div className="link-preview-thumb link-preview-thumb-fallback">🔗</div>
-                      )}
-                      <div>
-                        <div className="link-preview-title">{linkPreview.title || linkUrl.trim()}</div>
-                        <div className="link-preview-provider">{linkPreview.provider === "youtube" ? "YouTube" : linkPreview.hostname}</div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <button className="btn btn-rust btn-lg" onClick={handleSubmit} disabled={submitting} style={{ justifyContent: "center" }}>
+              <button className="btn btn-rust btn-lg share-submit-btn" onClick={handleSubmit} disabled={submitting} style={{ justifyContent: "center" }}>
                 {submitting ? <><span className="spinner" /> Sharing...</> : "Share this memory"}
               </button>
+              <span className="share-back-link" onClick={() => setScreen("relationship")}>&larr; choose a different relationship</span>
             </div>
-          </div>
-        ) : (
-          <div className="contribute-card fade-up" style={{ textAlign: "center" }}>
-            <div style={{ fontSize: 48, marginBottom: 16 }}>🫶</div>
-            <h2 className="contribute-title">Thank you for sharing</h2>
-            <p style={{ color: "var(--warm-light)", lineHeight: 1.7, fontSize: 15 }}>
-              {memorial.require_approval
-                ? "Your memory has been submitted and will appear once the family reviews it."
-                : `Your memory has been added to ${memorial.name}'s story.`}
-            </p>
-            <div style={{ display: "flex", gap: 12, justifyContent: "center", marginTop: 24 }}>
-              <button className="btn btn-ghost" onClick={() => setSubmitted(false)}>Share another memory</button>
-              <button className="btn btn-rust" onClick={() => setShowContribute(false)}>Done</button>
+          )}
+
+          {screen === "thanks" && (
+            <div>
+              <div className="share-thanks-icon">&#10003;</div>
+              <h2 style={{ textAlign: "center" }}>That's a great one.</h2>
+              <p className="share-thanks-text">
+                {moderationMode === "moderated"
+                  ? `Thank you — ${firstName}'s family will see this soon.`
+                  : `It's been added to ${firstName}'s page.`}{" "}
+                Want to add another?
+              </p>
+              <div className="share-thanks-actions">
+                <button type="button" className="btn btn-ghost" onClick={onClose}>Done for now</button>
+                <button type="button" className="btn btn-rust" onClick={addAnother}>Add another</button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Rendered as a sibling of .share-modal-overlay, not nested inside it —
+          same reasoning as CropAdjuster's original top-level placement: a
+          completed fade/scale animation on an ancestor becomes a new
+          containing block for position: fixed descendants. .fade-in here is
+          opacity-only, but keeping this sibling avoids the whole class of bug. */}
+      {attachment?.kind === "photo" && showCropAdjuster && (
+        <CropAdjuster
+          file={attachment.file}
+          initialPos={attachment.cropPos}
+          onCancel={() => setShowCropAdjuster(false)}
+          onConfirm={(pos) => { setAttachment((a) => ({ ...a, cropPos: pos })); setShowCropAdjuster(false); }}
+        />
+      )}
+    </>
+  );
+}
+
+// The three attach options plus whatever in-progress or resolved state
+// they're in (audio/video's own record-or-upload chooser, a photo/video
+// preview with crop/remove, or the link URL field with its preview card).
+// Split out of ShareMemoryModal purely to keep that component's question/
+// screen JSX readable — it has no state of its own.
+function ShareAttachRow({
+  attachment, avMode, setAvMode, recording, recordDuration, spotlight,
+  onPhotoClick, onStartRecording, onStopRecording, onVideoClick,
+  onLinkClick, onLinkUrlChange, onLinkBlur, onAdjustCrop, onRemove, fmtDuration,
+}) {
+  if (attachment?.kind === "photo") {
+    return (
+      <div className="form-group">
+        <div className="photo-preview-crop">
+          <img src={attachment.preview} alt="" style={{ objectPosition: `${attachment.cropPos.x}% ${attachment.cropPos.y}%` }} />
+          <button type="button" className="crop-adjust-btn" onClick={onAdjustCrop}>Adjust crop</button>
+        </div>
+        <button type="button" className="btn btn-sm btn-ghost" style={{ marginTop: 8 }} onClick={onRemove}>Remove photo</button>
+      </div>
+    );
+  }
+
+  if (attachment?.kind === "video") {
+    return (
+      <div className="form-group">
+        <video src={attachment.preview} controls style={{ width: "100%", maxHeight: 300, borderRadius: 4 }} />
+        <button type="button" className="btn btn-sm btn-ghost" style={{ marginTop: 8 }} onClick={onRemove}>Remove video</button>
+      </div>
+    );
+  }
+
+  if (attachment?.kind === "voice") {
+    return (
+      <div className="form-group">
+        <audio controls src={attachment.url} style={{ width: "100%" }} />
+        <button type="button" className="btn btn-sm btn-ghost" style={{ marginTop: 8 }} onClick={onRemove}>Remove recording</button>
+      </div>
+    );
+  }
+
+  if (attachment?.kind === "link") {
+    return (
+      <div className="form-group">
+        <label className="form-label">Link</label>
+        <input
+          className="form-input"
+          type="url"
+          autoFocus
+          placeholder="Paste a YouTube link, or any URL"
+          value={attachment.url}
+          onChange={(e) => onLinkUrlChange(e.target.value)}
+          onBlur={onLinkBlur}
+        />
+        {attachment.loading && <span className="form-hint">Loading preview&hellip;</span>}
+        {attachment.error && <span className="form-error">{attachment.error}</span>}
+        {attachment.preview && (
+          <div className="link-preview-card">
+            {attachment.preview.image ? (
+              <img src={attachment.preview.image} alt="" className="link-preview-thumb" />
+            ) : (
+              <div className="link-preview-thumb link-preview-thumb-fallback">🔗</div>
+            )}
+            <div>
+              <div className="link-preview-title">{attachment.preview.title || attachment.url.trim()}</div>
+              <div className="link-preview-provider">{attachment.preview.provider === "youtube" ? "YouTube" : attachment.preview.hostname}</div>
             </div>
           </div>
         )}
-        </div>
-      )}
+        <button type="button" className="btn btn-sm btn-ghost" style={{ marginTop: 8 }} onClick={onRemove}>Remove link</button>
+      </div>
+    );
+  }
 
-      {/* Rendered at the top level, not nested in .contribute-card — that
-          card is a .fade-up element, and a completed fill-mode animation
-          leaves a lingering `transform` on it, which makes it a new
-          containing block for `position: fixed` descendants and breaks
-          this overlay's viewport-relative centering. */}
-      {showCropAdjuster && mediaFile && (
-        <CropAdjuster
-          file={mediaFile}
-          initialPos={cropPos}
-          onCancel={() => setShowCropAdjuster(false)}
-          onConfirm={(pos) => { setCropPos(pos); setShowCropAdjuster(false); }}
-        />
-      )}
+  if (avMode === "chooser") {
+    return (
+      <div className="share-attach-row">
+        <button type="button" className="share-attach-btn" onClick={() => setAvMode("recording")}>&#127908; Record a voice memo</button>
+        <button type="button" className="share-attach-btn" onClick={onVideoClick}>&#127916; Upload a video</button>
+        <span className="share-back-link" style={{ marginTop: 0 }} onClick={() => setAvMode(null)}>Cancel</span>
+      </div>
+    );
+  }
+
+  if (avMode === "recording") {
+    return (
+      <div className="voice-recorder">
+        {!recording ? (
+          <button type="button" className="record-btn record-btn-idle" onClick={onStartRecording}>&#127908;</button>
+        ) : (
+          <>
+            <button type="button" className="record-btn record-btn-recording" onClick={onStopRecording}>&#9209;</button>
+            <div className="record-time">{fmtDuration(recordDuration)}</div>
+          </>
+        )}
+        <div className="record-sub">{recording ? "Recording... tap to stop" : "Tap to start recording"}</div>
+        {!recording && <span className="share-back-link" onClick={() => setAvMode(null)}>Cancel</span>}
+      </div>
+    );
+  }
+
+  return (
+    <div className="share-attach-row">
+      <button type="button" className={`share-attach-btn${spotlight ? " spotlight" : ""}`} onClick={onPhotoClick}>+ Add a photo</button>
+      <button type="button" className={`share-attach-btn${spotlight ? " spotlight" : ""}`} onClick={() => setAvMode("chooser")}>+ Add audio or video</button>
+      <button type="button" className="share-attach-btn" onClick={onLinkClick}>+ Add a link</button>
     </div>
   );
 }
