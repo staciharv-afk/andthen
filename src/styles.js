@@ -393,6 +393,7 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .mem-tile-wave { display: flex; align-items: center; gap: 2px; height: 44px; }
 .mem-tile-wave span { width: 3px; background: rgba(253,250,245,0.3); border-radius: 2px; }
 .mem-tile-wave span.played { background: var(--mem-gold); }
+.mem-tile-voice-photo { position: absolute; bottom: 8px; right: 8px; width: 40px; height: 40px; border-radius: 4px; object-fit: cover; border: 2px solid rgba(253,250,245,0.5); box-shadow: 0 4px 10px -2px rgba(0,0,0,0.35); }
 
 .mem-tile-story { background: var(--mem-card); padding: 18px; }
 .mem-tile-story blockquote { margin: 0; font-family: 'Fraunces', serif; font-style: italic; font-size: 0.85rem; line-height: 1.5; color: var(--mem-ink); text-align: left; }
@@ -601,6 +602,33 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .share-attach-btn.spotlight { border-color: var(--mem-rose); color: var(--mem-rose); background: rgba(193,81,90,0.06); }
 .share-submit-btn { width: 100%; }
 .share-back-link { display: block; text-align: center; font-size: 12px; color: var(--mem-ink-soft); margin-top: 16px; cursor: pointer; }
+
+/* Full-width, taller than the app's default textarea — this is the
+   primary content of the screen, not a secondary form field. */
+.share-answer-textarea { width: 100%; box-sizing: border-box; min-height: 170px; margin-bottom: 16px; }
+
+.share-mode-toggle { display: flex; gap: 8px; margin: 4px 0 16px; }
+.share-mode-toggle button { flex: 1; font-size: 13px; font-family: 'DM Sans', sans-serif; padding: 9px 12px; border-radius: 6px; border: 1px solid rgba(44,36,32,0.14); background: var(--mem-paper); color: var(--mem-ink-soft); cursor: pointer; transition: all 0.15s ease; }
+.share-mode-toggle button:hover { border-color: var(--mem-rose); }
+.share-mode-toggle button.active { background: var(--mem-rose); border-color: var(--mem-rose); color: #fff; }
+
+/* Live recording widget — reuses .voice-recorder/.record-btn* (already
+   used by the general attach row's inline recorder), just adds the
+   waveform between the button and the timer. */
+.share-voice-recorder { margin-bottom: 16px; }
+.record-live-wave { display: flex; align-items: center; justify-content: center; gap: 3px; height: 40px; }
+.record-live-wave span { width: 4px; min-height: 4px; border-radius: 2px; background: var(--mem-rose); }
+
+/* Your name / email — moved to the bottom, deliberately quiet: no boxes,
+   underline-only inputs, small label text, so this reads as a signature
+   line under the memory rather than a form competing with it. */
+.share-signature-divider { border-top: 1px solid rgba(44,36,32,0.12); margin: 4px 0 16px; }
+.share-signature { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+.share-signature-field { display: flex; align-items: center; gap: 12px; }
+.share-signature-field label { flex-shrink: 0; width: 100px; font-size: 12px; color: var(--mem-ink-soft); font-family: 'DM Sans', sans-serif; }
+.share-signature-input { flex: 1; min-width: 0; border: none; border-bottom: 1px solid rgba(44,36,32,0.18); border-radius: 0; background: none; padding: 4px 0; font-size: 13px; font-family: 'DM Sans', sans-serif; color: var(--mem-ink); outline: none; transition: border-color 0.15s ease; }
+.share-signature-input:focus { border-bottom-color: var(--mem-rose); }
+.share-signature-input::placeholder { color: var(--mem-ink-soft); opacity: 0.65; }
 
 .share-thanks-icon { width: 44px; height: 44px; border-radius: 50%; background: var(--mem-rose); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 20px; margin: 0 auto 18px; }
 .share-thanks-text { text-align: center; font-size: 15px; color: var(--mem-ink-soft); margin-bottom: 24px; }
