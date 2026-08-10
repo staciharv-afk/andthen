@@ -14,12 +14,21 @@ const slug = (s) =>
 export async function exportMemorial(memorial) {
   const { default: JSZip } = await import("jszip"); // lazy-load — only when exporting
   const zip = new JSZip();
-  const { data } = await supabase
+  // Explicit column list, not select("*") — this table only grants anon/
+  // authenticated SELECT on specific columns (see the identical comment in
+  // Memorial.jsx's loadStories), so select("*") gets rejected outright by
+  // Postgres with a bare 42501 permission error. supabase-js swallows that
+  // into { data: null }, which the old `data || []` fallback silently
+  // turned into "0 memories" — this is the actual export-failure bug: it
+  // never threw, so the UI just showed "No approved memories to export
+  // yet," even on a page with dozens of real approved memories.
+  const { data, error } = await supabase
     .from("contributions")
-    .select("*")
+    .select("id, contributor_name, contributor_relation, type, text, media_url, status, created_at, crop_x, crop_y, link_meta")
     .eq("memorial_id", memorial.id)
     .eq("status", "approved")
     .order("created_at", { ascending: true });
+  if (error) throw error; // surface it — let the caller's catch show "Export failed" instead of a false "0 memories"
   const memories = data || [];
 
   const mediaFolder = zip.folder("media");

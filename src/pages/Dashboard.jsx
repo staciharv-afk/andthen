@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { fmtDate, timeAgo, sendThankYou } from "../lib/utils";
 import { exportMemorial } from "../lib/export";
@@ -174,16 +174,23 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
 
                 <div className="invite-box">
                   <span className="invite-url">{memorialUrl(activeMemorial)}</span>
-                  <button className="btn btn-sm btn-ghost" onClick={() => copyInviteLink(activeMemorial)}>Copy link</button>
-                  <button className="btn btn-sm btn-ghost" onClick={() => copyInvite(activeMemorial)}>Copy invite</button>
-                  <button className="btn btn-sm btn-ghost" onClick={() => onNavigate("memorial", activeMemorial.invite_code)}>Preview</button>
-                  <button className="btn btn-sm btn-ghost" onClick={() => onNavigate("edit", activeMemorial)}>Edit</button>
-                  {activeMemorial.is_paid && (
-                    <button className="btn btn-sm btn-ghost" onClick={handleExport} disabled={exporting}>
-                      {exporting ? "Exporting…" : "Export"}
-                    </button>
-                  )}
-                  <button className="btn btn-sm btn-ghost btn-ghost-danger" onClick={() => setDeleteTarget(activeMemorial)}>Delete</button>
+                </div>
+
+                <div className="dashboard-actions">
+                  <div className="dashboard-actions-row">
+                    <ShareMenu onCopyLink={() => copyInviteLink(activeMemorial)} onCopyInvite={() => copyInvite(activeMemorial)} />
+                    <button className="btn btn-sm btn-ghost" onClick={() => onNavigate("memorial", activeMemorial.invite_code)}>Preview</button>
+                    <button className="btn btn-sm btn-ghost" onClick={() => onNavigate("edit", activeMemorial)}>Edit</button>
+                  </div>
+                  <div className="dashboard-actions-divider" />
+                  <div className="dashboard-actions-row">
+                    {activeMemorial.is_paid && (
+                      <button className="btn btn-sm btn-ghost" onClick={handleExport} disabled={exporting}>
+                        {exporting ? "Exporting…" : "Export"}
+                      </button>
+                    )}
+                    <button type="button" className="link-danger" onClick={() => setDeleteTarget(activeMemorial)}>Delete</button>
+                  </div>
                 </div>
 
                 {activeMemorial.is_paid ? (
@@ -244,6 +251,41 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
 // Type-the-name-to-confirm pattern (same friction as GitHub/Vercel resource
 // deletion) — deliberately no "are you sure" single click, since this is
 // permanent and cascades to every memory shared on the page.
+// "Copy link" and "Copy invite" stay functionally distinct (different
+// clipboard payloads) — this only changes how they're presented, collapsing
+// two always-visible buttons into one "Share" trigger + dropdown.
+function ShareMenu({ onCopyLink, onCopyInvite }) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onOutside = (e) => { if (rootRef.current && !rootRef.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", onOutside);
+    return () => document.removeEventListener("mousedown", onOutside);
+  }, [open]);
+
+  return (
+    <div className="share-menu" ref={rootRef}>
+      <button type="button" className="btn btn-sm btn-ghost" onClick={() => setOpen((o) => !o)}>
+        Share
+      </button>
+      {open && (
+        <div className="share-menu-dropdown">
+          <button type="button" className="share-menu-item" onClick={() => { onCopyLink(); setOpen(false); }}>
+            <span className="share-menu-item-label">Copy link</span>
+            <span className="share-menu-item-sub">The page itself, for anyone to view</span>
+          </button>
+          <button type="button" className="share-menu-item" onClick={() => { onCopyInvite(); setOpen(false); }}>
+            <span className="share-menu-item-label">Copy invite</span>
+            <span className="share-menu-item-sub">Ask someone to contribute a memory</span>
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function DeleteMemorialModal({ memorial, onCancel, onDeleted, showToast }) {
   const [confirmText, setConfirmText] = useState("");
   const [deleting, setDeleting] = useState(false);
