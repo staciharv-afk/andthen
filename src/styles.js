@@ -435,10 +435,24 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 /* -- delete-memorial confirm modal: reuses .crop-adjust-overlay/-card, just wider -- */
 .confirm-delete-card { max-width: 440px; }
 .confirm-delete-warning { color: var(--warm-mid); line-height: 1.6; margin-bottom: 20px; }
-.btn-ghost-danger { border-color: rgba(192,57,43,0.35); color: #c0392b; }
-.btn-ghost-danger:hover { border-color: #c0392b; color: #c0392b; background: rgba(192,57,43,0.06); }
 .btn-danger { background: #c0392b; color: #fff; }
 .btn-danger:hover { background: #a93226; transform: translateY(-1px); }
+
+/* Delete reads as a careful, separate action — no border/button chrome,
+   just underlined red text, so it doesn't compete visually with Export. */
+.link-danger { background: none; border: none; padding: 0; margin: 0; font-family: inherit; font-size: 13px; color: #c0392b; text-decoration: underline; cursor: pointer; }
+.link-danger:hover { color: #a93226; }
+
+.dashboard-actions { margin-top: 12px; }
+.dashboard-actions-row { display: flex; align-items: center; gap: 10px; padding: 12px 0; flex-wrap: wrap; }
+.dashboard-actions-divider { border-top: 1px solid var(--warm-faint); }
+
+.share-menu { position: relative; }
+.share-menu-dropdown { position: absolute; top: calc(100% + 6px); left: 0; z-index: 20; background: var(--white); border: 1px solid var(--warm-faint); border-radius: 6px; box-shadow: 0 12px 30px -10px rgba(0,0,0,0.25); padding: 6px; min-width: 240px; }
+.share-menu-item { display: block; width: 100%; text-align: left; background: none; border: none; border-radius: 4px; padding: 10px 12px; cursor: pointer; font-family: inherit; transition: background 0.15s ease; }
+.share-menu-item:hover { background: var(--cream-dark); }
+.share-menu-item-label { display: block; font-size: 14px; font-weight: 500; color: var(--bark); }
+.share-menu-item-sub { display: block; font-size: 12px; color: var(--warm-light); margin-top: 2px; }
 
 @media (prefers-reduced-motion: reduce) {
   .crop-adjust-overlay.fade-in { animation: none; opacity: 1; }
