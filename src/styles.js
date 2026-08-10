@@ -166,25 +166,15 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .preview-crowd-avatar:first-child { margin-left: 0; }
 .preview-crowd-text { font-size: 13px; color: var(--warm-light); }
 
-/* Browser mockup card */
+/* Browser mockup card — also the "What you get" live demo's outer frame
+   (demo-browser-mock below just widens it for the two-column layout). */
 .browser-mock { background: var(--white); border: 1px solid var(--warm-faint); border-radius: 10px; overflow: hidden; box-shadow: 0 24px 60px -24px rgba(45,33,24,0.18); max-width: 720px; }
 .browser-mock-bar { display: flex; align-items: center; gap: 6px; padding: 12px 16px; background: var(--cream-dark); border-bottom: 1px solid var(--warm-faint); }
 .browser-mock-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--warm-faint); }
 .browser-mock-url { font-size: 12px; color: var(--warm-mid); margin-left: 10px; }
 .browser-mock-body { padding: 24px; }
-.mock-row { display: flex; align-items: flex-start; gap: 16px; border: 1px solid var(--warm-faint); border-radius: 8px; padding: 18px; background: var(--cream); }
-.mock-row-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
-.mock-thumb { position: relative; width: 68px; height: 50px; border-radius: 6px; overflow: hidden; flex-shrink: 0; background: var(--cream-dark); }
-.mock-thumb img, .mock-thumb video { width: 100%; height: 100%; object-fit: cover; display: block; }
-.mock-thumb-lg { width: 100%; height: auto; aspect-ratio: 16/9; }
-.mock-label { font-family: 'Lora', serif; font-style: italic; font-size: 15px; color: var(--warm-mid); line-height: 1.6; }
-.mock-label-on-dark { color: rgba(253,250,245,0.85); }
-.mock-attr { font-size: 12px; color: var(--warm-light); }
-.mock-attr-on-dark { color: rgba(253,250,245,0.6); }
 .icon-pause { width: 4px; height: 16px; background: #fff; box-shadow: 8px 0 0 #fff; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3)); }
 
-/* Voice memo mock row — dark card, waveform, real play/pause */
-.mock-row-voice { background: var(--bark); border-color: var(--bark); }
 .avatar-on-dark { background: rgba(253,250,245,0.15); color: var(--cream); border-color: rgba(253,250,245,0.25); }
 .voice-controls { display: flex; align-items: center; gap: 12px; }
 .voice-play-btn { flex-shrink: 0; width: 34px; height: 34px; border-radius: 50%; border: none; background: var(--rust); color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.15s ease, background 0.15s ease; }
@@ -194,6 +184,85 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .voice-waveform span { flex: 1; background: rgba(253,250,245,0.3); border-radius: 2px; transition: background 0.15s ease; }
 .voice-waveform span.played { background: var(--rust-light); }
 .voice-time { flex-shrink: 0; font-size: 11px; font-variant-numeric: tabular-nums; color: rgba(253,250,245,0.6); }
+
+/* "What you get" live demo — a working, scaled-down port of the real
+   share-a-memory question screen. Every class here is demo-* scoped so
+   nothing collides with the real modal's share-* classes (Memorial.jsx),
+   which also use a different, memorial-page-scoped token set (--mem-*)
+   this page doesn't have — these reuse the app's global tokens instead. */
+.demo-try-hint { font-size: 13px; color: var(--warm-light); font-style: italic; margin: -8px 0 20px; }
+.demo-browser-mock { max-width: 920px; }
+.demo-browser-grid { display: grid; grid-template-columns: 1.3fr 1fr; gap: 28px; padding: 26px 28px; }
+@media (max-width: 700px) { .demo-browser-grid { grid-template-columns: 1fr; } }
+
+.demo-eyebrow { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--rust); margin-bottom: 14px; }
+
+.demo-question-box { background: var(--cream-dark); border-radius: 10px; padding: 18px 20px; margin-bottom: 16px; }
+.demo-question-text { font-family: 'Lora', serif; font-style: italic; font-size: 18px; line-height: 1.4; color: var(--bark); margin: 0 0 10px; }
+.demo-shuffle-link { font-size: 13px; color: var(--rust); text-decoration: underline; cursor: pointer; }
+
+.demo-mode-toggle { display: flex; gap: 8px; margin-bottom: 14px; }
+.demo-mode-toggle button { font-family: 'DM Sans', sans-serif; font-size: 12.5px; background: transparent; border: 1px solid var(--warm-faint); color: var(--warm-mid); padding: 7px 13px; border-radius: 16px; cursor: pointer; transition: all 0.15s ease; }
+.demo-mode-toggle button:hover { border-color: var(--rust); }
+.demo-mode-toggle button.active { background: var(--bark); border-color: var(--bark); color: var(--cream); }
+
+.demo-textarea { width: 100%; box-sizing: border-box; min-height: 90px; border: 1px solid var(--warm-faint); border-radius: 8px; padding: 13px; font-family: 'DM Sans', sans-serif; font-size: 14px; color: var(--bark); resize: vertical; margin-bottom: 14px; background: var(--white); }
+.demo-textarea:focus { outline: none; border-color: var(--rust); }
+.demo-textarea::placeholder { color: var(--warm-light); }
+
+.demo-attach-row { display: flex; align-items: center; gap: 8px; margin-bottom: 18px; flex-wrap: wrap; }
+.demo-attach-pill { font-size: 13px; color: var(--bark); background: var(--white); border: 1px solid var(--warm-faint); padding: 8px 14px; border-radius: 18px; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: border-color 0.15s ease; }
+.demo-attach-pill:hover { border-color: var(--rust); }
+
+.demo-record-box { background: var(--white); border: 1px solid var(--warm-faint); border-radius: 10px; padding: 22px 18px; text-align: center; margin-bottom: 14px; }
+.demo-record-btn { width: 48px; height: 48px; border-radius: 50%; background: var(--rust); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; margin: 0 auto 10px; transition: background 0.15s ease; }
+.demo-record-btn:hover { background: var(--rust-light); }
+.demo-record-dot { width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: border-radius 0.15s ease; }
+.demo-record-btn.recording .demo-record-dot { border-radius: 3px; width: 13px; height: 13px; }
+.demo-record-label { font-size: 12.5px; color: var(--warm-mid); margin: 0 0 10px; }
+.demo-record-wave { display: flex; align-items: flex-end; justify-content: center; gap: 2px; height: 22px; }
+.demo-record-wave span { width: 2.5px; background: var(--rust); border-radius: 2px; opacity: 0.3; transition: height 0.2s ease; }
+.demo-record-wave span.active { opacity: 1; }
+
+.demo-divider { border: none; border-top: 1px solid var(--warm-faint); margin: 0 0 16px; }
+
+.demo-contact-row { margin-bottom: 18px; }
+.demo-field-compact { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.demo-field-compact label { font-size: 12px; color: var(--warm-mid); width: 100px; flex-shrink: 0; }
+.demo-field-compact input { flex: 1; min-width: 0; border: none; border-bottom: 1px solid var(--warm-faint); padding: 5px 2px; font-family: 'DM Sans', sans-serif; font-size: 13px; background: transparent; color: var(--bark); }
+.demo-field-compact input:focus { outline: none; border-bottom-color: var(--rust); }
+.demo-field-compact input::placeholder { color: var(--warm-light); }
+
+.demo-submit-btn { width: 100%; background: var(--rust); color: #fff; border: none; font-family: 'DM Sans', sans-serif; font-size: 14.5px; font-weight: 600; padding: 13px; border-radius: 8px; cursor: pointer; transition: background 0.15s ease; }
+.demo-submit-btn:hover { background: var(--rust-light); }
+
+.demo-toast { display: none; background: var(--bark); color: var(--cream); font-size: 13px; padding: 12px 16px; border-radius: 8px; margin-top: 14px; text-align: center; }
+.demo-toast.show { display: block; }
+.demo-flag { text-align: center; font-size: 11.5px; color: var(--warm-light); margin-top: 14px; font-style: italic; }
+
+.demo-result-col { border-left: 1px solid var(--warm-faint); padding-left: 28px; }
+@media (max-width: 700px) { .demo-result-col { border-left: none; padding-left: 0; border-top: 1px solid var(--warm-faint); padding-top: 24px; } }
+.demo-result-label { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--warm-mid); margin-bottom: 14px; }
+.demo-result-tile { aspect-ratio: 1; border-radius: 8px; border: 2px dashed var(--warm-faint); display: flex; flex-direction: column; overflow: hidden; transition: border-color 0.2s ease; }
+.demo-result-tile.filled { border-style: solid; border-color: transparent; box-shadow: 0 6px 16px rgba(45,33,24,0.14); }
+.demo-result-tile.glow { animation: demoTileGlow 1.4s ease-out; }
+@keyframes demoTileGlow {
+  0% { box-shadow: 0 0 0 8px rgba(181,101,46,0.4); }
+  100% { box-shadow: 0 0 0 0 rgba(181,101,46,0); }
+}
+.demo-result-waiting { flex: 1; display: flex; align-items: center; justify-content: center; text-align: center; padding: 20px; font-size: 13px; color: var(--warm-light); font-style: italic; }
+.demo-result-body { flex: 1; display: flex; position: relative; overflow: hidden; padding: 18px; }
+.demo-result-body.story { background: var(--cream-dark); align-items: flex-start; justify-content: flex-start; }
+.demo-result-body.photo { background: linear-gradient(135deg, #D8A574, var(--rust)); }
+.demo-result-body p { font-family: 'Lora', serif; font-style: italic; font-size: 13px; line-height: 1.5; color: var(--bark); margin: 0; text-align: left; }
+.demo-result-bar { height: 15%; background: var(--bark); display: flex; align-items: center; gap: 8px; padding: 0 10px; color: var(--cream-dark); font-size: 10px; }
+.demo-result-bar .type { text-transform: uppercase; font-size: 9px; letter-spacing: 0.06em; color: var(--warm-light); }
+.demo-result-bar .meta { margin-left: auto; font-size: 9px; color: var(--warm-light); }
+.demo-result-hint { font-size: 12.5px; color: var(--warm-light); margin-top: 14px; line-height: 1.5; }
+
+@media (prefers-reduced-motion: reduce) {
+  .demo-result-tile.glow { animation: none; }
+}
 
 .avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--warm-faint); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 500; color: var(--warm-mid); flex-shrink: 0; border: 1.5px solid var(--story-line); }
 
