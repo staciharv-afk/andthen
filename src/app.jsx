@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase, CONFIG_OK, ARRIVED_VIA_MAGIC_LINK } from "./lib/supabase";
 import { uid } from "./lib/utils";
 import { readDraft, clearDraft } from "./lib/onboardingDraft";
+import { savePendingPayment, readPendingPayment, clearPendingPayment } from "./lib/pendingPayment";
 import { STYLES } from "./styles";
 import { parseLocation, routeToUrl } from "./lib/router";
 import { useToast, ToastContainer } from "./components/Toast";
@@ -28,6 +29,21 @@ export default function App() {
   useEffect(() => {
     const { page, param } = parseLocation();
     window.history.replaceState({ page, param }, "");
+
+    // Landing back from a pre-signup Stripe Checkout (see Pricing.jsx +
+    // api/start-checkout.js) — stash the session id so finishSignIn can
+    // attach it to the memorial once one actually exists, then strip the
+    // params so they don't linger in the URL or get re-processed on refresh.
+    const params = new URLSearchParams(window.location.search);
+    const paidSession = params.get("paid_session");
+    const paidTier = params.get("tier");
+    if (paidSession && paidTier) {
+      savePendingPayment({ sessionId: paidSession, tier: paidTier });
+      params.delete("paid_session");
+      params.delete("tier");
+      const qs = params.toString();
+      window.history.replaceState({ page, param }, "", window.location.pathname + (qs ? `?${qs}` : ""));
+    }
 
     const onPopState = (e) => {
       const loc = e.state && e.state.page ? e.state : parseLocation();
@@ -85,6 +101,7 @@ export default function App() {
         invite_code: uid(),
       }).select();
       if (!error && data?.[0]) {
+        await attachPendingPaymentIfAny(data[0].id);
         showToast("You're signed in — your page is ready to finish.");
         navigate("edit", data[0]);
         return;
@@ -95,6 +112,32 @@ export default function App() {
     }
     showToast("You're signed in.");
     navigate("dashboard");
+  };
+
+  // If this signup followed a pre-signup Checkout (Pricing.jsx's two
+  // clickable cards), attach that payment to the memorial that was just
+  // created — the earliest point a memorial id exists for it. Best-effort:
+  // if it fails, the memorial is simply left on the free tier rather than
+  // blocking sign-in; the Stripe payment still exists and can be
+  // reconciled by hand. Always clears the stash so a stale/expired session
+  // isn't retried against whatever memorial gets created next.
+  const attachPendingPaymentIfAny = async (memorialId) => {
+    const pending = readPendingPayment();
+    if (!pending) return;
+    clearPendingPayment();
+    try {
+      const res = await fetch("/api/attach-presignup-payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ memorialId, sessionId: pending.sessionId }),
+      });
+      const data = await res.json();
+      if (!res.ok || data?.skipped) {
+        showToast("We couldn't confirm your payment automatically — contact us and we'll sort it out.", "error");
+      }
+    } catch {
+      showToast("We couldn't confirm your payment automatically — contact us and we'll sort it out.", "error");
+    }
   };
 
   const handleSignOut = async () => {
@@ -124,7 +167,7 @@ export default function App() {
 
       {route === "home" && <HomePage onNavigate={navigate} />}
 
-      {route === "pricing" && <PricingPage onNavigate={navigate} />}
+      {route === "pricing" && <PricingPage onNavigate={navigate} showToast={showToast} />}
 
       {route === "story" && <OurStoryPage onNavigate={navigate} />}
 

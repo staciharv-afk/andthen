@@ -370,6 +370,16 @@ export function MemorialPage({ inviteCode, showToast, onNavigate }) {
     </div>
   );
 
+  // A lapsed $10/yr renewal (see api/stripe-webhook.js's subscription
+  // handler) pauses the page rather than deleting anything — everything's
+  // still there the moment the payment method is fixed.
+  if (memorial.paused) return (
+    <div style={{ textAlign: "center", padding: "80px 24px" }}>
+      <h2 style={{ fontFamily: "Lora, serif", marginBottom: 12 }}>{memorial.name}'s page is paused</h2>
+      <p style={{ color: "var(--warm-light)" }}>Nothing has been lost — it'll be back as soon as the family's renewal payment goes through.</p>
+    </div>
+  );
+
   const filterTypes = FILTER_ORDER;
   const contributorCount = new Set(stories.map((s) => s.contributor_name)).size;
 
