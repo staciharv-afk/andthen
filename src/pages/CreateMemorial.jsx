@@ -68,7 +68,7 @@ export function CreateMemorialPage({ currentUser, existing, onCreated, onUpdated
 
         if (err) { setError(err.code === "23505" ? "That page address is already taken — please choose another." : (err.message || "Couldn't save your changes. Please try again.")); return; }
 
-        showToast("Memorial updated.");
+        showToast("Story updated.");
         onUpdated(data?.[0] || { ...existing, name: name.trim() });
         return;
       }
@@ -101,9 +101,9 @@ export function CreateMemorialPage({ currentUser, existing, onCreated, onUpdated
         slug: cleanSlug,
       }).select();
 
-      if (err) { setError(err.code === "23505" ? "That page address is already taken — please choose another." : (err.message || "Failed to create memorial. Please try again.")); return; }
+      if (err) { setError(err.code === "23505" ? "That page address is already taken — please choose another." : (err.message || "Failed to create your story. Please try again.")); return; }
 
-      showToast("Memorial created! Share the link to start gathering stories.");
+      showToast("Story created! Share the link to start gathering stories.");
       onCreated(data[0] || { id: uid(), name, invite_code: inviteCode });
     } catch (e) {
       setError("Something went wrong. Please try again.");
@@ -116,7 +116,7 @@ export function CreateMemorialPage({ currentUser, existing, onCreated, onUpdated
     <div className="create-page">
       <div className="create-inner">
         <div className="create-header fade-up">
-          <h1 className="create-title">{isEdit ? "Edit memorial" : "Create a memorial"}</h1>
+          <h1 className="create-title">{isEdit ? "Edit story" : "Create a story"}</h1>
           <p className="create-sub">{isEdit ? "Update the photo, name, dates, or description. Changes show right away." : "A place to gather the stories only the people who loved them know. Takes about two minutes to set up."}</p>
         </div>
 
@@ -215,7 +215,7 @@ export function CreateMemorialPage({ currentUser, existing, onCreated, onUpdated
             <button className="btn btn-rust btn-lg" onClick={handleSubmit} disabled={loading} style={{ justifyContent: "center", flex: 1 }}>
               {loading
                 ? <><span className="spinner" /> {isEdit ? "Saving..." : "Creating..."}</>
-                : isEdit ? "Save changes" : "✦ Create memorial"}
+                : isEdit ? "Save changes" : "✦ Create story"}
             </button>
           </div>
         </div>
