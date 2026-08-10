@@ -56,19 +56,22 @@ const WHAT_YOU_GET_EXAMPLES = [
     relation: "Her daughter",
     question: "What's something they always said?",
     mediaType: "photo",
-    image: null,
+    image: "/home/wyg-daughter.jpg",
     placeholderClass: "m1",
-    caption: "“Have a great day. Love you.” Left on a sticky note more mornings than not.",
+    caption: "Mom always told us how beautiful we were, inside and out. That has stuck with me all these years later, now that I'm raising my own daughters.",
     credit: "Staci",
   },
   {
     id: "spouse",
     relation: "Her spouse",
     question: "What's something about them most people never got to see?",
+    // Video, using the real photo as its poster frame — same pattern the
+    // real memorial page's video tiles already use (a still image behind
+    // the play button until it's actually played).
     mediaType: "video",
-    image: null,
+    image: "/home/wyg-spouse.jpg",
     placeholderClass: "m2",
-    caption: "She still laughed at his jokes after forty years — the same laugh, every time.",
+    caption: "Before she was known as reliable and conservative, she rode on the back of my 1978 Honda 750.",
     credit: "Dan · 0:38",
   },
   {
@@ -76,20 +79,25 @@ const WHAT_YOU_GET_EXAMPLES = [
     relation: "Her college roommate",
     question: "What's the most \"them\" thing they ever did?",
     mediaType: "photo",
-    image: null,
+    image: "/home/wyg-roommate.jpg",
     placeholderClass: "m3",
-    caption: "She'd talk in her sleep and somehow still make more sense than either of us awake.",
-    credit: "Priya",
+    // Shortened from the original memory at Staci's OK — the full version:
+    // "Deb went on a date one night and we all got ready together. She had
+    // bought a new sweater and tried to wash it in time, but it was still
+    // too wet. So all of us roommates sat with our blowdryers and got it
+    // dry just in time!"
+    caption: "She bought a new sweater for a date and tried to wash it in time — but it was still too wet, so all of us roommates sat there with our blow dryers to get it dry just in time!",
+    credit: "Jayne",
   },
   {
     id: "coworker",
     relation: "A coworker",
     question: "What were they like under pressure?",
     mediaType: "video",
-    image: null,
+    image: "/home/wyg-coworker.jpg",
     placeholderClass: "m4",
-    caption: "She ran the floor like she already knew how the day was going to go.",
-    credit: "James · 0:29",
+    caption: "Deb was the heart and soul of Bluffsview, and she knew every single one of the kids' names. Even years after they had graduated!",
+    credit: "Ellen · 0:29",
   },
 ];
 
