@@ -303,10 +303,12 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 
 /* -- hero -- */
 .scrapbook-hero { position: relative; padding: 0 24px 28px; overflow: hidden; }
-.memorial-brand { position: absolute; top: 16px; left: 16px; z-index: 6; display: flex; flex-direction: column; align-items: flex-start; gap: 1px; background: rgba(255,252,245,0.9); backdrop-filter: blur(6px); border: none; border-radius: 8px; padding: 8px 14px; box-shadow: var(--mem-shadow); cursor: pointer; text-align: left; }
-.memorial-brand-logo { font-family: 'Fraunces', serif; font-size: 1rem; font-weight: 600; color: var(--mem-ink); line-height: 1.2; }
-.memorial-brand-logo em { font-style: italic; color: var(--mem-rose); }
-.memorial-brand-tag { font-family: 'Caveat', cursive; font-size: 0.82rem; color: var(--mem-ink-soft); line-height: 1.2; }
+/* Same bar treatment as the site-wide .nav, just the logo (no nav-right
+   links) — sits above the hero photo instead of floating over it, so the
+   "And Then..." mark reads identically wherever it appears. */
+.memorial-topbar { position: sticky; top: 0; z-index: 50; display: flex; align-items: center; padding: 0 56px; height: 64px; background: rgba(253,250,245,0.93); backdrop-filter: blur(12px); border-bottom: 1px solid var(--warm-faint); }
+.memorial-topbar-logo { font-family: 'Lora', serif; font-size: 20px; color: var(--bark); background: none; border: none; padding: 0; cursor: pointer; }
+.memorial-topbar-logo em { font-style: italic; color: var(--rust); }
 .hero-blob { position: absolute; border-radius: 42% 58% 63% 37% / 41% 44% 56% 59%; filter: blur(38px); opacity: 0.5; z-index: 0; }
 .hero-blob.b1 { width: 380px; height: 380px; background: var(--mem-rose-soft); top: -14%; left: 2%; }
 .hero-blob.b2 { width: 320px; height: 320px; background: var(--mem-gold-soft); bottom: -6%; right: 2%; }

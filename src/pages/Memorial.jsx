@@ -382,12 +382,12 @@ export function MemorialPage({ inviteCode, showToast, onNavigate }) {
 
   return (
     <div className="memorial-page">
-      <header className="scrapbook-hero">
-        <button type="button" className="memorial-brand" onClick={() => onNavigate?.("home")}>
-          <span className="memorial-brand-logo">And Then<em>...</em></span>
-          <span className="memorial-brand-tag">A living story for someone you love.</span>
+      <nav className="memorial-topbar">
+        <button type="button" className="memorial-topbar-logo" onClick={() => onNavigate?.("home")}>
+          And Then<em>...</em>
         </button>
-
+      </nav>
+      <header className="scrapbook-hero">
         {memorial.photo_url ? (
           <div className="hero-banner">
             <img src={memorial.photo_url} alt={memorial.name} />
