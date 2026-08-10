@@ -430,6 +430,14 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .crop-adjust-img { width: 100%; height: 100%; object-fit: cover; display: block; user-select: none; -webkit-user-drag: none; }
 .crop-adjust-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
 
+/* -- delete-memorial confirm modal: reuses .crop-adjust-overlay/-card, just wider -- */
+.confirm-delete-card { max-width: 440px; }
+.confirm-delete-warning { color: var(--warm-mid); line-height: 1.6; margin-bottom: 20px; }
+.btn-ghost-danger { border-color: rgba(192,57,43,0.35); color: #c0392b; }
+.btn-ghost-danger:hover { border-color: #c0392b; color: #c0392b; background: rgba(192,57,43,0.06); }
+.btn-danger { background: #c0392b; color: #fff; }
+.btn-danger:hover { background: #a93226; transform: translateY(-1px); }
+
 @media (prefers-reduced-motion: reduce) {
   .crop-adjust-overlay.fade-in { animation: none; opacity: 1; }
   .crop-adjust-btn { transition: none; }
