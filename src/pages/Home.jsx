@@ -2,9 +2,8 @@ import { useState, useEffect, useRef } from "react";
 
 const fmtTime = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 
-// Real playback for the hero collage's voicemail tile — same audio file and
-// attribution as the "What you get" voice example above (CAROUSEL_EXAMPLES),
-// just its own play state since it's a separate on-screen instance.
+// Real playback for the hero collage's voicemail tile — its own play state
+// since it's a standalone instance, not shared with anything else on the page.
 function HeroVoicemail() {
   const audioRef = useRef(null);
   const [playing, setPlaying] = useState(false);
@@ -45,229 +44,83 @@ function HeroVoicemail() {
   );
 }
 
-// "What you get" live demo — a scaled-down, actually-working port of the
-// real share-a-memory question screen (ShareMemoryModal in Memorial.jsx),
-// paired with a "what shows up on their page" result tile. Marketing/demo
-// only: nothing here touches Supabase, and the four questions below are a
-// small hardcoded set, not the real per-relationship question bank — the
-// real modal's rules (per-question attach gating, type/record toggle only
-// on general questions) are ported faithfully, not imported, since the real
-// modal is tightly coupled to actual submission/upload logic and the
-// memorial-page-scoped --mem-* token set this page doesn't have.
-//
-// Same four prompts, same order, as the chips above this component — the
-// chips themselves double as the question picker.
-const DEMO_QUESTIONS = [
+// "What you get" — a static demonstration that different people get asked
+// different questions. Four hardcoded examples for now; `image` is null on
+// all of them so each card falls back to its placeholder gradient
+// (placeholderClass) until real photos/video thumbnails replace it — set
+// `image` to a real src and the gradient stops being used, no other change
+// needed. Purely illustrative — no state, no interaction beyond layout.
+const WHAT_YOU_GET_EXAMPLES = [
   {
-    id: "said",
-    label: "What's something they always said?",
-    kind: "general",
-    alts: [
-      "What's something they always said that you can still hear in their voice?",
-      "What did they do that only they would do?",
-      "What's something they taught you without meaning to?",
-    ],
-    result: { kind: "story", text: "“Have a great day. Love you.” She left it on a sticky note in the fridge more mornings than not.", typeLabel: "Written story", meta: "by Staci" },
+    id: "daughter",
+    relation: "Her daughter",
+    question: "What's something they always said?",
+    mediaType: "photo",
+    image: null,
+    placeholderClass: "m1",
+    caption: "“Have a great day. Love you.” Left on a sticky note more mornings than not.",
+    credit: "Staci",
   },
   {
-    id: "picture",
-    label: "Where do you picture them most?",
-    kind: "general",
-    alts: [
-      "Where do you picture them most?",
-      "What's the most “them” thing they ever did?",
-      "What did you two always end up talking about?",
-    ],
-    result: { kind: "story", text: "Standing at the stove, always making too much, always insisting you take some home with you.", typeLabel: "Written story", meta: "by Dan" },
+    id: "spouse",
+    relation: "Her spouse",
+    question: "What's something about them most people never got to see?",
+    mediaType: "video",
+    image: null,
+    placeholderClass: "m2",
+    caption: "She still laughed at his jokes after forty years — the same laugh, every time.",
+    credit: "Dan · 0:38",
   },
   {
-    id: "photo",
-    label: "What's a photo of them you keep coming back to?",
-    kind: "photo",
-    alts: [
-      "What's a photo of them you keep coming back to?",
-      "Is there a photo of them nobody else has seen?",
-    ],
-    result: { kind: "photo", typeLabel: "Photo", meta: "2019" },
+    id: "roommate",
+    relation: "Her college roommate",
+    question: "What's the most \"them\" thing they ever did?",
+    mediaType: "photo",
+    image: null,
+    placeholderClass: "m3",
+    caption: "She'd talk in her sleep and somehow still make more sense than either of us awake.",
+    credit: "Priya",
   },
   {
-    id: "recipe",
-    label: "Do you have a recipe of theirs — even handwritten?",
-    kind: "photo",
-    alts: [
-      "Do you have a recipe of theirs — even handwritten?",
-      "Do you have something they made, wrote, or drew?",
-    ],
-    result: { kind: "photo", typeLabel: "Recipe", meta: "scanned" },
+    id: "coworker",
+    relation: "A coworker",
+    question: "What were they like under pressure?",
+    mediaType: "video",
+    image: null,
+    placeholderClass: "m4",
+    caption: "She ran the floor like she already knew how the day was going to go.",
+    credit: "James · 0:29",
   },
 ];
 
-const DEMO_WAVE_BARS = 22;
-
-function demoAttachOptions(kind) {
-  if (kind === "photo") return [{ id: "photo", label: "Upload a photo" }];
-  return [
-    { id: "photo", label: "Add a photo" },
-    { id: "voice", label: "Record a voice memo" },
-    { id: "av", label: "Upload audio or video" },
-  ];
-}
-
-function WhatYouGetDemo() {
-  const [activeId, setActiveId] = useState(DEMO_QUESTIONS[0].id);
-  const [altIndex, setAltIndex] = useState(0);
-  const [answerMode, setAnswerMode] = useState("type"); // "type" | "record" — general questions only
-  const [recording, setRecording] = useState(false);
-  const [recorded, setRecorded] = useState(false);
-  const [waveHeights, setWaveHeights] = useState(() => Array(DEMO_WAVE_BARS).fill(4));
-  const [filled, setFilled] = useState(false);
-  const [glowKey, setGlowKey] = useState(0);
-  const [showToast, setShowToast] = useState(false);
-  const waveTimerRef = useRef(null);
-
-  useEffect(() => () => clearInterval(waveTimerRef.current), []);
-
-  const active = DEMO_QUESTIONS.find((q) => q.id === activeId);
-  const questionText = active.alts[altIndex % active.alts.length];
-  const isGeneral = active.kind === "general";
-
-  const stopRecordingSim = () => {
-    clearInterval(waveTimerRef.current);
-    setRecording(false);
-  };
-
-  const selectChip = (id) => {
-    setActiveId(id);
-    setAltIndex(0);
-    setAnswerMode("type");
-    stopRecordingSim();
-    setRecorded(false);
-    setFilled(false);
-    setShowToast(false);
-  };
-
-  const shuffle = () => setAltIndex((i) => i + 1);
-
-  // No real audio capture in this pre-signup marketing demo — just an
-  // interval nudging random bar heights, same as the reference mockup.
-  const toggleRecordingSim = () => {
-    if (recording) {
-      stopRecordingSim();
-      setRecorded(true);
-    } else {
-      setRecorded(false);
-      setRecording(true);
-      waveTimerRef.current = setInterval(() => {
-        setWaveHeights(Array.from({ length: DEMO_WAVE_BARS }, () => 4 + Math.random() * 18));
-      }, 250);
-    }
-  };
-
-  const handleSubmit = () => {
-    setShowToast(true);
-    setFilled(true);
-    setGlowKey((k) => k + 1); // fresh key restarts the glow animation, even on a repeat submit
-  };
-
-  const recordLabel = recording ? "Recording... tap to stop" : recorded ? "Recorded — tap to re-record" : "Tap to start recording";
-
+function WhatYouGetGrid() {
   return (
-    <div className="preview-block fade-up-3">
-      <div className="preview-pills">
-        {DEMO_QUESTIONS.map((q) => (
-          <button key={q.id} className={`preview-pill${q.id === activeId ? " active" : ""}`} onClick={() => selectChip(q.id)}>
-            {q.label}
-          </button>
+    <>
+      <div className="wyg-grid">
+        {WHAT_YOU_GET_EXAMPLES.map((ex) => (
+          <div className="wyg-card" key={ex.id}>
+            <div className="wyg-card-rel">{ex.relation}</div>
+            <p className="wyg-card-question">"{ex.question}"</p>
+            <div className="wyg-tile">
+              <div className="wyg-tile-body">
+                {ex.image ? (
+                  <img className="wyg-media-bg" src={ex.image} alt="" />
+                ) : (
+                  <div className={`wyg-media-bg wyg-media-${ex.placeholderClass}`} />
+                )}
+                {ex.mediaType === "video" && <div className="wyg-tile-play" aria-hidden="true" />}
+                <div className="wyg-caption-scrim"><p>{ex.caption}</p></div>
+              </div>
+              <div className="wyg-tile-bar">
+                <span className="type">{ex.mediaType === "video" ? "Video + story" : "Photo + story"}</span>
+                <span className="meta">{ex.credit}</span>
+              </div>
+            </div>
+          </div>
         ))}
       </div>
-      <p className="demo-try-hint">Tap a question above, or try the shuffle inside — this is the actual prompt screen, working.</p>
-
-      <div className="browser-mock demo-browser-mock">
-        <div className="browser-mock-bar">
-          <span className="browser-mock-dot" />
-          <span className="browser-mock-dot" />
-          <span className="browser-mock-dot" />
-          <span className="browser-mock-url">myandthen.com/their-page</span>
-        </div>
-        <div className="demo-browser-grid">
-          <div className="demo-col">
-            <div className="demo-eyebrow">SHARE A MEMORY &middot; AS THEIR CHILD</div>
-
-            <div className="demo-question-box">
-              <p className="demo-question-text">{questionText}</p>
-              <span className="demo-shuffle-link" onClick={shuffle}>Give me a different question</span>
-            </div>
-
-            {isGeneral && (
-              <div className="demo-mode-toggle">
-                <button type="button" className={answerMode === "type" ? "active" : ""} onClick={() => setAnswerMode("type")}>Type it out</button>
-                <button type="button" className={answerMode === "record" ? "active" : ""} onClick={() => setAnswerMode("record")}>Record it in your own voice</button>
-              </div>
-            )}
-
-            {isGeneral && answerMode === "record" ? (
-              <div className="demo-record-box">
-                <button type="button" className={`demo-record-btn${recording ? " recording" : ""}`} onClick={toggleRecordingSim} aria-label={recording ? "Stop recording" : "Start recording"}>
-                  <span className="demo-record-dot" />
-                </button>
-                <p className="demo-record-label">{recordLabel}</p>
-                <div className="demo-record-wave">
-                  {waveHeights.map((h, i) => (
-                    <span key={i} className={recording ? "active" : ""} style={{ height: `${h}px` }} />
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <>
-                <textarea key={activeId} className="demo-textarea" placeholder="Type the memory here..." />
-                <div className="demo-attach-row">
-                  {demoAttachOptions(active.kind).map((o) => (
-                    <button key={o.id} type="button" className="demo-attach-pill">{o.label}</button>
-                  ))}
-                </div>
-              </>
-            )}
-
-            <hr className="demo-divider" />
-
-            <div className="demo-contact-row">
-              <div className="demo-field-compact">
-                <label>Your name *</label>
-                <input type="text" placeholder="How you were known to them" />
-              </div>
-              <div className="demo-field-compact">
-                <label>Email (optional)</label>
-                <input type="text" placeholder="So the family can say thanks" />
-              </div>
-            </div>
-
-            <button type="button" className="demo-submit-btn" onClick={handleSubmit}>Share this memory</button>
-            <div className={`demo-toast${showToast ? " show" : ""}`}>This is a live preview — start your own page to actually save one.</div>
-            <p className="demo-flag">&uarr; this whole card is real and working, not a screenshot</p>
-          </div>
-
-          <div className="demo-result-col">
-            <div className="demo-result-label">What shows up on their page</div>
-            <div key={glowKey} className={`demo-result-tile${filled ? " filled glow" : ""}`}>
-              {!filled ? (
-                <div className="demo-result-waiting">Not shared yet &mdash; answer and submit to see it appear</div>
-              ) : (
-                <>
-                  <div className={`demo-result-body ${active.result.kind}`}>
-                    {active.result.kind === "story" && <p>{active.result.text}</p>}
-                  </div>
-                  <div className="demo-result-bar">
-                    <span className="type">{active.result.typeLabel}</span>
-                    <span className="meta">{active.result.meta}</span>
-                  </div>
-                </>
-              )}
-            </div>
-            <p className="demo-result-hint">This is one tile among many on the real page — it lands in the same grid as every other photo, video, voicemail, and story.</p>
-          </div>
-        </div>
-      </div>
-    </div>
+      <p className="wyg-hint">Four people. Four different questions. Every memory lands in the same page.</p>
+    </>
   );
 }
 
@@ -390,10 +243,10 @@ export function HomePage({ onNavigate }) {
             <div className="section-label">What you get</div>
             <h2 className="narrative-headline">Not just a page — a way to collect.</h2>
             <p className="narrative-body">
-              The photos and voicemails already exist. They're just scattered across a hundred phones. And Then does the collecting: it asks each person the right question, at the right time, and gathers what comes back into one place that keeps growing.
+              And Then asks each person the right question for who they were to her — so four different people end up telling four completely different stories.
             </p>
 
-            <WhatYouGetDemo />
+            <WhatYouGetGrid />
           </div>
         </div>
       </div>
