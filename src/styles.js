@@ -666,6 +666,14 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 @media (max-width: 720px) { .pricing-paths { grid-template-columns: 1fr; } }
 
 .pricing-path-card { display: flex; flex-direction: column; height: 100%; border-radius: 10px; padding: 36px 32px; }
+/* Button-chrome reset, ahead of the -light/-dark variants below so their own
+   background/border still win the cascade — this only strips the parts a
+   <button> adds that a <div> never had (native border, centered text,
+   system font, default cursor). */
+.pricing-path-card-clickable { border: none; text-align: left; font-family: inherit; cursor: pointer; width: 100%; transition: transform 0.15s ease, box-shadow 0.15s ease; }
+.pricing-path-card-clickable:hover { transform: translateY(-3px); box-shadow: 0 18px 40px -18px rgba(0,0,0,0.3); }
+.pricing-path-card-clickable:focus-visible { outline: 2px solid var(--rust); outline-offset: 3px; }
+.pricing-path-card-clickable:disabled { cursor: default; opacity: 0.7; transform: none; }
 .pricing-path-card-light { background: var(--white); border: 1px solid var(--warm-faint); }
 .pricing-path-card-dark { background: var(--bark); }
 
