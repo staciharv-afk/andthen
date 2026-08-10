@@ -47,7 +47,7 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
     await supabase.from("contributions").update({ status: "approved" }).eq("id", submissionId);
     setSubmissions((s) => s.map((x) => x.id === submissionId ? { ...x, status: "approved" } : x));
     sendThankYou(submissionId); // emails the contributor if they left an address
-    showToast("Story approved and now visible on the memorial.");
+    showToast("Story approved and now visible on the page.");
   };
 
   const handleReject = async (submissionId) => {
@@ -126,8 +126,8 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
       <div className="dashboard-inner">
         <div className="empty-state fade-up">
           <div className="empty-state-icon">📖</div>
-          <div className="empty-state-title">No memorials yet</div>
-          <p className="empty-state-sub" style={{ marginBottom: 24 }}>Create your first memorial and start gathering stories.</p>
+          <div className="empty-state-title">No stories yet</div>
+          <p className="empty-state-sub" style={{ marginBottom: 24 }}>Create your first page and start gathering stories.</p>
           <button className="btn btn-rust" onClick={() => onNavigate("create")}>Start gathering their stories</button>
         </div>
       </div>
@@ -139,10 +139,10 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
       <div className="dashboard-inner">
         <div className="dashboard-header fade-up">
           <div>
-            <div className="dashboard-title">Your memorials</div>
+            <div className="dashboard-title">Your Stories</div>
             <div className="dashboard-sub">Manage stories and submissions</div>
           </div>
-          <button className="btn btn-rust btn-sm" onClick={() => onNavigate("create")}>+ New memorial</button>
+          <button className="btn btn-rust btn-sm" onClick={() => onNavigate("create")}>+ New story</button>
         </div>
 
         {memorials.length > 1 && (
@@ -262,7 +262,7 @@ function DeleteMemorialModal({ memorial, onCancel, onDeleted, showToast }) {
   return (
     <div className="crop-adjust-overlay fade-in" onClick={(e) => { if (e.target === e.currentTarget) onCancel(); }}>
       <div className="crop-adjust-card confirm-delete-card" role="dialog" aria-label={`Delete ${memorial.name}`}>
-        <h3 className="crop-adjust-title">Delete {memorial.name}'s memorial?</h3>
+        <h3 className="crop-adjust-title">Delete {memorial.name}'s page?</h3>
         <p className="crop-adjust-sub confirm-delete-warning">
           This permanently deletes the page and every memory shared on it — {memorial.name.split(" ")[0]}'s photos, stories, voice memos, everything. Anyone with the link will no longer be able to view it. This can't be undone.
         </p>

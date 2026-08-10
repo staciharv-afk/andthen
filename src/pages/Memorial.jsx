@@ -360,8 +360,8 @@ export function MemorialPage({ inviteCode, showToast, onNavigate }) {
 
   if (!memorial) return (
     <div style={{ textAlign: "center", padding: "80px 24px" }}>
-      <h2 style={{ fontFamily: "Lora, serif", marginBottom: 12 }}>Memorial not found</h2>
-      <p style={{ color: "var(--warm-light)" }}>This link may be invalid or the memorial may have been removed.</p>
+      <h2 style={{ fontFamily: "Lora, serif", marginBottom: 12 }}>Page not found</h2>
+      <p style={{ color: "var(--warm-light)" }}>This link may be invalid or the page may have been removed.</p>
     </div>
   );
 
