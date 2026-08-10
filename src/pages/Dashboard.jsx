@@ -11,6 +11,7 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
   const [activeTab, setActiveTab] = useState("pending");
   const [submissionsLoading, setSubmissionsLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null); // memorial pending delete confirmation, or null
 
   useEffect(() => {
     loadMemorials();
@@ -96,6 +97,18 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
     }
   };
 
+  const handleDeleted = (memorialId) => {
+    setDeleteTarget(null);
+    setMemorials((list) => {
+      const remaining = list.filter((m) => m.id !== memorialId);
+      if (activeMemorial?.id === memorialId) {
+        if (remaining.length) { setActiveMemorial(remaining[0]); loadSubmissions(remaining[0].id); }
+        else { setActiveMemorial(null); setSubmissions([]); }
+      }
+      return remaining;
+    });
+  };
+
   const filtered = submissions.filter((s) => {
     if (activeTab === "pending") return s.status === "pending";
     if (activeTab === "approved") return s.status === "approved";
@@ -170,6 +183,7 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
                       {exporting ? "Exporting…" : "Export"}
                     </button>
                   )}
+                  <button className="btn btn-sm btn-ghost btn-ghost-danger" onClick={() => setDeleteTarget(activeMemorial)}>Delete</button>
                 </div>
 
                 {activeMemorial.is_paid ? (
@@ -218,6 +232,57 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
             </div>
           </>
         )}
+      </div>
+
+      {deleteTarget && (
+        <DeleteMemorialModal memorial={deleteTarget} onCancel={() => setDeleteTarget(null)} onDeleted={handleDeleted} showToast={showToast} />
+      )}
+    </div>
+  );
+}
+
+// Type-the-name-to-confirm pattern (same friction as GitHub/Vercel resource
+// deletion) — deliberately no "are you sure" single click, since this is
+// permanent and cascades to every memory shared on the page.
+function DeleteMemorialModal({ memorial, onCancel, onDeleted, showToast }) {
+  const [confirmText, setConfirmText] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const canDelete = confirmText.trim() === memorial.name;
+
+  const handleDelete = async () => {
+    if (!canDelete) return;
+    setDeleting(true);
+    const { error } = await supabase.from("memorials").delete().eq("id", memorial.id);
+    setDeleting(false);
+    if (error) { showToast("Couldn't delete — please try again.", "error"); return; }
+    showToast(`"${memorial.name}" has been deleted.`);
+    onDeleted(memorial.id);
+  };
+
+  return (
+    <div className="crop-adjust-overlay fade-in" onClick={(e) => { if (e.target === e.currentTarget) onCancel(); }}>
+      <div className="crop-adjust-card confirm-delete-card" role="dialog" aria-label={`Delete ${memorial.name}`}>
+        <h3 className="crop-adjust-title">Delete {memorial.name}'s memorial?</h3>
+        <p className="crop-adjust-sub confirm-delete-warning">
+          This permanently deletes the page and every memory shared on it — {memorial.name.split(" ")[0]}'s photos, stories, voice memos, everything. Anyone with the link will no longer be able to view it. This can't be undone.
+        </p>
+        <div className="form-group">
+          <label className="form-label">Type <strong>{memorial.name}</strong> to confirm</label>
+          <input
+            className="form-input"
+            value={confirmText}
+            onChange={(e) => setConfirmText(e.target.value)}
+            placeholder={memorial.name}
+            autoFocus
+            onKeyDown={(e) => { if (e.key === "Enter" && canDelete) handleDelete(); }}
+          />
+        </div>
+        <div className="crop-adjust-actions">
+          <button type="button" className="btn btn-ghost" onClick={onCancel} disabled={deleting}>Cancel</button>
+          <button type="button" className="btn btn-danger" onClick={handleDelete} disabled={!canDelete || deleting}>
+            {deleting ? <><span className="spinner" /> Deleting...</> : "Delete permanently"}
+          </button>
+        </div>
       </div>
     </div>
   );
