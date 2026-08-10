@@ -171,10 +171,13 @@ const SHARE_QUESTION_BANK = {
         ],
       },
     },
+    // Each universal prompt is tagged with the single media kind it's
+    // fishing for — the question screen uses this to show only the one
+    // relevant attach option (see questionMediaKind / QUESTION_MEDIA_KIND).
     universal: [
-      "Do you have a photo of her you keep coming back to?",
-      "Is there a voicemail from her still sitting on your phone?",
-      "Do you have a video of her that nobody else has seen?",
+      { text: "Do you have a photo of her you keep coming back to?", kind: "photo" },
+      { text: "Is there a voicemail from her still sitting on your phone?", kind: "voice" },
+      { text: "Do you have a video of her that nobody else has seen?", kind: "video" },
     ],
   },
   child: {
@@ -242,10 +245,12 @@ const SHARE_QUESTION_BANK = {
         ],
       },
     },
+    // "Something she made, drew, or wrote" is tagged 'photo' — a picture of
+    // the object is the natural single-upload answer to that one.
     universal: [
-      "Do you have a photo of her being completely herself?",
-      "Do you have a video of her that nobody else has seen?",
-      "Do you have something she made, drew, or wrote?",
+      { text: "Do you have a photo of her being completely herself?", kind: "photo" },
+      { text: "Do you have a video of her that nobody else has seen?", kind: "video" },
+      { text: "Do you have something she made, drew, or wrote?", kind: "photo" },
     ],
   },
 };
@@ -344,7 +349,7 @@ export function MemorialPage({ inviteCode, showToast, onNavigate }) {
     // outright for anonymous visitors. List the public columns explicitly.
     let query = supabase
       .from("contributions")
-      .select("id, memorial_id, contributor_name, contributor_relation, type, text, media_url, status, created_at, crop_x, crop_y, link_meta")
+      .select("id, memorial_id, contributor_name, contributor_relation, type, text, media_url, secondary_media_url, status, created_at, crop_x, crop_y, link_meta")
       .eq("memorial_id", memorialId)
       .order("created_at", { ascending: false });
     if (requireApproval) query = query.eq("status", "approved");
@@ -490,6 +495,8 @@ function ShareMemoryModal({ memorial, showToast, onClose }) {
   const firstName = memorial.name.split(" ")[0];
   const relationships = SHARE_QUESTION_BANK[subjectType].relationships;
   const universal = SHARE_QUESTION_BANK[subjectType].universal;
+  const universalTexts = universal.map((u) => u.text);
+  const universalKindMap = Object.fromEntries(universal.map((u) => [u.text, u.kind]));
 
   const [screen, setScreen] = useState("orient"); // orient | relationship | question | thanks
   const [relationship, setRelationship] = useState(null);
@@ -500,32 +507,48 @@ function ShareMemoryModal({ memorial, showToast, onClose }) {
   const [contributorName, setContributorName] = useState("");
   const [contributorEmail, setContributorEmail] = useState("");
   const [answerText, setAnswerText] = useState("");
-  const [attachment, setAttachment] = useState(null); // { kind: 'photo'|'video'|'voice'|'link', ... } | null
-  const [avMode, setAvMode] = useState(null); // null | 'chooser' | 'recording'
+  const [answerMode, setAnswerMode] = useState("type"); // "type" | "record" — general/freeform questions only
+  const [attachment, setAttachment] = useState(null); // { kind: 'photo'|'video'|'voice', ... } | null
+  const [avRecording, setAvRecording] = useState(false); // showing the inline recorder within the "type it out" attach row
+  const [recordPhoto, setRecordPhoto] = useState(null); // { file, preview, cropPos } | null — "record it" mode's "Add a photo too"
   const [showCropAdjuster, setShowCropAdjuster] = useState(false);
-  const [recording, setRecording] = useState(false);
-  const [recordDuration, setRecordDuration] = useState(0);
   const [submitting, setSubmitting] = useState(false);
 
   const photoInputRef = useRef();
   const videoInputRef = useRef();
-  const mediaRecorderRef = useRef(null);
-  const chunksRef = useRef([]);
-  const timerRef = useRef(null);
-  const maxTimerRef = useRef(null);
+  const audioInputRef = useRef();
+  const avInputRef = useRef();
+  const recordPhotoInputRef = useRef();
 
-  const isMediaPrompt = !freeform && question && universal.includes(question);
+  // A question showing one of the three universal media prompts ("do you
+  // have a photo/voicemail/video...") narrows the attach row to just that
+  // one option; any other question (relationship-tailored or freeform) gets
+  // the full type/record toggle and the general attach set. See the DO NOT
+  // list in the build spec — the toggle must not appear on these three.
+  const questionMediaKind = !freeform && question ? (universalKindMap[question] || null) : null;
+
+  // Question changes (shuffle, a fresh relationship pick, freeform, "add
+  // another") always reset the answer area — otherwise a leftover
+  // photo/voice attachment from a different question's media kind could
+  // stick around mismatched with the new question's single-option gating.
+  const resetAnswerArea = () => {
+    setAnswerText("");
+    setAnswerMode("type");
+    setAttachment(null);
+    setAvRecording(false);
+    setRecordPhoto(null);
+  };
 
   const pickQuestion = (relId) => {
     const bank = SHARE_QUESTION_BANK[subjectType].banks[livingStatus];
     const relBank = bank[relId] || bank[relationships[0].id];
-    const pool = relBank.concat(universal);
+    const pool = relBank.concat(universalTexts);
     let available = pool.filter((q) => !usedQuestions.current.includes(q));
     if (!available.length) { usedQuestions.current = []; available = pool; }
     const q = available[Math.floor(Math.random() * available.length)];
     usedQuestions.current.push(q);
     setQuestion(q);
-    setAnswerText("");
+    resetAnswerArea();
   };
 
   const goToQuestionScreen = (relId) => {
@@ -559,27 +582,24 @@ function ShareMemoryModal({ memorial, showToast, onClose }) {
     const relId = relationship || relationships[relationships.length - 1].id;
     setRelationship(relId);
     setFreeform(true);
-    setAnswerText("");
+    resetAnswerArea();
     setScreen("question");
   };
 
   const addAnother = () => {
-    setAnswerText("");
-    setAttachment(null);
-    setAvMode(null);
     setFreeform(false);
     pickQuestion(relationship || relationships[relationships.length - 1].id);
     setScreen("question");
   };
 
-  const clearAttachment = () => { setAttachment(null); setAvMode(null); };
+  const clearAttachment = () => { setAttachment(null); setAvRecording(false); };
 
   const handlePhotoSelect = async (file) => {
     if (!file) return;
     const preview = await fileToDataURL(file);
     const cropPos = await detectCropPosition(file);
     setAttachment({ kind: "photo", file, preview, cropPos });
-    setAvMode(null);
+    setAvRecording(false);
   };
 
   const handleVideoSelect = async (file) => {
@@ -587,77 +607,45 @@ function ShareMemoryModal({ memorial, showToast, onClose }) {
     if (!(await shareVideoWithinCap(file))) { showToast("Videos must be 60 seconds or less.", "error"); return; }
     const preview = await fileToDataURL(file);
     setAttachment({ kind: "video", file, preview });
-    setAvMode(null);
+    setAvRecording(false);
   };
 
-  const startRecording = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mr = new MediaRecorder(stream);
-      mediaRecorderRef.current = mr;
-      chunksRef.current = [];
-      mr.ondataavailable = (e) => chunksRef.current.push(e.data);
-      mr.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-        setAttachment({ kind: "voice", url: URL.createObjectURL(blob) });
-        stream.getTracks().forEach((t) => t.stop());
-      };
-      mr.start();
-      setRecording(true);
-      setRecordDuration(0);
-      timerRef.current = setInterval(() => setRecordDuration((d) => Math.min(d + 1, SHARE_MAX_SECONDS)), 1000);
-      maxTimerRef.current = setTimeout(stopRecording, SHARE_MAX_SECONDS * 1000);
-    } catch { showToast("Please allow microphone access to record.", "error"); }
+  // An uploaded audio FILE, not a live recording — keeps its real extension/
+  // mime instead of forcing .webm, unlike the recorder's captured blob.
+  const handleAudioFileSelect = async (file) => {
+    if (!file) return;
+    const ext = (file.name.split(".").pop() || "mp3").toLowerCase();
+    setAttachment({ kind: "voice", url: URL.createObjectURL(file), ext, mime: file.type || "audio/mpeg" });
+    setAvRecording(false);
   };
 
-  const stopRecording = () => {
-    mediaRecorderRef.current?.stop();
-    setRecording(false);
-    clearInterval(timerRef.current);
-    clearTimeout(maxTimerRef.current);
+  const handleAvSelect = async (file) => {
+    if (!file) return;
+    if (file.type.startsWith("audio/")) await handleAudioFileSelect(file);
+    else await handleVideoSelect(file);
   };
 
-  const fmtDuration = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
-
-  const openLinkInput = () => setAttachment({ kind: "link", url: "", preview: null, loading: false, error: "" });
-
-  const fetchLinkPreview = async () => {
-    setAttachment((a) => {
-      if (a?.kind !== "link") return a;
-      const url = a.url.trim();
-      if (!url) return { ...a, preview: null, error: "" };
-      let hostname;
-      try {
-        hostname = new URL(url).hostname.replace(/^www\./, "");
-      } catch {
-        return { ...a, preview: null, error: "That doesn't look like a valid URL." };
-      }
-      fetch("/api/link-preview", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url }),
-      })
-        .then((res) => { if (!res.ok) throw new Error("preview failed"); return res.json(); })
-        .then((data) => setAttachment((cur) => (cur?.kind === "link" ? { ...cur, preview: { ...data, hostname }, loading: false, error: "" } : cur)))
-        .catch(() => setAttachment((cur) => (cur?.kind === "link" ? { ...cur, preview: null, loading: false, error: "Couldn't load a preview — you can still share the link." } : cur)));
-      return { ...a, loading: true, error: "" };
-    });
+  const handleRecordPhotoSelect = async (file) => {
+    if (!file) return;
+    const preview = await fileToDataURL(file);
+    const cropPos = await detectCropPosition(file);
+    setRecordPhoto({ file, preview, cropPos });
   };
 
-  const hasValidAttachment = attachment && (attachment.kind !== "link" || attachment.url.trim());
+  const hasValidAttachment = !!attachment;
   const canSubmit = answerText.trim() || hasValidAttachment;
 
   const handleSubmit = async () => {
     if (!contributorName.trim()) { showToast("Please enter your name.", "error"); return; }
     if (contributorEmail.trim() && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(contributorEmail.trim())) { showToast("That email doesn't look right.", "error"); return; }
-    if (!canSubmit) { showToast("Please write something, or attach a photo, audio, video, or link.", "error"); return; }
+    if (!canSubmit) { showToast("Please write something, or attach a photo, audio, or video.", "error"); return; }
 
     setSubmitting(true);
     try {
       let mediaUrl = null;
+      let secondaryMediaUrl = null;
       let type = "story";
       let cropX = null, cropY = null;
-      let linkMeta = null;
 
       if (attachment?.kind === "photo") {
         type = "photo";
@@ -677,21 +665,19 @@ function ShareMemoryModal({ memorial, showToast, onClose }) {
         type = "voice";
         const resp = await fetch(attachment.url);
         const blob = await resp.blob();
-        const path = `contributions/${memorial.invite_code}/${uid()}.webm`;
-        const { error: upErr } = await supabase.storage.from("memorial-media").upload(path, blob, { contentType: "audio/webm" });
+        const path = `contributions/${memorial.invite_code}/${uid()}.${attachment.ext || "webm"}`;
+        const { error: upErr } = await supabase.storage.from("memorial-media").upload(path, blob, { contentType: attachment.mime || "audio/webm" });
         if (upErr) throw upErr;
         mediaUrl = supabase.storage.from("memorial-media").getPublicUrl(path).data?.publicUrl;
-      } else if (attachment?.kind === "link" && attachment.url.trim()) {
-        type = "url";
-        mediaUrl = attachment.preview?.image || null;
-        linkMeta = {
-          url: attachment.url.trim(),
-          provider: attachment.preview?.provider || null,
-          videoId: attachment.preview?.videoId || null,
-          start: attachment.preview?.start ?? null,
-          title: attachment.preview?.title || null,
-          hostname: attachment.preview?.hostname || null,
-        };
+      }
+
+      // "Record it in your own voice" mode's optional "Add a photo too" —
+      // the only case a contribution carries two media files.
+      if (recordPhoto) {
+        const path = `contributions/${memorial.invite_code}/${uid()}-secondary.${recordPhoto.file.name.split(".").pop()}`;
+        const { error: upErr } = await supabase.storage.from("memorial-media").upload(path, recordPhoto.file);
+        if (upErr) throw upErr;
+        secondaryMediaUrl = supabase.storage.from("memorial-media").getPublicUrl(path).data?.publicUrl;
       }
 
       const relLabel = relationships.find((r) => r.id === relationship)?.label || null;
@@ -704,10 +690,11 @@ function ShareMemoryModal({ memorial, showToast, onClose }) {
         type,
         text: answerText.trim() || null,
         media_url: mediaUrl,
+        secondary_media_url: secondaryMediaUrl,
         status: memorial.require_approval ? "pending" : "approved",
         crop_x: cropX,
         crop_y: cropY,
-        link_meta: linkMeta,
+        link_meta: null,
       };
 
       if (memorial.require_approval) {
@@ -781,48 +768,79 @@ function ShareMemoryModal({ memorial, showToast, onClose }) {
                 </div>
               )}
 
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="form-label">Your name *</label>
-                  <input className="form-input" placeholder="How you were known to them" value={contributorName} onChange={(e) => setContributorName(e.target.value)} />
+              {/* Type/record toggle — general and freeform questions only,
+                  never on the three media-specific universal prompts. Free
+                  memorials collect written memories only (same gate as the
+                  attach row below), so recording isn't offered there either. */}
+              {questionMediaKind === null && memorial.is_paid && (
+                <div className="share-mode-toggle">
+                  <button type="button" className={answerMode === "type" ? "active" : ""} onClick={() => setAnswerMode("type")}>Type it out</button>
+                  <button type="button" className={answerMode === "record" ? "active" : ""} onClick={() => setAnswerMode("record")}>Record it in your own voice</button>
                 </div>
-                <div className="form-group">
-                  <label className="form-label">Your email (optional)</label>
-                  <input className="form-input" type="email" placeholder="So the family can say thank you" value={contributorEmail} onChange={(e) => setContributorEmail(e.target.value)} />
+              )}
+
+              {questionMediaKind === null && memorial.is_paid && answerMode === "record" ? (
+                <>
+                  <VoiceRecorder value={attachment} onChange={setAttachment} showToast={showToast} />
+                  {memorial.is_paid && (
+                    recordPhoto ? (
+                      <div className="form-group">
+                        <div className="photo-preview-crop">
+                          <img src={recordPhoto.preview} alt="" style={{ objectPosition: `${recordPhoto.cropPos.x}% ${recordPhoto.cropPos.y}%` }} />
+                        </div>
+                        <button type="button" className="btn btn-sm btn-ghost" style={{ marginTop: 8 }} onClick={() => setRecordPhoto(null)}>Remove photo</button>
+                      </div>
+                    ) : (
+                      <div className="share-attach-row">
+                        <button type="button" className="share-attach-btn" onClick={() => recordPhotoInputRef.current?.click()}>+ Add a photo too</button>
+                      </div>
+                    )
+                  )}
+                  <input ref={recordPhotoInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => handleRecordPhotoSelect(e.target.files[0])} />
+                </>
+              ) : (
+                <>
+                  <textarea
+                    className="form-input share-answer-textarea"
+                    placeholder={freeform ? "Type the memory here..." : (questionMediaKind ? "Add the file below, or describe it here..." : "Type the memory here...")}
+                    value={answerText}
+                    onChange={(e) => setAnswerText(e.target.value)}
+                  />
+
+                  {memorial.is_paid && (
+                    <QuestionAttachOptions
+                      kind={questionMediaKind}
+                      attachment={attachment}
+                      avRecording={avRecording}
+                      setAvRecording={setAvRecording}
+                      showToast={showToast}
+                      onAttachmentChange={setAttachment}
+                      onPhotoClick={() => photoInputRef.current?.click()}
+                      onVideoClick={() => videoInputRef.current?.click()}
+                      onAudioClick={() => audioInputRef.current?.click()}
+                      onAvClick={() => avInputRef.current?.click()}
+                      onAdjustCrop={() => setShowCropAdjuster(true)}
+                      onRemove={clearAttachment}
+                    />
+                  )}
+                  <input ref={photoInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => handlePhotoSelect(e.target.files[0])} />
+                  <input ref={videoInputRef} type="file" accept="video/*" style={{ display: "none" }} onChange={(e) => handleVideoSelect(e.target.files[0])} />
+                  <input ref={audioInputRef} type="file" accept="audio/*" style={{ display: "none" }} onChange={(e) => handleAudioFileSelect(e.target.files[0])} />
+                  <input ref={avInputRef} type="file" accept="audio/*,video/*" style={{ display: "none" }} onChange={(e) => handleAvSelect(e.target.files[0])} />
+                </>
+              )}
+
+              <div className="share-signature-divider" />
+              <div className="share-signature">
+                <div className="share-signature-field">
+                  <label htmlFor="share-signature-name">Your name</label>
+                  <input id="share-signature-name" className="share-signature-input" placeholder="How you were known to them" value={contributorName} onChange={(e) => setContributorName(e.target.value)} />
+                </div>
+                <div className="share-signature-field">
+                  <label htmlFor="share-signature-email">Email (optional)</label>
+                  <input id="share-signature-email" className="share-signature-input" type="email" placeholder="So the family can say thank you" value={contributorEmail} onChange={(e) => setContributorEmail(e.target.value)} />
                 </div>
               </div>
-
-              <textarea
-                className="form-input"
-                placeholder={freeform ? "Type the memory here..." : (isMediaPrompt ? "Add the file below, or describe it here..." : "Type the memory here...")}
-                value={answerText}
-                onChange={(e) => setAnswerText(e.target.value)}
-                rows={5}
-                style={{ marginBottom: 16 }}
-              />
-
-              {memorial.is_paid && (
-                <ShareAttachRow
-                  attachment={attachment}
-                  avMode={avMode}
-                  setAvMode={setAvMode}
-                  recording={recording}
-                  recordDuration={recordDuration}
-                  spotlight={isMediaPrompt}
-                  onPhotoClick={() => photoInputRef.current?.click()}
-                  onStartRecording={startRecording}
-                  onStopRecording={stopRecording}
-                  onVideoClick={() => videoInputRef.current?.click()}
-                  onLinkClick={openLinkInput}
-                  onLinkUrlChange={(url) => setAttachment((a) => ({ ...a, url, preview: null, error: "" }))}
-                  onLinkBlur={fetchLinkPreview}
-                  onAdjustCrop={() => setShowCropAdjuster(true)}
-                  onRemove={clearAttachment}
-                  fmtDuration={fmtDuration}
-                />
-              )}
-              <input ref={photoInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => handlePhotoSelect(e.target.files[0])} />
-              <input ref={videoInputRef} type="file" accept="video/*" style={{ display: "none" }} onChange={(e) => handleVideoSelect(e.target.files[0])} />
 
               <button className="btn btn-rust btn-lg share-submit-btn" onClick={handleSubmit} disabled={submitting} style={{ justifyContent: "center" }}>
                 {submitting ? <><span className="spinner" /> Sharing...</> : "Share this memory"}
@@ -867,16 +885,162 @@ function ShareMemoryModal({ memorial, showToast, onClose }) {
   );
 }
 
-// The three attach options plus whatever in-progress or resolved state
-// they're in (audio/video's own record-or-upload chooser, a photo/video
-// preview with crop/remove, or the link URL field with its preview card).
-// Split out of ShareMemoryModal purely to keep that component's question/
-// screen JSX readable — it has no state of its own.
-function ShareAttachRow({
-  attachment, avMode, setAvMode, recording, recordDuration, spotlight,
-  onPhotoClick, onStartRecording, onStopRecording, onVideoClick,
-  onLinkClick, onLinkUrlChange, onLinkBlur, onAdjustCrop, onRemove, fmtDuration,
+const fmtRecordDuration = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+
+// Circular record button + live waveform + "Tap to start recording" ->
+// "Recording... tap to stop" -> "Recorded — tap to re-record". Owns its own
+// MediaRecorder/AnalyserNode; reports the finished take up as a plain
+// { kind: 'voice', url, ext, mime } attachment via onChange, same shape a
+// plain audio-file upload produces, so the caller's submit logic doesn't
+// need to know which path produced it. Used both for the question screen's
+// "Record it in your own voice" mode and the general attach row's inline
+// "Record a voice memo" option.
+function VoiceRecorder({ value, onChange, showToast }) {
+  const [recording, setRecording] = useState(false);
+  const [recordDuration, setRecordDuration] = useState(0);
+  const [analyser, setAnalyser] = useState(null);
+  const mediaRecorderRef = useRef(null);
+  const chunksRef = useRef([]);
+  const timerRef = useRef(null);
+  const maxTimerRef = useRef(null);
+  const audioCtxRef = useRef(null);
+  const streamRef = useRef(null);
+
+  const teardownAudio = () => {
+    audioCtxRef.current?.close();
+    audioCtxRef.current = null;
+    setAnalyser(null);
+  };
+
+  const stop = () => {
+    mediaRecorderRef.current?.stop();
+    setRecording(false);
+    clearInterval(timerRef.current);
+    clearTimeout(maxTimerRef.current);
+    teardownAudio();
+  };
+
+  // Stop the mic/recorder if the modal (or just this component) unmounts
+  // mid-recording — a shuffled question or a closed modal shouldn't leave
+  // the microphone running.
+  useEffect(() => () => {
+    if (mediaRecorderRef.current?.state === "recording") mediaRecorderRef.current.stop();
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    clearInterval(timerRef.current);
+    clearTimeout(maxTimerRef.current);
+    audioCtxRef.current?.close();
+  }, []);
+
+  const start = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (AudioCtx) {
+        const audioCtx = new AudioCtx();
+        audioCtxRef.current = audioCtx;
+        const source = audioCtx.createMediaStreamSource(stream);
+        const node = audioCtx.createAnalyser();
+        node.fftSize = 64; // few bins — chunky bars suit this small a widget
+        source.connect(node);
+        setAnalyser(node);
+      }
+
+      const mr = new MediaRecorder(stream);
+      mediaRecorderRef.current = mr;
+      chunksRef.current = [];
+      mr.ondataavailable = (e) => chunksRef.current.push(e.data);
+      mr.onstop = () => {
+        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+        onChange({ kind: "voice", url: URL.createObjectURL(blob), ext: "webm", mime: "audio/webm" });
+        stream.getTracks().forEach((t) => t.stop());
+      };
+      mr.start();
+      setRecording(true);
+      setRecordDuration(0);
+      timerRef.current = setInterval(() => setRecordDuration((d) => Math.min(d + 1, SHARE_MAX_SECONDS)), 1000);
+      maxTimerRef.current = setTimeout(stop, SHARE_MAX_SECONDS * 1000);
+    } catch { showToast("Please allow microphone access to record.", "error"); }
+  };
+
+  const label = recording
+    ? "Recording... tap to stop"
+    : value?.kind === "voice" ? "Recorded — tap to re-record" : "Tap to start recording";
+
+  return (
+    <div className="voice-recorder share-voice-recorder">
+      <button
+        type="button"
+        className={`record-btn ${recording ? "record-btn-recording" : "record-btn-idle"}`}
+        onClick={recording ? stop : start}
+      >
+        {recording ? <>&#9209;</> : <>&#127908;</>}
+      </button>
+      {recording && <LiveWaveform analyser={analyser} />}
+      {recording && <div className="record-time">{fmtRecordDuration(recordDuration)}</div>}
+      <div className="record-sub">{label}</div>
+      {!recording && value?.kind === "voice" && (
+        <audio controls src={value.url} style={{ width: "100%", marginTop: 8 }} />
+      )}
+    </div>
+  );
+}
+
+// Reads the live mic input via AnalyserNode.getByteFrequencyData on every
+// animation frame and writes bar heights straight to the DOM through refs —
+// deliberately bypassing React state so a ~60fps visualization doesn't
+// trigger a full re-render per frame.
+function LiveWaveform({ analyser }) {
+  const barsRef = useRef([]);
+  const BAR_COUNT = 24;
+
+  useEffect(() => {
+    if (!analyser) return;
+    let raf;
+    const data = new Uint8Array(analyser.frequencyBinCount);
+    const step = Math.max(1, Math.floor(data.length / BAR_COUNT));
+    const draw = () => {
+      analyser.getByteFrequencyData(data);
+      barsRef.current.forEach((el, i) => {
+        if (!el) return;
+        const v = data[i * step] || 0;
+        el.style.height = `${4 + (v / 255) * 36}px`;
+      });
+      raf = requestAnimationFrame(draw);
+    };
+    raf = requestAnimationFrame(draw);
+    return () => cancelAnimationFrame(raf);
+  }, [analyser]);
+
+  return (
+    <div className="record-live-wave">
+      {Array.from({ length: BAR_COUNT }).map((_, i) => (
+        <span key={i} ref={(el) => (barsRef.current[i] = el)} />
+      ))}
+    </div>
+  );
+}
+
+// The attach row shown below the answer textarea in "type it out" mode.
+// What it offers depends on `kind` (the current question's derived media
+// kind, or null for a general/freeform question) — a media-specific
+// question narrows this to its one matching upload option; a general
+// question gets the full set. Once something's attached, its preview (and
+// a way to remove it) replaces the option buttons regardless of kind.
+function QuestionAttachOptions({
+  kind, attachment, avRecording, setAvRecording, showToast,
+  onAttachmentChange, onPhotoClick, onVideoClick, onAudioClick, onAvClick,
+  onAdjustCrop, onRemove,
 }) {
+  if (avRecording) {
+    return (
+      <div className="share-attach-row">
+        <VoiceRecorder value={attachment} onChange={onAttachmentChange} showToast={showToast} />
+        <span className="share-back-link" style={{ marginTop: 0 }} onClick={() => { setAvRecording(false); onRemove(); }}>Cancel</span>
+      </div>
+    );
+  }
+
   if (attachment?.kind === "photo") {
     return (
       <div className="form-group">
@@ -907,71 +1071,33 @@ function ShareAttachRow({
     );
   }
 
-  if (attachment?.kind === "link") {
-    return (
-      <div className="form-group">
-        <label className="form-label">Link</label>
-        <input
-          className="form-input"
-          type="url"
-          autoFocus
-          placeholder="Paste a YouTube link, or any URL"
-          value={attachment.url}
-          onChange={(e) => onLinkUrlChange(e.target.value)}
-          onBlur={onLinkBlur}
-        />
-        {attachment.loading && <span className="form-hint">Loading preview&hellip;</span>}
-        {attachment.error && <span className="form-error">{attachment.error}</span>}
-        {attachment.preview && (
-          <div className="link-preview-card">
-            {attachment.preview.image ? (
-              <img src={attachment.preview.image} alt="" className="link-preview-thumb" />
-            ) : (
-              <div className="link-preview-thumb link-preview-thumb-fallback">🔗</div>
-            )}
-            <div>
-              <div className="link-preview-title">{attachment.preview.title || attachment.url.trim()}</div>
-              <div className="link-preview-provider">{attachment.preview.provider === "youtube" ? "YouTube" : attachment.preview.hostname}</div>
-            </div>
-          </div>
-        )}
-        <button type="button" className="btn btn-sm btn-ghost" style={{ marginTop: 8 }} onClick={onRemove}>Remove link</button>
-      </div>
-    );
-  }
-
-  if (avMode === "chooser") {
+  if (kind === "voice") {
     return (
       <div className="share-attach-row">
-        <button type="button" className="share-attach-btn" onClick={() => setAvMode("recording")}>&#127908; Record a voice memo</button>
-        <button type="button" className="share-attach-btn" onClick={onVideoClick}>&#127916; Upload a video</button>
-        <span className="share-back-link" style={{ marginTop: 0 }} onClick={() => setAvMode(null)}>Cancel</span>
+        <button type="button" className="share-attach-btn spotlight" onClick={onAudioClick}>Upload an audio file</button>
       </div>
     );
   }
-
-  if (avMode === "recording") {
+  if (kind === "photo") {
     return (
-      <div className="voice-recorder">
-        {!recording ? (
-          <button type="button" className="record-btn record-btn-idle" onClick={onStartRecording}>&#127908;</button>
-        ) : (
-          <>
-            <button type="button" className="record-btn record-btn-recording" onClick={onStopRecording}>&#9209;</button>
-            <div className="record-time">{fmtDuration(recordDuration)}</div>
-          </>
-        )}
-        <div className="record-sub">{recording ? "Recording... tap to stop" : "Tap to start recording"}</div>
-        {!recording && <span className="share-back-link" onClick={() => setAvMode(null)}>Cancel</span>}
+      <div className="share-attach-row">
+        <button type="button" className="share-attach-btn spotlight" onClick={onPhotoClick}>Upload a photo</button>
+      </div>
+    );
+  }
+  if (kind === "video") {
+    return (
+      <div className="share-attach-row">
+        <button type="button" className="share-attach-btn spotlight" onClick={onVideoClick}>Upload a video</button>
       </div>
     );
   }
 
   return (
     <div className="share-attach-row">
-      <button type="button" className={`share-attach-btn${spotlight ? " spotlight" : ""}`} onClick={onPhotoClick}>+ Add a photo</button>
-      <button type="button" className={`share-attach-btn${spotlight ? " spotlight" : ""}`} onClick={() => setAvMode("chooser")}>+ Add audio or video</button>
-      <button type="button" className="share-attach-btn" onClick={onLinkClick}>+ Add a link</button>
+      <button type="button" className="share-attach-btn" onClick={onPhotoClick}>+ Add a photo</button>
+      <button type="button" className="share-attach-btn" onClick={() => setAvRecording(true)}>Record a voice memo</button>
+      <button type="button" className="share-attach-btn" onClick={onAvClick}>Upload audio or video</button>
     </div>
   );
 }
@@ -1409,6 +1535,12 @@ function TileVoice({ story: s, gate }) {
           />
         ))}
       </div>
+      {/* The optional photo from the Share modal's "Record it in your own
+          voice" + "Add a photo too" — the only case a voice entry carries
+          a second image alongside its waveform. */}
+      {s.secondary_media_url && (
+        <img className="mem-tile-voice-photo" src={s.secondary_media_url} alt="" loading="lazy" />
+      )}
     </div>
   );
 }
