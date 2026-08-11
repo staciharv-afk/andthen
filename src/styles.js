@@ -151,8 +151,7 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 
 .hero-tile { position: relative; aspect-ratio: 1; border-radius: 6px; box-shadow: 0 4px 10px rgba(43,38,32,0.12); overflow: hidden; display: flex; flex-direction: column; border: none; background: none; padding: 0; margin: 0; text-align: left; font-family: inherit; cursor: pointer; }
 .hero-tile-body { flex: 1; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; background: var(--bark); }
-.hero-tile-body.photo img, .hero-tile-body.video video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
-.hero-tile-body.recipe { background: repeating-linear-gradient(var(--cream) 0 14px, var(--cream-dark) 14px 15px); }
+.hero-tile-body.photo img, .hero-tile-body.recipe img, .hero-tile-body.video video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
 
 /* Absolutely positioned (not flex-centered) — the video tile also has a
    real <video> element as a sibling, which would otherwise shrink this
@@ -161,7 +160,8 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .hero-tile-play::after { content: ''; border-left: 9px solid var(--bark); border-top: 6px solid transparent; border-bottom: 6px solid transparent; margin-left: 2px; }
 
 .hero-tile-wave { display: flex; align-items: flex-end; gap: 2px; height: 20px; }
-.hero-tile-wave span { width: 2.5px; background: var(--rust-light); border-radius: 1px; flex-shrink: 0; }
+.hero-tile-wave span { width: 2.5px; background: rgba(253,250,245,0.3); border-radius: 1px; flex-shrink: 0; transition: background 0.15s ease; }
+.hero-tile-wave span.played { background: var(--rust-light); }
 
 .hero-tile-bar { height: 18%; min-height: 26px; flex-shrink: 0; background: #141210; display: flex; align-items: center; gap: 4px; padding: 0 8px; }
 .hero-tile-type { text-transform: uppercase; letter-spacing: 0.03em; font-size: 8.5px; color: rgba(245,239,225,0.55); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
