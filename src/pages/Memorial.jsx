@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
-import { uid, fmtDate, timeAgo, fileToDataURL, sendThankYou, notifyCreator } from "../lib/utils";
+import { uid, fmtDate, timeAgo, fileToDataURL, fmtTime, sendThankYou, notifyCreator } from "../lib/utils";
 
 // Content-type filters, and the label shown on a grid tile / in the reader's
 // type tag — one source of truth (contentTypeLabel) for both, since a filter
@@ -39,8 +39,6 @@ function matchesFilter(s, filter) {
   if (filter === "spoken") return s.type === "voice" && s.subtype === "recording";
   return s.type === filter; // video, story, url
 }
-
-const fmtTime = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 
 // Deterministic per-story offset so multiple waveform cards on the same
 // page don't all render the identical bar pattern.
@@ -1294,15 +1292,31 @@ function TileBody({ story: s }) {
 
 // Static waveform preview — same seeded bar-height pattern the reader's
 // live-progress version uses, just with no playback/progress state here;
-// the grid is a picture of the content, not a player.
+// the grid is a picture of the content, not a player (tapping the tile
+// opens the full reader, where ReaderAudio does the actual playing). The
+// play button and duration are purely a visual affordance so a voicemail
+// tile reads as "tap to play" the same way a video tile's play button
+// does — the audio element here only loads metadata for the duration
+// text, it's never played from the grid.
 function TileVoice({ story: s }) {
   const seed = seedFor(s.id);
+  const [duration, setDuration] = useState(null);
   return (
     <div className="mem-tile-body mem-tile-voice">
-      <div className="mem-tile-wave">
-        {Array.from({ length: 20 }).map((_, i) => (
-          <span key={i} style={{ height: `${6 + Math.round(Math.abs(Math.sin(i * 0.7 + seed)) * 32)}px` }} />
-        ))}
+      <audio
+        preload="metadata"
+        src={s.media_url}
+        onLoadedMetadata={(e) => setDuration(e.target.duration)}
+        style={{ display: "none" }}
+      />
+      <div className="mem-tile-voice-inner">
+        <div className="mem-tile-play mem-tile-play-voice" aria-hidden="true" />
+        <div className="mem-tile-wave">
+          {Array.from({ length: 20 }).map((_, i) => (
+            <span key={i} style={{ height: `${6 + Math.round(Math.abs(Math.sin(i * 0.7 + seed)) * 32)}px` }} />
+          ))}
+        </div>
+        {duration != null && <span className="mem-tile-duration">{fmtTime(duration)}</span>}
       </div>
       {/* The optional photo from the Share modal's "Record it in your own
           voice" + "Add a photo too" — the only case a voice entry carries
