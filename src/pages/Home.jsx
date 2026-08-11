@@ -132,6 +132,32 @@ function WhatYouGetGrid() {
   );
 }
 
+// "Every way a memory can live" — the seven content types And Then accepts.
+// Static/illustrative, same as WHAT_YOU_GET_EXAMPLES above.
+const CONTENT_TYPES = [
+  { icon: "📷", name: "Photos", desc: "The pictures already sitting in a hundred different phones." },
+  { icon: "🎬", name: "Videos", desc: "The way they moved, laughed, and sounded — not just how they looked." },
+  { icon: "📞", name: "Voicemails", desc: "An old message still sitting on someone's phone, saved for years." },
+  { icon: "🎙️", name: "Spoken stories", desc: "Told out loud, in a contributor's own voice, no typing required." },
+  { icon: "✍️", name: "Written stories", desc: "The specific memory, put into words, guided by the right question." },
+  { icon: "📄", name: "Recipes & documents", desc: "A handwritten recipe card, a letter, anything worth scanning in." },
+  { icon: "🔗", name: "Links", desc: "A YouTube video or home movie already uploaded somewhere else." },
+];
+
+function ContentTypesGrid() {
+  return (
+    <div className="types-grid">
+      {CONTENT_TYPES.map((t) => (
+        <div className="type-card" key={t.name}>
+          <div className="type-icon" aria-hidden="true">{t.icon}</div>
+          <h3 className="type-name">{t.name}</h3>
+          <p className="type-desc">{t.desc}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // Icons for the "Collecting is the easy part" feature row. No icon library
 // is installed (checked — the only existing precedent is the inline SVG in
 // CreateMemorial.jsx's photo-upload icon), so these follow that same outline
@@ -185,7 +211,7 @@ export function HomePage({ onNavigate }) {
                 A living story <em>for<br />someone you love</em>.
               </h1>
               <p className="hero-body fade-up-3">
-                Stories about someone live in a hundred different people. And Then gathers what everyone remembers — family, friends, the people who've known them for years — into one page that keeps filling in.
+                Everyone who loved them remembers something different. And Then brings it all together — into one page that keeps growing.
               </p>
               <div className="hero-cta-group fade-up-4">
                 <button className="btn btn-rust btn-lg" onClick={() => onNavigate("onboarding")}>Start their page</button>
@@ -248,16 +274,35 @@ export function HomePage({ onNavigate }) {
       </div>
 
       {/* What you get */}
-      <div style={{ background: "var(--white)" }} id="how">
+      <div style={{ background: "var(--white)" }}>
         <div className="page-wrap">
           <div className="narrative">
             <div className="section-label">What you get</div>
             <h2 className="narrative-headline">Not just a page — a way to collect.</h2>
-            <p className="narrative-body">
+            <p className="narrative-body wyg-intro">
               And Then asks each person the right question for who they were to her — so four different people end up telling four completely different stories.
             </p>
 
             <WhatYouGetGrid />
+          </div>
+        </div>
+      </div>
+
+      {/* Every way a memory can live */}
+      <div style={{ background: "var(--white)" }}>
+        <div className="page-wrap">
+          <div className="narrative" style={{ paddingTop: 0 }}>
+            <div className="section-label">Every way a memory can live</div>
+            <h2 className="narrative-headline">It's not just photos.</h2>
+            <p className="narrative-body">
+              Bring your loved one to life in whatever form the memory actually takes — And Then holds all of it, side by side, in the same page.
+            </p>
+
+            <ContentTypesGrid />
+
+            <button className="section-cta-link" onClick={() => onNavigate("memorial", "x58e5wvtmravmszf")}>
+              See a real, living page <span aria-hidden="true">→</span>
+            </button>
           </div>
         </div>
       </div>
@@ -282,25 +327,12 @@ export function HomePage({ onNavigate }) {
         </div>
       </div>
 
-      {/* Everyone has a story */}
-      <div style={{ background: "var(--bark)" }}>
-        <div className="page-wrap">
-          <div className="narrative">
-            <h2 className="narrative-headline on-dark">Everyone has a story. Most people need a better question to tell it.</h2>
-            <p className="narrative-body on-dark">
-              "Share a memory" is a hard sentence to start with. And Then lets you write prompts made for them specifically — a habit, a phrase, the thing they always say — so people tell you the real version, not the one-liner.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Final CTA */}
+      {/* Closing CTA */}
       <div style={{ background: "var(--bark-light)" }}>
         <div className="page-wrap">
           <div className="final-cta">
-            <h2>Everyone has a story about them.</h2>
-            <p>Start gathering them. Free to start. It only grows from here.</p>
-            <button className="btn btn-rust btn-lg" onClick={() => onNavigate("onboarding")}>Start their page</button>
+            <h2>Every great story starts with and then they&hellip;</h2>
+            <button className="btn btn-rust btn-lg" onClick={() => onNavigate("onboarding")}>Start their page, free</button>
           </div>
         </div>
       </div>
@@ -309,7 +341,7 @@ export function HomePage({ onNavigate }) {
       <footer className="footer">
         <div className="footer-logo">And Then<em>...</em></div>
         <div className="footer-links">
-          <button className="footer-link" onClick={() => document.getElementById("how")?.scrollIntoView({ behavior: "smooth" })}>How it works</button>
+          <button className="footer-link" onClick={() => onNavigate("how-it-works")}>How it works</button>
           <button className="footer-link">Privacy</button>
           <button className="footer-link">Contact</button>
         </div>

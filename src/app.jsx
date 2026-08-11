@@ -15,6 +15,7 @@ import { DashboardPage } from "./pages/Dashboard";
 import { MemorialPage } from "./pages/Memorial";
 import { PricingPage } from "./pages/Pricing";
 import { OurStoryPage } from "./pages/OurStory";
+import { HowItWorksPage } from "./pages/HowItWorks";
 
 export default function App() {
   const [route, setRoute] = useState(() => parseLocation().page);
@@ -170,6 +171,8 @@ export default function App() {
       {route === "pricing" && <PricingPage onNavigate={navigate} showToast={showToast} />}
 
       {route === "story" && <OurStoryPage onNavigate={navigate} />}
+
+      {route === "how-it-works" && <HowItWorksPage onNavigate={navigate} />}
 
       {route === "onboarding" && (
         <OnboardingPage showToast={showToast} />

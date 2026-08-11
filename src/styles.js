@@ -46,12 +46,29 @@ body { font-family: 'DM Sans', sans-serif; background: var(--cream); color: var(
   background: rgba(253,250,245,0.93); backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--warm-faint);
 }
-.nav-logo { font-family: 'Lora', serif; font-size: 20px; color: var(--bark); text-decoration: none; cursor: pointer; }
+.nav-logo { font-family: 'Lora', serif; font-size: 20px; color: var(--bark); text-decoration: none; cursor: pointer; flex-shrink: 0; }
 .nav-logo em { font-style: italic; color: var(--rust); }
 .nav-right { display: flex; align-items: center; gap: 28px; }
 .nav-link { font-size: 14px; color: var(--warm-mid); text-decoration: none; cursor: pointer; transition: color 0.2s; background: none; border: none; font-family: inherit; }
 .nav-link:hover { color: var(--bark); }
 .nav-link.active { color: var(--bark); font-weight: 600; }
+
+/* Five nav links plus a CTA button don't fit at phone width with the
+   desktop's fixed padding/gap — rather than wrap (overlapping the page
+   below) or clip (hiding the sign-up CTA entirely), let the link row
+   scroll horizontally on its own axis so every item stays reachable and
+   nothing overlaps. The outer page itself never gains horizontal scroll
+   from this — it's contained to .nav-right. */
+@media (max-width: 768px) {
+  .nav { padding: 0 20px; }
+  /* min-width: 0 overrides flexbox's default "never shrink below content
+     size" — without it, overflow-x: auto has nothing to scroll within,
+     since .nav-right just pushes .nav (and the page) wider instead. */
+  .nav-right { gap: 16px; min-width: 0; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .nav-right::-webkit-scrollbar { display: none; }
+  .nav-link { font-size: 13px; white-space: nowrap; flex-shrink: 0; }
+  .nav-right .btn { white-space: nowrap; flex-shrink: 0; }
+}
 .btn { font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500; padding: 10px 24px; border-radius: var(--radius); border: none; cursor: pointer; transition: all 0.2s; letter-spacing: 0.01em; display: inline-flex; align-items: center; gap: 8px; }
 .btn-primary { background: var(--bark); color: var(--cream); }
 .btn-primary:hover { background: var(--bark-light); transform: translateY(-1px); }
@@ -160,7 +177,7 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .hero-voicemail-wave span { flex-shrink: 0; }
 .hero-voicemail-caption { display: block; font-family: 'DM Sans', sans-serif; font-size: 11.5px; color: rgba(253,250,245,0.7); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-.hero-media-cta { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; margin-top: 14px; background: none; border: none; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; color: var(--rust); transition: color 0.2s; }
+.hero-media-cta { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; margin-top: 4px; padding: 12px 8px; background: none; border: none; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; color: var(--rust); transition: color 0.2s; }
 .hero-media-cta:hover { color: var(--rust-light); text-decoration: underline; }
 
 .icon-pause { width: 4px; height: 16px; background: #fff; box-shadow: 8px 0 0 #fff; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3)); }
@@ -209,6 +226,11 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 
 .wyg-hint { font-size: 14px; color: var(--warm-mid); line-height: 1.6; margin: 36px 0 0; text-align: center; }
 
+/* Extra breathing room below the section's intro paragraph specifically —
+   .wyg-grid's own margin-top (8px) stacks on top of this, landing on the
+   same ~56px gap the reference mockup used between .body-copy and its grid. */
+.wyg-intro { margin-bottom: 48px; }
+
 @media (max-width: 600px) {
   .wyg-grid { gap: 14px; }
   .wyg-card-rel { font-size: 10.5px; margin-bottom: 5px; }
@@ -223,6 +245,31 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
   .wyg-hint { font-size: 12px; margin-top: 20px; }
 }
 
+/* -- "every way a memory can live" content-type grid -- */
+.types-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-top: 44px; }
+@media (max-width: 860px) { .types-grid { grid-template-columns: repeat(2, 1fr); } }
+.type-card { background: var(--white); border: 1px solid var(--warm-faint); border-radius: 10px; padding: 22px 20px; text-align: left; }
+.type-icon { width: 36px; height: 36px; border-radius: 8px; background: var(--cream); display: flex; align-items: center; justify-content: center; margin-bottom: 14px; font-size: 16px; }
+.type-name { font-family: 'Lora', serif; font-size: 16px; font-weight: 400; color: var(--bark); margin: 0 0 6px; }
+.type-desc { font-size: 13px; font-weight: 300; color: var(--warm-mid); line-height: 1.5; margin: 0; }
+@media (max-width: 600px) {
+  .types-grid { gap: 12px; margin-top: 32px; }
+  .type-card { padding: 16px 14px; }
+  .type-name { font-size: 14.5px; }
+  .type-desc { font-size: 12px; }
+}
+
+/* Centered variant of .hero-media-cta, for the second "See a real, living
+   page" link below the content-type grid. Both stay rust across every
+   interactive state — no global anchor rule exists in this file to
+   conflict with, but pinned explicitly since these read as links. */
+.section-cta-link, .section-cta-link:hover, .section-cta-link:active, .section-cta-link:focus {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  width: 100%; margin-top: 30px; padding: 12px 8px; background: none; border: none; cursor: pointer;
+  font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; color: var(--rust);
+}
+.section-cta-link:hover { color: var(--rust-light); text-decoration: underline; }
+
 .avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--warm-faint); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 500; color: var(--warm-mid); flex-shrink: 0; border: 1.5px solid var(--story-line); }
 
 /* ── NARRATIVE SECTIONS ── */
@@ -230,9 +277,7 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .section-label { font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--rust); margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
 .section-label::after { content: ''; flex: 1; height: 1px; background: var(--warm-faint); max-width: 40px; }
 .narrative-headline { font-family: 'Lora', serif; font-size: clamp(26px, 3vw, 36px); font-weight: 400; color: var(--bark); margin-bottom: 24px; max-width: 680px; line-height: 1.3; }
-.narrative-headline.on-dark { color: var(--cream); }
 .narrative-body { font-size: 15px; font-weight: 300; line-height: 1.75; color: var(--warm-mid); max-width: 540px; }
-.narrative-body.on-dark { color: var(--warm-light); }
 
 /* "Collecting is the easy part" feature row */
 .feature-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px; margin-top: 44px; }
@@ -766,6 +811,35 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
   .story-article p { font-size: 16.5px; }
   .story-article p.story-lede { font-size: 20px; }
   .story-pull { font-size: 21px; }
+}
+
+/* -- "how it works" page — reuses .story-wrap/.story-headline/.story-divider
+   for the narrow single-column layout, and .pricing-path-* for the two
+   pricing cards (as plain non-interactive divs here, not buttons — this
+   page doesn't sell anything, it just explains). -- */
+.hiw-sub { font-size: 17px; font-weight: 300; line-height: 1.65; color: var(--warm-mid); margin: 0 0 50px; }
+
+.hiw-step { display: flex; gap: 20px; margin-bottom: 40px; }
+.hiw-step-num { font-family: 'Lora', serif; font-style: italic; font-size: 22px; color: var(--rust); width: 36px; flex-shrink: 0; }
+.hiw-step-body h3 { font-family: 'Lora', serif; font-weight: 500; font-size: 19px; color: var(--bark); margin: 0 0 8px; }
+.hiw-step-body p { font-size: 15px; font-weight: 300; line-height: 1.6; color: var(--warm-mid); margin: 0; }
+
+.hiw-paths-heading { font-family: 'Lora', serif; font-size: 22px; font-weight: 400; color: var(--bark); margin: 0 0 8px; }
+.hiw-paths-sub { font-size: 15px; font-weight: 300; color: var(--warm-mid); margin: 0 0 26px; }
+.hiw-paths { padding: 0 0 40px; }
+
+.hiw-cta-block { text-align: center; padding-top: 10px; }
+
+@media (max-width: 640px) {
+  .story-headline { font-size: 30px; }
+  .story-article p { font-size: 16.5px; }
+  .story-article p.story-lede { font-size: 20px; }
+  .story-pull { font-size: 21px; }
+  .hiw-sub { font-size: 15.5px; margin-bottom: 40px; }
+  .hiw-step { gap: 14px; margin-bottom: 32px; }
+  .hiw-step-num { width: 26px; font-size: 19px; }
+  .hiw-step-body h3 { font-size: 17.5px; }
+  .hiw-step-body p { font-size: 14px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
