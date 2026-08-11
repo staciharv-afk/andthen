@@ -38,7 +38,7 @@ function HeroVoicemail() {
             <span key={i} className={i / 12 <= progress ? "played" : ""} style={{ height: `${h}px` }} />
           ))}
         </div>
-        <span className="hero-voicemail-caption">Left by Meredith, Deb's daughter · {fmtTime(elapsed)} / {duration ? fmtTime(duration) : "0:17"}</span>
+        <span className="hero-voicemail-caption">Left by Meredith · {fmtTime(elapsed)} / {duration ? fmtTime(duration) : "0:17"}</span>
       </div>
     </div>
   );
@@ -189,7 +189,10 @@ export function HomePage({ onNavigate }) {
               </p>
               <div className="hero-cta-group fade-up-4">
                 <button className="btn btn-rust btn-lg" onClick={() => onNavigate("onboarding")}>Start their page</button>
-                <button className="btn btn-ghost" onClick={() => document.getElementById("how").scrollIntoView({ behavior: "smooth" })}>See how it works</button>
+                <button className="btn btn-ghost btn-lg hero-cta-secondary" onClick={() => onNavigate("memorial", "x58e5wvtmravmszf")}>
+                  <span className="pulse-dot" aria-hidden="true" />
+                  See a real, living page
+                </button>
               </div>
             </div>
 
@@ -198,11 +201,11 @@ export function HomePage({ onNavigate }) {
                 <div className="hero-media-large">
                   <div className="memory-card">
                     <div className="memory-card-photo">
-                      <img src="/home/hero-deb-cinnamon-rolls.jpg" alt="Deb Hausch holding her Christmas cinnamon rolls" />
+                      <img src="/home/hero-deb-recipe.jpg" alt="Deb Hausch's handwritten blueberry cake recipe card" />
                     </div>
                     <div className="memory-card-body">
-                      <blockquote className="memory-card-quote">Mom made her grandma's cinnamon roll recipe every Christmas, and she put cherries on top just like her grandma did.</blockquote>
-                      <span className="memory-card-attr">— Staci, her daughter</span>
+                      <blockquote className="memory-card-quote">I remember when Deb entered her first baking competition in elementary school with her "My Best Blueberry Cake" — she didn't know you were supposed to thaw the frozen blueberries first, so it came out gray. She didn't win. Her explanation to me was, "it's because nobody wants to eat gray cake." She eventually figured out the recipe, and it became a favorite of ours for decades.</blockquote>
+                      <span className="memory-card-attr">— Cheri</span>
                     </div>
                   </div>
                 </div>
@@ -210,11 +213,11 @@ export function HomePage({ onNavigate }) {
                   <div className="hero-media-small">
                     <div className="memory-card">
                       <div className="memory-card-photo">
-                        <img src="/home/hero-deb-motorcycle.jpg" alt="Deb Hausch riding on the back of a motorcycle" />
+                        <img src="/home/hero-deb-christmas.jpg" alt="Deb Hausch with her daughters" />
                       </div>
                       <div className="memory-card-body">
-                        <blockquote className="memory-card-quote">Before she was known as reliable and conservative, she rode on the back of my 1978 Honda 750.</blockquote>
-                        <span className="memory-card-attr">— Dan, her husband</span>
+                        <blockquote className="memory-card-quote">Mom always made sure Meredith and I felt equally loved, down to the amount of money she spent on us at Christmas. Many years, I'd receive a check with the difference that she had spent on Meredith!</blockquote>
+                        <span className="memory-card-attr">— Staci</span>
                       </div>
                     </div>
                   </div>
@@ -229,7 +232,7 @@ export function HomePage({ onNavigate }) {
                       </div>
                       <div className="memory-card-body">
                         <blockquote className="memory-card-quote">Mom leaned on Dad so much, figuratively and literally — he always had an arm ready for her.</blockquote>
-                        <span className="memory-card-attr">— Staci, her daughter</span>
+                        <span className="memory-card-attr">— Staci</span>
                       </div>
                     </div>
                   </div>

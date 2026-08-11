@@ -102,6 +102,16 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .hero-body { font-size: 17px; font-weight: 300; line-height: 1.75; color: var(--warm-mid); max-width: 500px; margin-bottom: 44px; }
 .hero-body strong { font-weight: 400; color: var(--bark-light); }
 .hero-cta-group { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+/* Same size as the primary button (btn-lg) so it reads as a real second
+   option, not an afterthought — the pulsing dot is the other half of that:
+   no shared "growing" indicator exists elsewhere in the app to reuse (the
+   memorial page's contributor-count line is plain text, no dot), so this
+   is a new small pulse using the brand rust accent, same expanding-ring
+   technique as the voice recorder's .record-btn-recording pulse. */
+.hero-cta-secondary { display: inline-flex; align-items: center; gap: 9px; }
+.pulse-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--rust); flex-shrink: 0; animation: pulseDot 1.8s ease-out infinite; }
+@keyframes pulseDot { 0% { box-shadow: 0 0 0 0 rgba(184,92,44,0.5); } 70%, 100% { box-shadow: 0 0 0 8px rgba(184,92,44,0); } }
+@media (prefers-reduced-motion: reduce) { .pulse-dot { animation: none; } }
 
 /* Hero photo */
 .hero-photo { width: 100%; aspect-ratio: 1; border-radius: 8px; overflow: hidden; }
