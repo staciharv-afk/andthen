@@ -21,6 +21,7 @@ const HERO_COLLAGE_TILES = [
     kind: "voicemail",
     typeLabel: "Voicemail",
     name: "Meredith",
+    audio: "/home/mom-voicemail.m4a",
     caption: "“Mom always said ‘hey kiddo’ — I’m so glad I kept this voicemail.”",
   },
   {
@@ -28,6 +29,7 @@ const HERO_COLLAGE_TILES = [
     kind: "recipe",
     typeLabel: "Recipe + story",
     name: "Cheri",
+    image: "/home/hero-deb-recipe.jpg",
     caption: "Her first “Best Blueberry Cake” came out gray — she hadn’t thawed the blueberries.",
   },
   {
@@ -40,18 +42,54 @@ const HERO_COLLAGE_TILES = [
   },
 ];
 
-// Decorative-only waveform bars, seeded per tile so they're stable across
-// re-renders but still look organic rather than uniform.
-function HeroTileWave() {
+// Waveform bars — heights are fixed/decorative (not derived from the real
+// audio), but which ones read as "played" reflects real playback progress.
+function HeroTileWave({ progress = 0 }) {
   const heights = [5, 9, 14, 7, 11, 16, 8, 12, 6, 10, 15, 7];
   return (
     <div className="hero-tile-wave" aria-hidden="true">
-      {heights.map((h, i) => <span key={i} style={{ height: `${h}px` }} />)}
+      {heights.map((h, i) => (
+        <span key={i} className={i / heights.length <= progress ? "played" : ""} style={{ height: `${h}px` }} />
+      ))}
     </div>
   );
 }
 
-function HeroTileBody({ tile }) {
+// The real voicemail — plays for as long as its tile stays "revealed"
+// (tapped/hovered open), pausing and resetting the moment it isn't,
+// whether that's tapping the tile again, tapping a different one, or
+// tapping outside the collage. Self-contained so the audio element and
+// its playback state don't need to live in the parent grid.
+function HeroVoicemailTile({ tile, revealed }) {
+  const audioRef = useRef(null);
+  const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    const a = audioRef.current;
+    if (!a) return;
+    if (revealed) {
+      a.play().catch(() => {});
+    } else {
+      a.pause();
+      a.currentTime = 0;
+      setProgress(0);
+    }
+  }, [revealed]);
+
+  return (
+    <div className="hero-tile-body voicemail">
+      <audio
+        ref={audioRef}
+        src={tile.audio}
+        onTimeUpdate={(e) => setProgress(e.target.duration ? e.target.currentTime / e.target.duration : 0)}
+        onEnded={() => setProgress(0)}
+      />
+      <HeroTileWave progress={progress} />
+    </div>
+  );
+}
+
+function HeroTileBody({ tile, revealed }) {
   if (tile.kind === "video") {
     return (
       <div className="hero-tile-body video">
@@ -61,17 +99,10 @@ function HeroTileBody({ tile }) {
     );
   }
   if (tile.kind === "voicemail") {
-    return (
-      <div className="hero-tile-body voicemail">
-        <HeroTileWave />
-      </div>
-    );
-  }
-  if (tile.kind === "recipe") {
-    return <div className="hero-tile-body recipe" />;
+    return <HeroVoicemailTile tile={tile} revealed={revealed} />;
   }
   return (
-    <div className="hero-tile-body photo">
+    <div className={`hero-tile-body ${tile.kind}`}>
       <img src={tile.image} alt="" />
     </div>
   );
@@ -102,7 +133,7 @@ function HeroCollage() {
           className={`hero-tile${revealedId === tile.id ? " revealed" : ""}`}
           onClick={() => setRevealedId((cur) => (cur === tile.id ? null : tile.id))}
         >
-          <HeroTileBody tile={tile} />
+          <HeroTileBody tile={tile} revealed={revealedId === tile.id} />
           <div className="hero-tile-bar">
             <span className="hero-tile-type">{tile.typeLabel}</span>
             <span className="hero-tile-meta">{tile.name}</span>
@@ -285,9 +316,9 @@ export function HomePage({ onNavigate }) {
               </p>
               <div className="hero-cta-group fade-up-4">
                 <button className="btn btn-rust btn-lg" onClick={() => onNavigate("onboarding")}>Start their page</button>
-                <button className="btn btn-ghost btn-lg hero-cta-secondary" onClick={() => onNavigate("memorial", "x58e5wvtmravmszf")}>
+                <button className="btn btn-ghost btn-lg hero-cta-secondary" onClick={() => onNavigate("how-it-works")}>
                   <span className="pulse-dot" aria-hidden="true" />
-                  See a real, living page
+                  See how it works
                 </button>
               </div>
             </div>
