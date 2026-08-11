@@ -135,47 +135,48 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .hero-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .hero-photo-placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: linear-gradient(160deg, var(--cream-dark), #DDCBA8); color: var(--warm-mid); font-size: 14px; }
 
-/* Hero media grid (photo + photo + video) */
-.hero-media-grid { display: grid; grid-template-columns: 1.25fr 1fr; gap: 12px; }
-.hero-media-large, .hero-media-small { display: flex; flex-direction: column; }
-.hero-media-col { display: flex; flex-direction: column; gap: 12px; }
-@media (max-width: 900px) { .hero-media-grid { max-width: 420px; margin: 0 auto; } }
+/* -- hero collage — a 2x2 grid of small square tiles matching the real
+   memorial page's own tile system (.mem-tile in the memorial-page scope):
+   media area + dark type/meta bar + hover-reveal caption scrim. Built as
+   its own scoped copy (.hero-tile*) rather than reusing .mem-tile
+   directly, since --mem-* tokens are scoped to .memorial-page and don't
+   resolve on the homepage — and rather than reusing .wyg-tile (the "What
+   you get" grid's version of the same pattern), since these are a
+   noticeably smaller physical size with two media variants (recipe,
+   voicemail) that system doesn't have. Same visual language, tuned scale,
+   ported fresh — not literally shared markup, per this app's established
+   pattern for porting UI across unrelated page contexts. */
+.hero-collage-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+@media (max-width: 900px) { .hero-collage-grid { max-width: 420px; margin: 0 auto; } }
 
-.media-play-btn { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(45,33,24,0.18); }
-.media-play-btn::before { content: ''; width: 0; height: 0; border-style: solid; border-width: 8px 0 8px 13px; border-color: transparent transparent transparent #fff; margin-left: 3px; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3)); }
+.hero-tile { position: relative; aspect-ratio: 1; border-radius: 6px; box-shadow: 0 4px 10px rgba(43,38,32,0.12); overflow: hidden; display: flex; flex-direction: column; border: none; background: none; padding: 0; margin: 0; text-align: left; font-family: inherit; cursor: pointer; }
+.hero-tile-body { flex: 1; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; background: var(--bark); }
+.hero-tile-body.photo img, .hero-tile-body.video video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+.hero-tile-body.recipe { background: repeating-linear-gradient(var(--cream) 0 14px, var(--cream-dark) 14px 15px); }
 
-/* -- memory cards: photo + quote + attribution grouped in one card, same
-   pattern as the memorial page's own ScrapbookCard (media, blockquote,
-   dashed-divider meta line) — just using the homepage's own tokens instead
-   of the memorial page's --mem-* set, which is scoped to .memorial-page.
-   Replaces an earlier version where the quote overlaid the photo directly:
-   that broke on mobile, where shrunk photos left the gradient scrim
-   covering most of the image and long quotes overlapping illegibly. */
-.memory-card { flex: 1; display: flex; flex-direction: column; background: var(--white); border: 1px solid var(--warm-faint); border-radius: 8px; overflow: hidden; box-shadow: 0 16px 40px -22px rgba(45,33,24,0.22); }
-.memory-card-photo { position: relative; background: var(--cream-dark); }
-.memory-card-photo img, .memory-card-photo video { width: 100%; height: auto; display: block; }
-.memory-card-body { padding: 14px 16px 12px; }
-.hero-media-large .memory-card-body { padding: 18px 20px 16px; }
-.memory-card-quote { margin: 0; font-family: 'Fraunces', serif; font-style: italic; font-weight: 400; font-size: 15px; line-height: 1.5; color: var(--bark); }
-.hero-media-large .memory-card-quote { font-size: 16px; }
-.memory-card-quote::before { content: '“'; color: var(--rust); font-size: 1.3em; line-height: 0; vertical-align: -0.28em; margin-right: 1px; }
-.memory-card-quote::after { content: '”'; color: var(--rust); font-size: 1.3em; line-height: 0; vertical-align: -0.42em; margin-left: 1px; }
-.memory-card-attr { display: block; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--warm-faint); font-family: 'DM Sans', sans-serif; font-size: 12px; color: var(--warm-light); }
+/* Absolutely positioned (not flex-centered) — the video tile also has a
+   real <video> element as a sibling, which would otherwise shrink this
+   to fit the flex layout's leftover space instead of staying 30x30. */
+.hero-tile-play { position: absolute; inset: 0; margin: auto; width: 30px; height: 30px; border-radius: 50%; background: rgba(255,255,255,0.9); display: flex; align-items: center; justify-content: center; }
+.hero-tile-play::after { content: ''; border-left: 9px solid var(--bark); border-top: 6px solid transparent; border-bottom: 6px solid transparent; margin-left: 2px; }
 
-/* -- hero collage voicemail tile — reads as audio, not styled to look
-   like the photo tiles around it. Dark bg (var(--bark), the site's
-   existing dark surface) with the same shadow/radius as .memory-card so
-   it belongs in the same collage, but its own horizontal layout (play
-   button, then label/waveform/caption) since a photo-on-top shape
-   doesn't fit audio. Purely decorative, matching the rest of this
-   illustrative collage — the video tile beside it is just autoplaying
-   muted, nothing here is wired to real playback either. */
-.hero-voicemail-card { flex: 1; display: flex; align-items: center; gap: 14px; padding: 16px 18px; background: var(--bark); border-radius: 8px; box-shadow: 0 16px 40px -22px rgba(45,33,24,0.22); }
-.hero-voicemail-body { flex: 1; min-width: 0; }
-.hero-voicemail-label { display: block; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(253,250,245,0.55); margin-bottom: 6px; }
-.hero-voicemail-wave { margin-bottom: 8px; }
-.hero-voicemail-wave span { flex-shrink: 0; }
-.hero-voicemail-caption { display: block; font-family: 'DM Sans', sans-serif; font-size: 11.5px; color: rgba(253,250,245,0.7); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hero-tile-wave { display: flex; align-items: flex-end; gap: 2px; height: 20px; }
+.hero-tile-wave span { width: 2.5px; background: var(--rust-light); border-radius: 1px; flex-shrink: 0; }
+
+.hero-tile-bar { height: 18%; min-height: 26px; flex-shrink: 0; background: #141210; display: flex; align-items: center; gap: 4px; padding: 0 8px; }
+.hero-tile-type { text-transform: uppercase; letter-spacing: 0.03em; font-size: 8.5px; color: rgba(245,239,225,0.55); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hero-tile-meta { margin-left: auto; font-size: 8.5px; color: rgba(245,239,225,0.45); white-space: nowrap; flex-shrink: 0; }
+
+/* Hover reveals the caption on pointer devices; .revealed does the same
+   thing on tap for touch devices, where :hover never fires — toggled in
+   JS, one tile at a time. */
+.hero-tile-caption { position: absolute; inset: 0; background: linear-gradient(to top, rgba(15,13,10,0.92) 0%, rgba(15,13,10,0.5) 55%, transparent 100%); display: flex; align-items: flex-end; padding: 10px; opacity: 0; transition: opacity 0.18s ease; pointer-events: none; }
+.hero-tile:hover .hero-tile-caption, .hero-tile.revealed .hero-tile-caption { opacity: 1; }
+.hero-tile-caption p { margin: 0; font-family: 'Lora', serif; font-style: italic; font-size: 10px; line-height: 1.35; color: var(--cream); text-align: left; }
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-tile-caption { transition: none; }
+}
 
 .hero-media-cta { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; margin-top: 4px; padding: 12px 8px; background: none; border: none; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; color: var(--rust); transition: color 0.2s; }
 .hero-media-cta:hover { color: var(--rust-light); text-decoration: underline; }

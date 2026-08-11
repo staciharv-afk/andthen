@@ -1,45 +1,115 @@
 import { useState, useEffect, useRef } from "react";
 
-const fmtTime = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+// Hero collage — a 2x2 grid of small square tiles matching the memorial
+// page's own tile system, using the same four pieces of content already
+// established as live on the homepage (real photos/video/audio, just
+// re-captioned to fit the tile's small hover caption instead of a full
+// pull-quote). Purely illustrative, same as WhatYouGetGrid below — no
+// click-through to anything, hover/tap only reveals the caption.
+const HERO_COLLAGE_TILES = [
+  {
+    id: "video",
+    kind: "video",
+    typeLabel: "Video + story",
+    name: "Staci",
+    video: "/home/hero-video.mp4",
+    poster: "/home/hero-video-poster.jpg",
+    caption: "Mom and Dad still held hands on every walk, forty-some years in.",
+  },
+  {
+    id: "voicemail",
+    kind: "voicemail",
+    typeLabel: "Voicemail",
+    name: "Meredith",
+    caption: "“Mom always said ‘hey kiddo’ — I’m so glad I kept this voicemail.”",
+  },
+  {
+    id: "recipe",
+    kind: "recipe",
+    typeLabel: "Recipe + story",
+    name: "Cheri",
+    caption: "Her first “Best Blueberry Cake” came out gray — she hadn’t thawed the blueberries.",
+  },
+  {
+    id: "photo",
+    kind: "photo",
+    typeLabel: "Photo + story",
+    name: "Staci",
+    image: "/home/hero-deb-christmas.jpg",
+    caption: "Mom made sure the money she spent on us at Christmas was always exactly equal.",
+  },
+];
 
-// Real playback for the hero collage's voicemail tile — its own play state
-// since it's a standalone instance, not shared with anything else on the page.
-function HeroVoicemail() {
-  const audioRef = useRef(null);
-  const [playing, setPlaying] = useState(false);
-  const [elapsed, setElapsed] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const progress = duration ? elapsed / duration : 0;
+// Decorative-only waveform bars, seeded per tile so they're stable across
+// re-renders but still look organic rather than uniform.
+function HeroTileWave() {
+  const heights = [5, 9, 14, 7, 11, 16, 8, 12, 6, 10, 15, 7];
+  return (
+    <div className="hero-tile-wave" aria-hidden="true">
+      {heights.map((h, i) => <span key={i} style={{ height: `${h}px` }} />)}
+    </div>
+  );
+}
 
-  const toggle = () => {
-    const a = audioRef.current;
-    if (!a) return;
-    if (playing) a.pause();
-    else a.play();
-    setPlaying((p) => !p);
-  };
+function HeroTileBody({ tile }) {
+  if (tile.kind === "video") {
+    return (
+      <div className="hero-tile-body video">
+        <video src={tile.video} poster={tile.poster} muted loop autoPlay playsInline />
+        <div className="hero-tile-play" aria-hidden="true" />
+      </div>
+    );
+  }
+  if (tile.kind === "voicemail") {
+    return (
+      <div className="hero-tile-body voicemail">
+        <HeroTileWave />
+      </div>
+    );
+  }
+  if (tile.kind === "recipe") {
+    return <div className="hero-tile-body recipe" />;
+  }
+  return (
+    <div className="hero-tile-body photo">
+      <img src={tile.image} alt="" />
+    </div>
+  );
+}
+
+// Hover reveals the caption on pointer devices via CSS; touch devices
+// don't get :hover at all, so tapping a tile toggles the same caption via
+// the .revealed class instead — tap again, tap a different tile, or tap
+// outside the collage to dismiss.
+function HeroCollage() {
+  const [revealedId, setRevealedId] = useState(null);
+  const collageRef = useRef(null);
+
+  useEffect(() => {
+    const onDocClick = (e) => {
+      if (collageRef.current && !collageRef.current.contains(e.target)) setRevealedId(null);
+    };
+    document.addEventListener("click", onDocClick);
+    return () => document.removeEventListener("click", onDocClick);
+  }, []);
 
   return (
-    <div className="hero-voicemail-card">
-      <audio
-        ref={audioRef}
-        src="/home/mom-voicemail.m4a"
-        onLoadedMetadata={(e) => setDuration(e.target.duration)}
-        onTimeUpdate={(e) => setElapsed(e.target.currentTime)}
-        onEnded={() => { setPlaying(false); setElapsed(0); }}
-      />
-      <button type="button" className="voice-play-btn hero-voicemail-play" onClick={toggle} aria-label={playing ? "Pause voicemail" : "Play voicemail"}>
-        {playing ? <span className="icon-pause" /> : <span className="icon-play" />}
-      </button>
-      <div className="hero-voicemail-body">
-        <span className="hero-voicemail-label">Voicemail</span>
-        <div className="voice-waveform hero-voicemail-wave">
-          {[8, 15, 20, 11, 18, 22, 9, 16, 13, 19, 10, 15].map((h, i) => (
-            <span key={i} className={i / 12 <= progress ? "played" : ""} style={{ height: `${h}px` }} />
-          ))}
-        </div>
-        <span className="hero-voicemail-caption">Left by Meredith · {fmtTime(elapsed)} / {duration ? fmtTime(duration) : "0:17"}</span>
-      </div>
+    <div className="hero-collage-grid" ref={collageRef}>
+      {HERO_COLLAGE_TILES.map((tile) => (
+        <button
+          type="button"
+          key={tile.id}
+          className={`hero-tile${revealedId === tile.id ? " revealed" : ""}`}
+          onClick={() => setRevealedId((cur) => (cur === tile.id ? null : tile.id))}
+        >
+          <HeroTileBody tile={tile} />
+          <div className="hero-tile-bar">
+            <span className="hero-tile-type">{tile.typeLabel}</span>
+            <span className="hero-tile-meta">{tile.name}</span>
+          </div>
+          <div className="hero-tile-caption"><p>{tile.caption}</p></div>
+        </button>
+      ))}
     </div>
   );
 }
@@ -223,47 +293,7 @@ export function HomePage({ onNavigate }) {
             </div>
 
             <div className="fade-up-3">
-              <div className="hero-media-grid">
-                <div className="hero-media-large">
-                  <div className="memory-card">
-                    <div className="memory-card-photo">
-                      <img src="/home/hero-deb-recipe.jpg" alt="Deb Hausch's handwritten blueberry cake recipe card" />
-                    </div>
-                    <div className="memory-card-body">
-                      <blockquote className="memory-card-quote">I remember when Deb entered her first baking competition in elementary school with her "My Best Blueberry Cake" — she didn't know you were supposed to thaw the frozen blueberries first, so it came out gray. She didn't win. Her explanation to me was, "it's because nobody wants to eat gray cake." She eventually figured out the recipe, and it became a favorite of ours for decades.</blockquote>
-                      <span className="memory-card-attr">— Cheri</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="hero-media-col">
-                  <div className="hero-media-small">
-                    <div className="memory-card">
-                      <div className="memory-card-photo">
-                        <img src="/home/hero-deb-christmas.jpg" alt="Deb Hausch with her daughters" />
-                      </div>
-                      <div className="memory-card-body">
-                        <blockquote className="memory-card-quote">Mom always made sure Meredith and I felt equally loved, down to the amount of money she spent on us at Christmas. Many years, I'd receive a check with the difference that she had spent on Meredith!</blockquote>
-                        <span className="memory-card-attr">— Staci</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="hero-media-small">
-                    <HeroVoicemail />
-                  </div>
-                  <div className="hero-media-small">
-                    <div className="memory-card">
-                      <div className="memory-card-photo">
-                        <video src="/home/hero-video.mp4" poster="/home/hero-video-poster.jpg" muted loop autoPlay playsInline />
-                        <div className="media-play-btn" />
-                      </div>
-                      <div className="memory-card-body">
-                        <blockquote className="memory-card-quote">Mom leaned on Dad so much, figuratively and literally — he always had an arm ready for her.</blockquote>
-                        <span className="memory-card-attr">— Staci</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <HeroCollage />
 
               <button className="hero-media-cta" onClick={() => onNavigate("memorial", "x58e5wvtmravmszf")}>
                 See a real, living page <span aria-hidden="true">→</span>
