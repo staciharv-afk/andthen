@@ -20,8 +20,17 @@ export const STYLES = `
   --radius: 2px;
 }
 
-html { scroll-behavior: smooth; }
-body { font-family: 'DM Sans', sans-serif; background: var(--cream); color: var(--bark); -webkit-font-smoothing: antialiased; }
+/* overflow-x: hidden is a deliberate safety net, not a workaround for one
+   specific bug — .nav combines position: sticky with backdrop-filter and a
+   nested horizontally-scrollable child (.nav-right), a combination with
+   known Safari-specific overflow quirks that don't reproduce in Chromium's
+   mobile emulation (confirmed: no horizontal overflow locally or on
+   production at matching widths in Chromium, but visibly present on a real
+   iPhone in Safari). Nothing on this site needs the page itself to scroll
+   horizontally — only .nav-right's own internal scroll does, which is
+   unaffected since overflow is scoped per-element. */
+html { scroll-behavior: smooth; overflow-x: hidden; }
+body { font-family: 'DM Sans', sans-serif; background: var(--cream); color: var(--bark); -webkit-font-smoothing: antialiased; overflow-x: hidden; }
 
 /* ── ANIMATIONS ── */
 @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
