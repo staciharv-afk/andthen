@@ -1,4 +1,8 @@
 import { useState } from "react";
+import { PRICING_PLANS } from "../lib/pricingPlans";
+
+const PAYG = PRICING_PLANS.find((p) => p.tier === "payg");
+const FOREVER = PRICING_PLANS.find((p) => p.tier === "forever");
 
 export function PricingPage({ onNavigate, showToast }) {
   const [loadingTier, setLoadingTier] = useState(null); // "payg" | "forever" | null
@@ -54,18 +58,16 @@ export function PricingPage({ onNavigate, showToast }) {
               disabled={!!loadingTier}
               aria-label="Pay as you go — $49 to build, $10 a year to keep it live. Continue to checkout."
             >
-              <div className="pricing-path-label pricing-path-label-rust">Pay as you go</div>
-              <div className="pricing-path-price">$49 + $10/yr.</div>
-              <div className="pricing-path-sub">Build once, renew yearly.</div>
+              <div className="pricing-path-label pricing-path-label-rust">{PAYG.label}</div>
+              <div className="pricing-path-price">{PAYG.price}</div>
+              <div className="pricing-path-sub">{PAYG.sub}</div>
               <div className="pricing-path-dots">
                 {[0, 1, 2, 3, 4].map((i) => (
                   <span key={i} className={`pricing-path-dot${i === 0 ? " filled" : ""}`} />
                 ))}
               </div>
               <span className="pricing-path-dots-caption">year 1 &rarr; onward</span>
-              <p className="pricing-path-body">
-                $49 unlocks unlimited entries and contributors, first year hosting included. $10/yr after that keeps it online — flat rate, never increases. Miss a payment and the page pauses, it doesn't disappear.
-              </p>
+              <p className="pricing-path-body">{PAYG.body}</p>
             </button>
 
             <button
@@ -75,13 +77,11 @@ export function PricingPage({ onNavigate, showToast }) {
               disabled={!!loadingTier}
               aria-label="Pay once — $100 forever, no renewals. Continue to checkout."
             >
-              <div className="pricing-path-label pricing-path-label-gold">Pay once</div>
-              <div className="pricing-path-price">$100.</div>
-              <div className="pricing-path-sub">Forever — no renewals.</div>
+              <div className="pricing-path-label pricing-path-label-gold">{FOREVER.label}</div>
+              <div className="pricing-path-price">{FOREVER.price}</div>
+              <div className="pricing-path-sub">{FOREVER.sub}</div>
               <div className="pricing-path-ring"><span className="pricing-path-ring-dot" /></div>
-              <p className="pricing-path-body">
-                One payment instead of the build fee. No annual fee, ever. Nothing to renew, nothing to miss, nothing that pauses.
-              </p>
+              <p className="pricing-path-body">{FOREVER.body}</p>
             </button>
           </div>
         </div>
