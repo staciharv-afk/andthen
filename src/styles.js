@@ -168,6 +168,15 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .hero-tile-play { position: absolute; inset: 0; margin: auto; width: 30px; height: 30px; border-radius: 50%; background: rgba(255,255,255,0.9); display: flex; align-items: center; justify-content: center; }
 .hero-tile-play::after { content: ''; border-left: 9px solid var(--bark); border-top: 6px solid transparent; border-bottom: 6px solid transparent; margin-left: 2px; }
 
+/* Voicemail's own play button — same shape/size as .hero-tile-play, but
+   rust-filled with a white triangle rather than white-filled with a dark
+   one, and laid out inline (not absolutely centered) since it's the top
+   item of a vertical stack with the waveform and duration below it. */
+.hero-tile-voice-inner { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.hero-tile-play-voice { position: static; margin: 0; background: var(--rust); }
+.hero-tile-play-voice::after { border-left-color: #fff; }
+.hero-tile-duration { font-size: 9px; color: rgba(245,239,225,0.55); font-variant-numeric: tabular-nums; }
+
 .hero-tile-wave { display: flex; align-items: flex-end; gap: 2px; height: 20px; }
 .hero-tile-wave span { width: 2.5px; background: rgba(253,250,245,0.3); border-radius: 1px; flex-shrink: 0; transition: background 0.15s ease; }
 .hero-tile-wave span.played { background: var(--rust-light); }
@@ -469,6 +478,25 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 
 .mem-tile-play { position: absolute; inset: 0; margin: auto; width: 44px; height: 44px; border-radius: 50%; background: rgba(255,255,255,0.9); display: flex; align-items: center; justify-content: center; }
 .mem-tile-play::after { content: ''; border-left: 14px solid #1D2523; border-top: 9px solid transparent; border-bottom: 9px solid transparent; margin-left: 4px; }
+
+/* Voicemail's own play button — same shape/size as .mem-tile-play, but
+   rust-filled with a white triangle rather than white-filled with a dark
+   one, and laid out inline (not absolutely centered) since it's the top
+   item in a vertical stack with the waveform and duration below it,
+   not floating alone over a media element. */
+.mem-tile-voice-inner { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.mem-tile-play-voice { position: static; margin: 0; background: var(--rust); }
+.mem-tile-play-voice::after { border-left-color: #fff; }
+.mem-tile-duration { font-size: 11px; color: rgba(245,239,225,0.55); font-variant-numeric: tabular-nums; }
+@media (max-width: 600px) {
+  /* At 2-column mobile width the tile body has little vertical room to
+     spare — shrink the play button and waveform so the stack (button +
+     wave + duration) doesn't crowd the tile's edges. */
+  .mem-tile-play-voice { width: 32px; height: 32px; }
+  .mem-tile-play-voice::after { border-left-width: 10px; border-top-width: 6px; border-bottom-width: 6px; }
+  .mem-tile-voice .mem-tile-wave { height: 30px; }
+  .mem-tile-voice-inner { gap: 6px; }
+}
 
 /* Reuses the homepage's cream-on-dark waveform coloring as-is — this
    tile's background is already dark, the exact context that pattern was

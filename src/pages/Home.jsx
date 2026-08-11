@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { fmtTime } from "../lib/utils";
 
 // Hero collage — a 2x2 grid of small square tiles matching the memorial
 // page's own tile system, using the same four pieces of content already
@@ -63,6 +64,7 @@ function HeroTileWave({ progress = 0 }) {
 function HeroVoicemailTile({ tile, revealed }) {
   const audioRef = useRef(null);
   const [progress, setProgress] = useState(0);
+  const [duration, setDuration] = useState(null);
 
   useEffect(() => {
     const a = audioRef.current;
@@ -81,10 +83,16 @@ function HeroVoicemailTile({ tile, revealed }) {
       <audio
         ref={audioRef}
         src={tile.audio}
+        preload="metadata"
+        onLoadedMetadata={(e) => setDuration(e.target.duration)}
         onTimeUpdate={(e) => setProgress(e.target.duration ? e.target.currentTime / e.target.duration : 0)}
         onEnded={() => setProgress(0)}
       />
-      <HeroTileWave progress={progress} />
+      <div className="hero-tile-voice-inner">
+        <div className="hero-tile-play hero-tile-play-voice" aria-hidden="true" />
+        <HeroTileWave progress={progress} />
+        {duration != null && <span className="hero-tile-duration">{fmtTime(duration)}</span>}
+      </div>
     </div>
   );
 }

@@ -1,5 +1,8 @@
 export const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 
+// m:ss, for audio/video playback elapsed/duration displays.
+export const fmtTime = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+
 // Normalize free text into a URL-safe slug: lowercase, alphanumeric words
 // joined by single hyphens, no leading/trailing/doubled hyphens. Matches the
 // memorials_slug_format DB constraint.
