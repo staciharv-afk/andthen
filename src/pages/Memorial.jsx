@@ -2,19 +2,43 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { uid, fmtDate, timeAgo, fileToDataURL, sendThankYou, notifyCreator } from "../lib/utils";
 
-const FILTER_LABEL = { all: "Everything", photo: "Photos", story: "Stories", video: "Videos", voice: "Audio", url: "Links" };
-// Always show every filter, even types with zero entries yet — a page
-// shouldn't lose its Audio/Video filter just because nothing's been
-// added in that type so far.
-const FILTER_ORDER = ["all", "story", "photo", "video", "voice", "url"];
+// Content-type filters, and the label shown on a grid tile / in the reader's
+// type tag — one source of truth (contentTypeLabel) for both, since a filter
+// bucket and a tile's own label need to agree on what something "is".
+//
+// photo/voice both carry an optional second-level `subtype` (see the
+// contribution_subtype migration) that splits them further:
+//   photo: subtype 'recipe' -> Recipe, else -> Photo
+//   voice: subtype 'recording' -> Spoken story, else (incl. untagged
+//     pre-migration rows) -> Voicemail
+// video/story/url have no subtype and map straight across.
+const FILTER_ORDER = ["all", "photo", "video", "voicemail", "spoken", "story", "recipe", "url"];
+const FILTER_LABEL = { all: "Everything", photo: "Photos", video: "Videos", voicemail: "Voicemails", spoken: "Spoken stories", story: "Written stories", recipe: "Recipes", url: "Links" };
 
-// Grid-tile type label is deliberately its own map, distinct from
-// FILTER_LABEL above — "Voicemail"/"Written story" read right on a tile,
-// "Audio"/"Stories" read right on a filter chip, and a media entry with
-// attached text still labels as its media type (e.g. a photo with a
-// caption is "Photo", not "Story") regardless of what's stored in the
-// type column. See MemoryTile.
-const TILE_LABEL = { photo: "Photo", video: "Video", voice: "Voicemail", story: "Written story", url: "Link" };
+function contentTypeLabel(s) {
+  if (s.type === "photo") return s.subtype === "recipe" ? "Recipe" : "Photo";
+  if (s.type === "video") return "Video";
+  if (s.type === "voice") return s.subtype === "recording" ? "Spoken story" : "Voicemail";
+  if (s.type === "url") return "Link";
+  // A story-type row can carry an attached photo (see the linked-entries
+  // work) — treat it as a photo entry for label purposes, not "written
+  // story" — the media (whatever it is) is always the primary content.
+  if (s.type === "story" && s.media_url) return "Photo";
+  return "Written story";
+}
+
+// activeFilter is one of FILTER_ORDER's keys; a story matches it based on
+// type + subtype together, not a raw type === activeFilter check (that
+// alone can't tell a photo from a recipe, or a voicemail from a spoken
+// story).
+function matchesFilter(s, filter) {
+  if (filter === "all") return true;
+  if (filter === "photo") return s.type === "photo" && s.subtype !== "recipe";
+  if (filter === "recipe") return s.type === "photo" && s.subtype === "recipe";
+  if (filter === "voicemail") return s.type === "voice" && s.subtype !== "recording";
+  if (filter === "spoken") return s.type === "voice" && s.subtype === "recording";
+  return s.type === filter; // video, story, url
+}
 
 const fmtTime = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 
@@ -300,32 +324,14 @@ export function MemorialPage({ inviteCode, showToast, onNavigate }) {
   const [stories, setStories] = useState([]);
   const [showContribute, setShowContribute] = useState(false);
   const [activeFilter, setActiveFilter] = useState("all");
-  const [pendingScrollId, setPendingScrollId] = useState(null); // "See all memories" target, see the effect below
+  // Index into the full, unfiltered `stories` array — the reader always
+  // navigates that full list regardless of activeFilter, so this is
+  // deliberately independent state, not derived from the filtered view.
+  const [openIndex, setOpenIndex] = useState(null);
 
   useEffect(() => {
     loadMemorial();
   }, [inviteCode]);
-
-  // "See all memories" (from MemoryOfTheMoment) sets pendingScrollId and
-  // switches to the "all" filter so the target tile is guaranteed visible
-  // even if a different filter was active; this effect runs after that
-  // re-render commits, once the tile actually exists in the DOM.
-  useEffect(() => {
-    if (!pendingScrollId) return;
-    const el = document.querySelector(`[data-memory-id="${pendingScrollId}"]`);
-    if (!el) return;
-    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    el.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "center" });
-    el.classList.add("momo-highlight");
-    const t = setTimeout(() => el.classList.remove("momo-highlight"), 1500);
-    setPendingScrollId(null);
-    return () => clearTimeout(t);
-  }, [pendingScrollId, activeFilter, stories]);
-
-  const handleSeeAllMemories = (id) => {
-    setActiveFilter("all");
-    setPendingScrollId(id);
-  };
 
   const openContribute = () => setShowContribute(true);
 
@@ -349,7 +355,7 @@ export function MemorialPage({ inviteCode, showToast, onNavigate }) {
     // outright for anonymous visitors. List the public columns explicitly.
     let query = supabase
       .from("contributions")
-      .select("id, memorial_id, contributor_name, contributor_relation, type, text, media_url, secondary_media_url, status, created_at, crop_x, crop_y, link_meta")
+      .select("id, memorial_id, contributor_name, contributor_relation, type, subtype, text, media_url, secondary_media_url, status, created_at, crop_x, crop_y, link_meta")
       .eq("memorial_id", memorialId)
       .order("created_at", { ascending: false });
     if (requireApproval) query = query.eq("status", "approved");
@@ -441,8 +447,6 @@ export function MemorialPage({ inviteCode, showToast, onNavigate }) {
         </div>
       ) : (
         <>
-          <MemoryOfTheMoment stories={stories} memorialName={memorial.name} onSeeAll={handleSeeAllMemories} />
-
           <nav className="filter-bar">
             <div className="filter-inner">
               {filterTypes.map((f) => (
@@ -455,11 +459,12 @@ export function MemorialPage({ inviteCode, showToast, onNavigate }) {
 
           <main className="clusters">
             <div className="memory-grid">
-              {stories.map((s) => (
+              {stories.map((s, i) => (
                 <MemoryTile
                   key={s.id}
                   story={s}
-                  hidden={activeFilter !== "all" && s.type !== activeFilter}
+                  hidden={!matchesFilter(s, activeFilter)}
+                  onOpen={() => setOpenIndex(i)}
                 />
               ))}
             </div>
@@ -476,6 +481,15 @@ export function MemorialPage({ inviteCode, showToast, onNavigate }) {
 
       {showContribute && (
         <ShareMemoryModal memorial={memorial} showToast={showToast} onClose={() => setShowContribute(false)} />
+      )}
+
+      {openIndex !== null && (
+        <MemoryReader
+          stories={stories}
+          index={openIndex}
+          onNavigate={setOpenIndex}
+          onClose={() => setOpenIndex(null)}
+        />
       )}
     </div>
   );
@@ -519,6 +533,7 @@ function ShareMemoryModal({ memorial, showToast, onClose }) {
   const [answerText, setAnswerText] = useState("");
   const [answerMode, setAnswerMode] = useState("type"); // "type" | "record" — general/freeform questions only
   const [attachment, setAttachment] = useState(null); // { kind: 'photo'|'video'|'voice', ... } | null
+  const [isRecipe, setIsRecipe] = useState(false); // photo attachment only — feeds subtype: 'recipe'
   const [avRecording, setAvRecording] = useState(false); // showing the inline recorder within the "type it out" attach row
   const [recordPhoto, setRecordPhoto] = useState(null); // { file, preview, cropPos } | null — "record it" mode's "Add a photo too"
   const [showCropAdjuster, setShowCropAdjuster] = useState(false);
@@ -545,6 +560,7 @@ function ShareMemoryModal({ memorial, showToast, onClose }) {
     setAnswerText("");
     setAnswerMode("type");
     setAttachment(null);
+    setIsRecipe(false);
     setAvRecording(false);
     setRecordPhoto(null);
   };
@@ -602,13 +618,14 @@ function ShareMemoryModal({ memorial, showToast, onClose }) {
     setScreen("question");
   };
 
-  const clearAttachment = () => { setAttachment(null); setAvRecording(false); };
+  const clearAttachment = () => { setAttachment(null); setIsRecipe(false); setAvRecording(false); };
 
   const handlePhotoSelect = async (file) => {
     if (!file) return;
     const preview = await fileToDataURL(file);
     const cropPos = await detectCropPosition(file);
     setAttachment({ kind: "photo", file, preview, cropPos });
+    setIsRecipe(false);
     setAvRecording(false);
   };
 
@@ -625,7 +642,7 @@ function ShareMemoryModal({ memorial, showToast, onClose }) {
   const handleAudioFileSelect = async (file) => {
     if (!file) return;
     const ext = (file.name.split(".").pop() || "mp3").toLowerCase();
-    setAttachment({ kind: "voice", url: URL.createObjectURL(file), ext, mime: file.type || "audio/mpeg" });
+    setAttachment({ kind: "voice", url: URL.createObjectURL(file), ext, mime: file.type || "audio/mpeg", subtype: "upload" });
     setAvRecording(false);
   };
 
@@ -691,6 +708,9 @@ function ShareMemoryModal({ memorial, showToast, onClose }) {
       }
 
       const relLabel = relationships.find((r) => r.id === relationship)?.label || null;
+      const subtype = attachment?.kind === "voice" ? attachment.subtype || null
+        : attachment?.kind === "photo" && isRecipe ? "recipe"
+        : null;
 
       const row = {
         memorial_id: memorial.id,
@@ -698,6 +718,7 @@ function ShareMemoryModal({ memorial, showToast, onClose }) {
         contributor_relation: relLabel,
         contributor_email: contributorEmail.trim() || null,
         type,
+        subtype,
         text: answerText.trim() || null,
         media_url: mediaUrl,
         secondary_media_url: secondaryMediaUrl,
@@ -821,6 +842,8 @@ function ShareMemoryModal({ memorial, showToast, onClose }) {
                     <QuestionAttachOptions
                       kind={questionMediaKind}
                       attachment={attachment}
+                      isRecipe={isRecipe}
+                      onToggleRecipe={setIsRecipe}
                       avRecording={avRecording}
                       setAvRecording={setAvRecording}
                       showToast={showToast}
@@ -962,7 +985,7 @@ function VoiceRecorder({ value, onChange, showToast }) {
       mr.ondataavailable = (e) => chunksRef.current.push(e.data);
       mr.onstop = () => {
         const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-        onChange({ kind: "voice", url: URL.createObjectURL(blob), ext: "webm", mime: "audio/webm" });
+        onChange({ kind: "voice", url: URL.createObjectURL(blob), ext: "webm", mime: "audio/webm", subtype: "recording" });
         stream.getTracks().forEach((t) => t.stop());
       };
       mr.start();
@@ -1038,7 +1061,7 @@ function LiveWaveform({ analyser }) {
 // question gets the full set. Once something's attached, its preview (and
 // a way to remove it) replaces the option buttons regardless of kind.
 function QuestionAttachOptions({
-  kind, attachment, avRecording, setAvRecording, showToast,
+  kind, attachment, isRecipe, onToggleRecipe, avRecording, setAvRecording, showToast,
   onAttachmentChange, onPhotoClick, onVideoClick, onAudioClick, onAvClick,
   onAdjustCrop, onRemove,
 }) {
@@ -1058,6 +1081,10 @@ function QuestionAttachOptions({
           <img src={attachment.preview} alt="" style={{ objectPosition: `${attachment.cropPos.x}% ${attachment.cropPos.y}%` }} />
           <button type="button" className="crop-adjust-btn" onClick={onAdjustCrop}>Adjust crop</button>
         </div>
+        <label className="share-recipe-check">
+          <input type="checkbox" checked={isRecipe} onChange={(e) => onToggleRecipe(e.target.checked)} />
+          This is a recipe
+        </label>
         <button type="button" className="btn btn-sm btn-ghost" style={{ marginTop: 8 }} onClick={onRemove}>Remove photo</button>
       </div>
     );
@@ -1200,141 +1227,240 @@ function CropAdjuster({ file, initialPos, onCancel, onConfirm }) {
   );
 }
 
-// Picks a random entry, excluding the one just shown (unless there's only
-// one entry total, in which case there's nothing else to pick).
-function pickRandomMemoryId(stories, excludeId) {
-  const pool = excludeId && stories.length > 1 ? stories.filter((s) => s.id !== excludeId) : stories;
-  return pool[Math.floor(Math.random() * pool.length)]?.id ?? null;
-}
-
-// "Featured memory" — a single random entry shown full-bleed above the
-// grid, picked fresh on every page load (no per-visitor persistence, same
-// experience every visit, per spec). Shared across every memorial page —
-// driven entirely by that page's own stories, nothing Deb-specific.
-//
-// Session history is a simple array + pointer, not just a currentId: the
-// left zone needs something to go back TO, and "forward always picks a
-// fresh random entry" (not "redo") means going next after going back must
-// discard whatever was ahead and push a new pick, same as browser history
-// after a back-then-navigate.
-function MemoryOfTheMoment({ stories, memorialName, onSeeAll }) {
-  const [history, setHistory] = useState(() => [pickRandomMemoryId(stories, null)]);
-  const [pointer, setPointer] = useState(0);
-  const [cycleCount, setCycleCount] = useState(0);
-  const currentId = history[pointer];
-  const current = stories.find((s) => s.id === currentId) || stories[0];
-  if (!current) return null;
-
-  const relLabel = current.contributor_relation ? `${current.contributor_name}, ${current.contributor_relation}` : current.contributor_name;
-  const canGoBack = pointer > 0;
-
-  const handleNext = () => {
-    const nextId = pickRandomMemoryId(stories, currentId);
-    setHistory((h) => [...h.slice(0, pointer + 1), nextId]);
-    setPointer((p) => p + 1);
-    setCycleCount((c) => c + 1); // only forward navigations count toward the nudge
-  };
-
-  const handleBack = () => {
-    if (!canGoBack) return;
-    setPointer((p) => p - 1);
-  };
+// One entry, one square tile, regardless of type — the whole point of the
+// uniform grid. Every tile is now a plain, presentational preview (poster
+// frame, static waveform, link badge) that opens the full-screen reader on
+// click — nothing plays or expands inline in the grid anymore, since the
+// reader shows the real thing at full size. A media entry with attached
+// text still gets a story-flag in the bar and its caption on hover
+// (desktop only, pure CSS — the old tap-to-reveal-then-tap-to-activate
+// gate is gone along with inline activation, since a single tap now just
+// opens the reader either way).
+function MemoryTile({ story: s, hidden, onOpen }) {
+  const relLabel = s.contributor_name || "Someone";
+  const hasStory = !!s.media_url && !!s.text?.trim();
+  const tileLabel = contentTypeLabel(s);
 
   return (
-    <section className="momo">
-      <div className="momo-card-wrap">
-        <div className="momo-card">
-          <div className="momo-eyebrow">Featured memory</div>
-          <MomoContent story={current} relLabel={relLabel} />
-        </div>
-        {canGoBack && (
-          <button type="button" className="momo-zone momo-zone-left" onClick={handleBack} aria-label="Previous memory">
-            <span className="momo-zone-hint">&lsaquo;</span>
-          </button>
-        )}
-        <button type="button" className="momo-zone momo-zone-right" onClick={handleNext} aria-label="Next memory">
-          <span className="momo-zone-hint">&rsaquo;</span>
-        </button>
-      </div>
-      <a
-        className="momo-see-all"
-        href="#archive"
-        onClick={(e) => { e.preventDefault(); onSeeAll(current.id); }}
-      >
-        See all memories
-      </a>
-      {/* Doesn't block the zones from continuing to work — just a nudge toward the archive. */}
-      {cycleCount >= 4 && (
-        <p className="momo-nudge">You've seen a few &mdash; the rest of {memorialName}'s story is waiting.</p>
+    <button
+      type="button"
+      data-memory-id={s.id}
+      className={`mem-tile${hidden ? " hidden-card" : ""}`}
+      onClick={onOpen}
+    >
+      <TileBody story={s} />
+      {hasStory && (
+        <div className="mem-tile-caption"><p>{s.text}</p></div>
       )}
-    </section>
+      <div className="mem-tile-bar">
+        <span className="mem-tile-type">{tileLabel}</span>
+        {hasStory && <span className="mem-tile-flag" aria-hidden="true">&rdquo;</span>}
+        <span className="mem-tile-meta">{relLabel}</span>
+      </div>
+    </button>
   );
 }
 
-function MomoAttr({ story: s, relLabel }) {
+// Guarded by media_url, not just type — a handful of real entries on
+// production are tagged photo/video/voice but never finished uploading (a
+// pre-existing data issue, not something to hide). Falling through to the
+// plain-story render at the bottom shows their actual text instead of an
+// empty media box.
+function TileBody({ story: s }) {
+  if ((s.type === "photo" || s.type === "story") && s.media_url) {
+    return (
+      <div className="mem-tile-body mem-tile-photo">
+        <img src={s.media_url} alt="" loading="lazy" style={{ objectPosition: `${s.crop_x ?? 50}% ${s.crop_y ?? 50}%` }} />
+      </div>
+    );
+  }
+  if (s.type === "video" && s.media_url) {
+    return (
+      <div className="mem-tile-body mem-tile-video">
+        <video src={s.media_url} preload="metadata" muted playsInline />
+        <div className="mem-tile-play" />
+      </div>
+    );
+  }
+  if (s.type === "voice" && s.media_url) return <TileVoice story={s} />;
+  if (s.type === "url" && s.link_meta) return <TileUrl story={s} />;
+
   return (
-    <div className="momo-attr">
-      &mdash; {relLabel}
-      <span className="momo-attr-time">{timeAgo(s.created_at)}</span>
+    <div className="mem-tile-body mem-tile-story">
+      {s.text ? <blockquote>{s.text}</blockquote> : null}
     </div>
   );
 }
 
-// Every content type renders inside the same card shell, matched to
-// whatever MosaicItem uses for that type (crop position, YouTube embed,
-// waveform) so "one memory at a time" and the grid never disagree about
-// how an entry looks.
-function MomoContent({ story: s, relLabel }) {
-  if (s.type === "video" && s.media_url) {
-    return (
-      <>
-        <div className="momo-video">
-          <video src={s.media_url} controls playsInline />
-        </div>
-        <MomoAttr story={s} relLabel={relLabel} />
-      </>
-    );
-  }
+// Static waveform preview — same seeded bar-height pattern the reader's
+// live-progress version uses, just with no playback/progress state here;
+// the grid is a picture of the content, not a player.
+function TileVoice({ story: s }) {
+  const seed = seedFor(s.id);
+  return (
+    <div className="mem-tile-body mem-tile-voice">
+      <div className="mem-tile-wave">
+        {Array.from({ length: 20 }).map((_, i) => (
+          <span key={i} style={{ height: `${6 + Math.round(Math.abs(Math.sin(i * 0.7 + seed)) * 32)}px` }} />
+        ))}
+      </div>
+      {/* The optional photo from the Share modal's "Record it in your own
+          voice" + "Add a photo too" — the only case a voice entry carries
+          a second image alongside its waveform. */}
+      {s.secondary_media_url && (
+        <img className="mem-tile-voice-photo" src={s.secondary_media_url} alt="" loading="lazy" />
+      )}
+    </div>
+  );
+}
 
-  if (s.type === "voice" && s.media_url) {
-    return (
-      <>
-        <MomoAudio story={s} />
-        <MomoAttr story={s} relLabel={relLabel} />
-      </>
-    );
-  }
+function TileUrl({ story: s }) {
+  const meta = s.link_meta || {};
+  const isYouTube = meta.provider === "youtube" && meta.videoId;
+  return (
+    <div className="mem-tile-body mem-tile-url">
+      {isYouTube && <span className="mem-tile-yt-badge">YouTube</span>}
+      {s.media_url ? <img src={s.media_url} alt="" loading="lazy" /> : <div className="mem-tile-url-fallback">🔗</div>}
+      {isYouTube && <div className="mem-tile-play" />}
+    </div>
+  );
+}
 
-  if (s.type === "url" && s.link_meta) {
-    return (
-      <>
-        <MomoLink story={s} />
-        <MomoAttr story={s} relLabel={relLabel} />
-      </>
-    );
-  }
+// Full-screen reader — opened from any grid tile (see MemoryTile's onOpen),
+// always navigates the FULL, unfiltered `stories` list by index. The active
+// grid filter has no bearing here at all: filtering only hides/shows grid
+// tiles, per spec — "Memory X of Y" and prev/next always count against
+// every memory on the page.
+function MemoryReader({ stories, index, onNavigate, onClose }) {
+  const story = stories[index];
+  const canPrev = index > 0;
+  const canNext = index < stories.length - 1;
+  const touchStartRef = useRef(null);
 
-  // Photo (standalone or attached to a story) and plain text all share this
-  // shape — an optional photo, optional text, never neither.
-  const objectPosition = `${s.crop_x ?? 50}% ${s.crop_y ?? 50}%`;
+  const goPrev = () => { if (index > 0) onNavigate(index - 1); };
+  const goNext = () => { if (index < stories.length - 1) onNavigate(index + 1); };
+
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.key === "ArrowLeft") goPrev();
+      else if (e.key === "ArrowRight") goNext();
+      else if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index, stories.length]);
+
+  // Swipe left/right on touch devices, alongside the tap-target arrows —
+  // a full-screen reader is exactly the kind of surface people expect to
+  // swipe through. Only fires on a clearly horizontal gesture past a small
+  // threshold, so it doesn't fight with vertically scrolling a long story
+  // inside the card.
+  const onTouchStart = (e) => {
+    const t = e.touches[0];
+    touchStartRef.current = { x: t.clientX, y: t.clientY };
+  };
+  const onTouchEnd = (e) => {
+    const start = touchStartRef.current;
+    touchStartRef.current = null;
+    if (!start) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - start.x;
+    const dy = t.clientY - start.y;
+    if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy)) return;
+    if (dx < 0) goNext(); else goPrev();
+  };
+
+  if (!story) return null;
+
   return (
     <>
-      {s.media_url && (
-        <div className="momo-photo">
-          <img src={s.media_url} alt="" style={{ objectPosition }} />
+      <div className="reader-overlay fade-in" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+        <div className="reader-card" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+          <button type="button" className="reader-close" aria-label="Close" onClick={onClose}>&times;</button>
+          <div className="reader-count">Memory {index + 1} of {stories.length}</div>
+          <ReaderMedia key={story.id} story={story} />
+          {story.text && <blockquote className="reader-text">{story.text}</blockquote>}
+          <div className="reader-meta">
+            <div className="reader-credit">
+              <strong>{story.contributor_name || "Someone"}</strong>{story.contributor_relation ? `, ${story.contributor_relation}` : ""}
+              <span className="reader-credit-time">{timeAgo(story.created_at)}</span>
+            </div>
+            <div className="reader-type-tag">{contentTypeLabel(story)}</div>
+          </div>
         </div>
-      )}
-      {s.text && <blockquote className="momo-quote">{s.text}</blockquote>}
-      <MomoAttr story={s} relLabel={relLabel} />
+      </div>
+
+      {/* Fixed to the viewport, not the card, so they never overlap reader
+          content — max()'d against the iOS safe-area insets so a notch/
+          home-indicator device doesn't obscure or crowd them. */}
+      <button
+        type="button"
+        className={`reader-nav prev${canPrev ? "" : " disabled"}`}
+        aria-label="Previous memory"
+        onClick={goPrev}
+        disabled={!canPrev}
+      >
+        &lsaquo;
+      </button>
+      <button
+        type="button"
+        className={`reader-nav next${canNext ? "" : " disabled"}`}
+        aria-label="Next memory"
+        onClick={goNext}
+        disabled={!canNext}
+      >
+        &rsaquo;
+      </button>
     </>
   );
 }
 
-// Reuses the homepage's voice-play-btn/icon-play/icon-pause/voice-waveform
-// pattern as-is (unlike AudioCard in the grid, which had to re-color it for
-// a light card) — that pattern was built for a dark background, which is
-// exactly what the momo card shell is, so no adaptation needed here.
-function MomoAudio({ story: s }) {
+// Same per-type shell the grid tiles use, at full size — a real <img>/
+// <video>/audio player/YouTube embed, not the mockup's decorative
+// placeholder gradients (those stood in for images the prototype never
+// had; every entry here has a real media_url).
+function ReaderMedia({ story: s }) {
+  if (s.type === "video" && s.media_url) {
+    return (
+      <div className="reader-media video">
+        <video src={s.media_url} controls playsInline />
+      </div>
+    );
+  }
+  if (s.type === "voice" && s.media_url) {
+    const isSpoken = s.subtype === "recording";
+    return (
+      <div className={`reader-media ${isSpoken ? "spoken" : "voicemail"}`}>
+        <ReaderAudio story={s} />
+      </div>
+    );
+  }
+  if (s.type === "url" && s.link_meta) {
+    return (
+      <div className="reader-media link">
+        <ReaderLink story={s} />
+      </div>
+    );
+  }
+  if (s.media_url) {
+    // Photo (incl. a recipe scan) or a story-type row with an attached photo.
+    const isRecipe = s.type === "photo" && s.subtype === "recipe";
+    const objectPosition = `${s.crop_x ?? 50}% ${s.crop_y ?? 50}%`;
+    return (
+      <div className={`reader-media ${isRecipe ? "recipe" : "photo"}`}>
+        <img src={s.media_url} alt="" style={{ objectPosition }} />
+      </div>
+    );
+  }
+  return null; // plain written story — no media area at all
+}
+
+// Real playback + progress waveform, reusing the same global voice-*/
+// icon-play/icon-pause classes as everywhere else audio plays in this app
+// (already styled for a dark background, which every reader-media variant
+// this renders inside of already is).
+function ReaderAudio({ story: s }) {
   const audioRef = useRef(null);
   const [playing, setPlaying] = useState(false);
   const [elapsed, setElapsed] = useState(0);
@@ -1351,7 +1477,7 @@ function MomoAudio({ story: s }) {
   };
 
   return (
-    <div className="momo-audio">
+    <div className="reader-audio">
       <audio
         ref={audioRef}
         src={s.media_url}
@@ -1360,10 +1486,10 @@ function MomoAudio({ story: s }) {
         onEnded={() => { setPlaying(false); setElapsed(0); }}
       />
       <div className="voice-controls">
-        <button type="button" className="voice-play-btn" onClick={toggle} aria-label={playing ? "Pause voice memo" : "Play voice memo"}>
+        <button type="button" className="voice-play-btn reader-play-btn" onClick={toggle} aria-label={playing ? "Pause" : "Play"}>
           {playing ? <span className="icon-pause" /> : <span className="icon-play" />}
         </button>
-        <div className="voice-waveform">
+        <div className="voice-waveform reader-waveform">
           {Array.from({ length: 40 }).map((_, i) => (
             <span
               key={i}
@@ -1378,16 +1504,16 @@ function MomoAudio({ story: s }) {
   );
 }
 
-// Simplified variant of LinkCard for this shell — same expand-inline-for-
-// YouTube / open-new-tab-otherwise behavior.
-function MomoLink({ story: s }) {
+// Same expand-inline-for-YouTube / open-new-tab-otherwise behavior as the
+// grid tile's TileUrl.
+function ReaderLink({ story: s }) {
   const [expanded, setExpanded] = useState(false);
   const meta = s.link_meta || {};
   const isYouTube = meta.provider === "youtube" && meta.videoId;
 
   if (expanded && isYouTube) {
     return (
-      <div className="momo-link-embed">
+      <div className="reader-link-embed">
         <iframe
           src={`https://www.youtube.com/embed/${meta.videoId}?autoplay=1${meta.start ? `&start=${meta.start}` : ""}`}
           title={meta.title || "YouTube video"}
@@ -1401,191 +1527,12 @@ function MomoLink({ story: s }) {
   return (
     <button
       type="button"
-      className="momo-link"
+      className="reader-link"
       onClick={() => (isYouTube ? setExpanded(true) : window.open(meta.url, "_blank", "noopener,noreferrer"))}
     >
-      <div className="momo-link-thumb">
-        {s.media_url ? <img src={s.media_url} alt="" /> : <div className="momo-link-thumb-fallback">🔗</div>}
-        {isYouTube && <div className="media-play-btn" />}
-      </div>
-      <p className="momo-link-title">{meta.title || meta.hostname || meta.url}</p>
+      {isYouTube && <span className="reader-yt-badge">YouTube</span>}
+      {s.media_url ? <img src={s.media_url} alt="" /> : <div className="reader-link-fallback">🔗</div>}
+      <div className="reader-play" />
     </button>
-  );
-}
-
-// Real mouse+hover devices already see a media entry's attached caption on
-// :hover (pure CSS, no JS needed) — a click there just performs the tile's
-// primary action right away. Touch devices have no hover, so the
-// story-flag would be purely decorative there unless a tap reveals the
-// caption first and a second tap (or a tap once revealed) performs the
-// action — see MemoryTile's gate().
-const hasHoverInput = () =>
-  typeof window !== "undefined" && window.matchMedia("(hover: hover) and (pointer: fine)").matches;
-
-// One entry, one square tile, regardless of type — the whole point of the
-// uniform grid. A media entry (photo/video/voice) with attached text gets
-// a story-flag in the bar and its caption on hover/tap; a plain photo or a
-// plain story has neither. crop_x/crop_y, YouTube embedding, and the
-// waveform pattern are unchanged from the previous per-type components,
-// just unified into one shell.
-function MemoryTile({ story: s, hidden }) {
-  const [revealed, setRevealed] = useState(false);
-  const relLabel = s.contributor_name || "Someone";
-  // A story-type row can carry an attached photo (see the earlier
-  // linked-entries work) — treat it as a photo entry with a caption for
-  // tile purposes, not as "written story" — the media (whatever it is) is
-  // always the primary content, text is the optional attachment.
-  const hasStory = !!s.media_url && !!s.text?.trim();
-  const tileLabel = s.type === "story" && s.media_url ? "Photo" : (TILE_LABEL[s.type] || "Written story");
-
-  // Gates a tile's primary action (play, expand, open) behind the caption
-  // reveal on touch devices; on hover-capable devices the caption's
-  // already visible via :hover, so a click just acts immediately.
-  const gate = (action) => () => {
-    if (hasStory && !revealed && !hasHoverInput()) { setRevealed(true); return; }
-    action();
-  };
-
-  return (
-    <div
-      data-memory-id={s.id}
-      className={`mem-tile${hidden ? " hidden-card" : ""}${revealed ? " revealed" : ""}`}
-    >
-      <TileBody story={s} gate={gate} />
-      {hasStory && (
-        <div className="mem-tile-caption"><p>{s.text}</p></div>
-      )}
-      <div className="mem-tile-bar">
-        <span className="mem-tile-type">{tileLabel}</span>
-        {hasStory && <span className="mem-tile-flag" aria-hidden="true">&rdquo;</span>}
-        <span className="mem-tile-meta">{relLabel}</span>
-      </div>
-    </div>
-  );
-}
-
-// Guarded by media_url, not just type — a handful of real entries on
-// production are tagged photo/video/voice but never finished uploading (a
-// pre-existing data issue, not something to hide). Falling through to the
-// plain-story render at the bottom shows their actual text instead of an
-// empty media box.
-function TileBody({ story: s, gate }) {
-  if ((s.type === "photo" || s.type === "story") && s.media_url) {
-    return (
-      <div className="mem-tile-body mem-tile-photo">
-        <img src={s.media_url} alt="" loading="lazy" style={{ objectPosition: `${s.crop_x ?? 50}% ${s.crop_y ?? 50}%` }} />
-      </div>
-    );
-  }
-  if (s.type === "video" && s.media_url) return <TileVideo story={s} gate={gate} />;
-  if (s.type === "voice" && s.media_url) return <TileVoice story={s} gate={gate} />;
-  if (s.type === "url" && s.link_meta) return <TileUrl story={s} gate={gate} />;
-
-  return (
-    <div className="mem-tile-body mem-tile-story">
-      {s.text ? <blockquote>{s.text}</blockquote> : null}
-    </div>
-  );
-}
-
-function TileVideo({ story: s, gate }) {
-  const videoRef = useRef(null);
-  const [playing, setPlaying] = useState(false);
-
-  const activate = () => {
-    const v = videoRef.current;
-    if (!v) return;
-    if (playing) v.pause();
-    else v.play();
-    setPlaying((p) => !p);
-  };
-
-  return (
-    <div className="mem-tile-body mem-tile-video" onClick={gate(activate)}>
-      <video ref={videoRef} src={s.media_url} preload="metadata" playsInline controls={playing} onEnded={() => setPlaying(false)} />
-      {!playing && <div className="mem-tile-play" />}
-    </div>
-  );
-}
-
-// Reuses the homepage's waveform pattern (cream bars on a dark background)
-// unmodified — this tile's own background is dark, exactly the context
-// that pattern was built for.
-function TileVoice({ story: s, gate }) {
-  const audioRef = useRef(null);
-  const [playing, setPlaying] = useState(false);
-  const [elapsed, setElapsed] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const progress = duration ? elapsed / duration : 0;
-  const seed = seedFor(s.id);
-
-  const activate = () => {
-    const a = audioRef.current;
-    if (!a) return;
-    if (playing) a.pause();
-    else a.play();
-    setPlaying((p) => !p);
-  };
-
-  return (
-    <div className="mem-tile-body mem-tile-voice" onClick={gate(activate)}>
-      <audio
-        ref={audioRef}
-        src={s.media_url}
-        onLoadedMetadata={(e) => setDuration(e.target.duration)}
-        onTimeUpdate={(e) => setElapsed(e.target.currentTime)}
-        onEnded={() => { setPlaying(false); setElapsed(0); }}
-      />
-      <div className="mem-tile-wave">
-        {Array.from({ length: 20 }).map((_, i) => (
-          <span
-            key={i}
-            className={i / 20 <= progress ? "played" : ""}
-            style={{ height: `${6 + Math.round(Math.abs(Math.sin(i * 0.7 + seed)) * 32)}px` }}
-          />
-        ))}
-      </div>
-      {/* The optional photo from the Share modal's "Record it in your own
-          voice" + "Add a photo too" — the only case a voice entry carries
-          a second image alongside its waveform. */}
-      {s.secondary_media_url && (
-        <img className="mem-tile-voice-photo" src={s.secondary_media_url} alt="" loading="lazy" />
-      )}
-    </div>
-  );
-}
-
-// YouTube links expand to an inline embed (honoring the saved start-time
-// offset, if any) once activated; anything else opens in a new tab, since
-// there's no universal embeddable player for an arbitrary site. media_url
-// doubles as the thumbnail (YouTube's own, or a scraped og:image) — absent
-// for a link whose preview fetch failed, which still renders fine with a
-// fallback icon, never blocked.
-function TileUrl({ story: s, gate }) {
-  const [expanded, setExpanded] = useState(false);
-  const meta = s.link_meta || {};
-  const isYouTube = meta.provider === "youtube" && meta.videoId;
-
-  if (expanded && isYouTube) {
-    return (
-      <div className="mem-tile-body mem-tile-url-embed">
-        <iframe
-          src={`https://www.youtube.com/embed/${meta.videoId}?autoplay=1${meta.start ? `&start=${meta.start}` : ""}`}
-          title={meta.title || "YouTube video"}
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-          allowFullScreen
-        />
-      </div>
-    );
-  }
-
-  const activate = () => (isYouTube ? setExpanded(true) : window.open(meta.url, "_blank", "noopener,noreferrer"));
-
-  return (
-    <div className="mem-tile-body mem-tile-url" onClick={gate(activate)}>
-      {isYouTube && <span className="mem-tile-yt-badge">YouTube</span>}
-      {s.media_url ? <img src={s.media_url} alt="" loading="lazy" /> : <div className="mem-tile-url-fallback">🔗</div>}
-      {isYouTube && <div className="mem-tile-play" />}
-    </div>
   );
 }

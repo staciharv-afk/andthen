@@ -378,7 +378,7 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 @media (max-width: 900px) { .memory-grid { grid-template-columns: repeat(3, 1fr); } }
 @media (max-width: 600px) { .memory-grid { grid-template-columns: repeat(2, 1fr); gap: 16px; } }
 
-.mem-tile { position: relative; aspect-ratio: 1; border-radius: 4px; box-shadow: var(--mem-shadow); overflow: hidden; display: flex; flex-direction: column; scroll-margin-top: 100px; }
+.mem-tile { position: relative; aspect-ratio: 1; border-radius: 4px; box-shadow: var(--mem-shadow); overflow: hidden; display: flex; flex-direction: column; scroll-margin-top: 100px; border: none; background: none; padding: 0; margin: 0; width: 100%; text-align: left; font-family: inherit; cursor: pointer; }
 /* Shared hover state for every tile regardless of content type — a
    dedicated container-level state, not per-type styling. z-index lifts the
    tile above its grid neighbors so the scale-up doesn't get clipped by
@@ -433,7 +433,7 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
    underneath rather than hitting the overlay — "tap the media once
    revealed" from the spec. */
 .mem-tile-caption { position: absolute; inset: 0; background: linear-gradient(to top, rgba(15,13,10,0.88) 0%, rgba(15,13,10,0.55) 45%, transparent 75%); display: flex; align-items: flex-end; padding: 16px; opacity: 0; transition: opacity 0.18s ease; pointer-events: none; }
-.mem-tile:hover .mem-tile-caption, .mem-tile.revealed .mem-tile-caption { opacity: 1; }
+.mem-tile:hover .mem-tile-caption { opacity: 1; }
 .mem-tile-caption p { margin: 0; font-family: 'Fraunces', serif; font-style: italic; font-size: 0.8rem; line-height: 1.45; color: var(--mem-paper); text-align: left; }
 
 .mem-tile-bar { height: 17%; min-height: 32px; flex-shrink: 0; background: var(--mem-ink); display: flex; align-items: center; gap: 8px; padding: 0 12px; }
@@ -444,6 +444,65 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 @media (prefers-reduced-motion: reduce) {
   .mem-tile-caption { transition: none; }
   .mem-tile .voice-play-btn { transition: none; }
+}
+
+/* -- memory reader — full-screen overlay opened from any grid tile. Same
+   dark card + gold-accent shell the old featured-memory card used, but
+   this one is per-tile and always navigates the FULL memory list via
+   fixed prev/next buttons OUTSIDE the card (not the invisible in-card
+   click zones the old component used), so they can never overlap a
+   memory's own content. max-height + overflow-y keeps a long story
+   scrollable within the card on short viewports instead of pushing the
+   card off-screen. */
+.reader-overlay { position: fixed; inset: 0; z-index: 500; background: rgba(15,13,10,0.82); display: flex; align-items: center; justify-content: center; padding: 24px; }
+.reader-card { position: relative; width: 100%; max-width: 640px; max-height: 86vh; overflow-y: auto; background: var(--mem-ink); border-radius: 8px; padding: 44px 36px 32px; box-shadow: var(--mem-shadow); }
+.reader-close { position: absolute; top: 14px; right: 14px; width: 32px; height: 32px; border-radius: 50%; border: none; background: rgba(255,255,255,0.08); color: var(--mem-paper); font-size: 20px; line-height: 1; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.15s ease; }
+.reader-close:hover { background: rgba(255,255,255,0.16); }
+.reader-count { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--mem-gold-soft); margin-bottom: 22px; text-align: center; }
+
+.reader-media { border-radius: 6px; overflow: hidden; margin: 0 auto 24px; background: rgba(255,255,255,0.06); }
+.reader-media.photo, .reader-media.recipe, .reader-media.video { max-width: 480px; aspect-ratio: 4 / 3; }
+.reader-media.photo img, .reader-media.recipe img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.reader-media.video video { width: 100%; height: 100%; object-fit: contain; display: block; background: #000; }
+.reader-media.voicemail, .reader-media.spoken { max-width: 420px; padding: 22px 20px; }
+.reader-media.link { max-width: 480px; }
+
+.reader-audio { width: 100%; }
+.reader-play-btn { width: 40px; height: 40px; }
+
+.reader-link { display: block; width: 100%; background: none; border: none; padding: 0; cursor: pointer; text-align: left; font-family: inherit; position: relative; }
+.reader-link img, .reader-link-fallback { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; display: block; }
+.reader-link-fallback { display: flex; align-items: center; justify-content: center; font-size: 1.8rem; opacity: 0.5; color: var(--mem-paper); }
+.reader-yt-badge { position: absolute; top: 10px; left: 10px; z-index: 1; background: #E13B33; color: #fff; font-size: 10px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; padding: 4px 8px; border-radius: 3px; }
+.reader-play { position: absolute; inset: 0; margin: auto; width: 54px; height: 54px; border-radius: 50%; background: rgba(255,255,255,0.9); display: flex; align-items: center; justify-content: center; }
+.reader-play::after { content: ''; border-left: 17px solid #1D2523; border-top: 11px solid transparent; border-bottom: 11px solid transparent; margin-left: 4px; }
+.reader-link-embed { aspect-ratio: 16 / 9; border-radius: 6px; overflow: hidden; background: #000; }
+.reader-link-embed iframe { width: 100%; height: 100%; border: none; display: block; }
+
+.reader-text { margin: 0 0 20px; font-family: 'Fraunces', serif; font-style: italic; font-weight: 500; font-size: clamp(1.1rem, 2.4vw, 1.35rem); line-height: 1.5; color: var(--mem-paper); text-align: center; }
+.reader-text::before { content: '“'; color: var(--mem-gold-soft); }
+.reader-text::after { content: '”'; color: var(--mem-gold-soft); }
+
+.reader-meta { display: flex; align-items: baseline; justify-content: center; gap: 10px; flex-wrap: wrap; text-align: center; }
+.reader-credit { font-size: 0.85rem; color: rgba(245,239,225,0.65); }
+.reader-credit-time { margin-left: 6px; opacity: 0.75; }
+.reader-type-tag { text-transform: uppercase; font-size: 9px; letter-spacing: 0.08em; color: var(--mem-gold-soft); border: 1px solid rgba(245,239,225,0.25); border-radius: 999px; padding: 3px 10px; }
+
+/* Fixed to the viewport (not the card) so they can never overlap reader
+   content. Offset uses max() against the iOS safe-area insets so a
+   notched/home-indicator device doesn't tuck them under the curved edge
+   or the swipe-up gesture zone. */
+.reader-nav { position: fixed; top: 50%; transform: translateY(-50%); z-index: 501; width: 52px; height: 52px; border-radius: 50%; border: none; background: rgba(255,255,255,0.12); color: var(--mem-paper); font-size: 26px; line-height: 1; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.15s ease, opacity 0.15s ease; }
+.reader-nav:hover { background: rgba(255,255,255,0.22); }
+.reader-nav.prev { left: max(24px, env(safe-area-inset-left)); }
+.reader-nav.next { right: max(24px, env(safe-area-inset-right)); }
+.reader-nav.disabled { opacity: 0.25; pointer-events: none; }
+
+@media (max-width: 700px) {
+  .reader-card { padding: 40px 20px 28px; }
+  .reader-nav { width: 40px; height: 40px; font-size: 20px; }
+  .reader-nav.prev { left: max(8px, env(safe-area-inset-left)); }
+  .reader-nav.next { right: max(8px, env(safe-area-inset-right)); }
 }
 
 /* -- contribute form: photo preview + crop reposition UI -- */
@@ -498,79 +557,6 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .memorial-page .link-preview-card { border-color: rgba(44,36,32,0.14); background: var(--mem-card); }
 .memorial-page .link-preview-title { color: var(--mem-ink); }
 .memorial-page .link-preview-provider { color: var(--mem-ink-soft); }
-
-/* -- "featured memory" — a single random entry, full-bleed, above the
-   grid. Dark card + gold accents (var(--mem-ink)/var(--mem-gold*), the same
-   substitution already used for the pull-quote, rather than a teal that
-   doesn't exist anywhere in this palette). Every content type renders
-   inside the same shell — see MomoContent. */
-.momo { padding: 8px 24px 56px; text-align: center; }
-.momo-card-wrap { position: relative; max-width: 640px; margin: 0 auto; }
-.momo-card { background: var(--mem-ink); border-radius: 8px; padding: 48px 40px 36px; box-shadow: var(--mem-shadow); }
-.momo-eyebrow { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--mem-gold-soft); margin-bottom: 22px; }
-.momo-photo, .momo-video { aspect-ratio: 4 / 3; max-width: 420px; margin: 0 auto 24px; border-radius: 6px; overflow: hidden; background: rgba(255,255,255,0.06); }
-.momo-photo img, .momo-video video { width: 100%; height: 100%; object-fit: cover; display: block; }
-.momo-quote { margin: 0 0 20px; font-family: 'Fraunces', serif; font-style: italic; font-weight: 500; font-size: clamp(1.25rem, 2.6vw, 1.6rem); line-height: 1.45; color: var(--mem-paper); }
-.momo-quote::before { content: '“'; color: var(--mem-gold-soft); }
-.momo-quote::after { content: '”'; color: var(--mem-gold-soft); }
-.momo-attr { font-size: 0.85rem; color: rgba(245,239,225,0.65); }
-.momo-attr-time { margin-left: 6px; opacity: 0.75; }
-
-/* Elevated above .momo-zone (see below) so their own controls stay fully
-   clickable across their whole width — the invisible next/back zones sit
-   behind actual interactive content, only catching clicks on the passive
-   parts of the card (background, quote text, attribution). */
-.momo-video, .momo-audio, .momo-link { position: relative; z-index: 3; }
-.momo-audio { max-width: 420px; margin: 0 auto 20px; }
-
-.momo-link { display: block; width: 100%; max-width: 420px; margin: 0 auto 20px; background: none; border: none; padding: 0; cursor: pointer; text-align: left; font-family: inherit; }
-.momo-link-thumb { position: relative; aspect-ratio: 16 / 9; border-radius: 6px; overflow: hidden; background: rgba(255,255,255,0.08); margin-bottom: 10px; }
-.momo-link-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.momo-link-thumb-fallback { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 1.6rem; opacity: 0.5; }
-.momo-link-title { margin: 0; font-size: 0.9rem; color: var(--mem-paper); text-align: center; }
-.momo-link-embed { aspect-ratio: 16 / 9; max-width: 420px; margin: 0 auto 20px; border-radius: 6px; overflow: hidden; background: #000; }
-.momo-link-embed iframe { width: 100%; height: 100%; border: none; display: block; }
-
-/* Invisible click zones over the outer third of the card, full height —
-   right advances (fresh random pick), left returns to the previous entry
-   in this session's history (only rendered once there's history to return
-   to). A chevron + dark gradient fades in on hover/focus/press so the
-   zone is discoverable without needing a visible button. z-index: 2 sits
-   below the interactive content above but above the plain card. */
-.momo-zone { position: absolute; top: 0; bottom: 0; width: 33%; z-index: 2; display: flex; align-items: center; background: none; border: none; padding: 0; margin: 0; cursor: pointer; }
-.momo-zone-left { left: 0; justify-content: flex-start; }
-.momo-zone-right { right: 0; justify-content: flex-end; }
-.momo-zone-hint {
-  display: flex; align-items: center; width: 64px; height: 100%; opacity: 0;
-  font-family: 'Fraunces', serif; font-size: 30px; line-height: 1; color: var(--mem-paper);
-  transition: opacity 0.2s ease;
-}
-.momo-zone-left .momo-zone-hint { justify-content: flex-start; padding-left: 16px; border-radius: 8px 0 0 8px; background: linear-gradient(to right, rgba(15,13,10,0.55), transparent); }
-.momo-zone-right .momo-zone-hint { justify-content: flex-end; padding-right: 16px; border-radius: 0 8px 8px 0; background: linear-gradient(to left, rgba(15,13,10,0.55), transparent); }
-.momo-zone:hover .momo-zone-hint, .momo-zone:focus-visible .momo-zone-hint, .momo-zone:active .momo-zone-hint { opacity: 1; }
-
-.momo-see-all { display: inline-block; margin-top: 22px; font-size: 14px; font-weight: 500; color: var(--mem-ink-soft); text-decoration: underline; text-underline-offset: 3px; }
-.momo-see-all:hover { color: var(--mem-ink); }
-.momo-nudge { margin: 14px auto 0; max-width: 420px; font-size: 13px; color: var(--mem-ink-soft); }
-
-@media (max-width: 600px) {
-  .momo { padding: 0 16px 40px; }
-  .momo-card { padding: 36px 24px 28px; }
-}
-
-/* "See all memories" locates the matching grid tile via data-memory-id and
-   glows it on arrival — gold border, expanding shadow that fades over
-   ~1.4s, so it's identifiable even in a dense grid. */
-.momo-highlight { border-radius: 4px; outline: 3px solid var(--mem-gold); outline-offset: 2px; animation: momoGlow 1.4s ease-out; }
-@keyframes momoGlow {
-  0% { box-shadow: 0 0 0 0 rgba(184,134,59,0.55); }
-  100% { box-shadow: 0 0 0 26px rgba(184,134,59,0); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .momo-zone-hint { transition: none; }
-  .momo-highlight { animation: none; }
-}
 
 /* -- contributor avatar stack — same overlapping-circle pattern as the
    homepage's preview-crowd, adapted to the memorial page's own tokens and
@@ -628,6 +614,8 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .share-attach-btn { font-size: 12px; color: var(--mem-ink-soft); border: 1px solid rgba(44,36,32,0.14); background: transparent; padding: 8px 12px; border-radius: 16px; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.15s ease; }
 .share-attach-btn:hover { border-color: var(--mem-rose); color: var(--mem-rose); }
 .share-attach-btn.spotlight { border-color: var(--mem-rose); color: var(--mem-rose); background: rgba(193,81,90,0.06); }
+.share-recipe-check { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--mem-ink-soft); cursor: pointer; user-select: none; }
+.share-recipe-check input { margin: 0; }
 .share-submit-btn { width: 100%; }
 .share-back-link { display: block; text-align: center; font-size: 12px; color: var(--mem-ink-soft); margin-top: 16px; cursor: pointer; }
 
