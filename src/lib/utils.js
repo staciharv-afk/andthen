@@ -64,3 +64,29 @@ export const notifyCreator = (memorialId) => {
     body: JSON.stringify({ memorialId }),
   }).catch(() => {});
 };
+
+// Fire-and-forget: ask the server to email the memorial's creator that
+// someone has asked for access. Takes the memorial, not the request — a
+// fresh pending request isn't readable back by its own inserter under RLS,
+// so (like notifyCreator) the server finds the newest un-notified one for
+// this memorial itself. No-ops locally.
+export const notifyAccessRequest = (memorialId) => {
+  if (!memorialId) return;
+  fetch("/api/notify-access-request", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ memorialId }),
+  }).catch(() => {});
+};
+
+// Fire-and-forget: ask the server to email a requester their personal
+// contribute link after the creator approves their access request. No-ops
+// locally.
+export const notifyAccessApproved = (requestId) => {
+  if (!requestId) return;
+  fetch("/api/notify-access-approved", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ requestId }),
+  }).catch(() => {});
+};
