@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { supabase } from "../lib/supabase";
+import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from "../lib/supabase";
 import { uid, fmtDate, timeAgo, fileToDataURL, fmtTime, sendThankYou, notifyCreator } from "../lib/utils";
 
 // Content-type filters, and the label shown on a grid tile / in the reader's
@@ -505,6 +505,140 @@ const shareVideoWithinCap = (file) =>
     v.src = URL.createObjectURL(file);
   });
 
+// Below this, a phone video's raw size is dominated by resolution/bitrate
+// choices the source device made, not content — worth re-encoding smaller
+// before a slow upload. Above it, re-encoding a already-small file just
+// burns the contributor's battery for no real gain.
+const VIDEO_COMPRESS_THRESHOLD_BYTES = 12 * 1024 * 1024;
+const VIDEO_COMPRESS_MAX_WIDTH = 960;
+const VIDEO_COMPRESS_BITRATE = 2_000_000;
+
+const canCompressVideo = () =>
+  typeof MediaRecorder !== "undefined" &&
+  typeof HTMLVideoElement !== "undefined" &&
+  typeof HTMLVideoElement.prototype.captureStream === "function" &&
+  (MediaRecorder.isTypeSupported?.("video/webm;codecs=vp9,opus") || MediaRecorder.isTypeSupported?.("video/webm;codecs=vp8,opus"));
+
+// Re-encodes an oversized video to a capped resolution/bitrate by playing it
+// muted and redrawing each frame to a smaller canvas while MediaRecorder
+// captures that canvas's stream plus the source's own audio track. This
+// takes roughly the video's real duration to run (it plays through once),
+// which is why it's gated to the 60s share cap and to files worth the
+// trouble. Never throws — any failure (unsupported browser, decode error,
+// output that isn't actually smaller) falls back to the original file so
+// compression can never be the reason an upload doesn't happen.
+const compressVideo = (file, onProgress) => new Promise((resolve) => {
+  if (file.size < VIDEO_COMPRESS_THRESHOLD_BYTES || !canCompressVideo()) { resolve(file); return; }
+
+  const cleanupFns = [];
+  const cleanup = () => cleanupFns.forEach((fn) => fn());
+  const fallback = () => { cleanup(); resolve(file); };
+
+  try {
+    const url = URL.createObjectURL(file);
+    cleanupFns.push(() => URL.revokeObjectURL(url));
+    const video = document.createElement("video");
+    video.muted = true;
+    video.playsInline = true;
+    video.src = url;
+
+    video.onerror = fallback;
+    video.onloadedmetadata = async () => {
+      const scale = Math.min(1, VIDEO_COMPRESS_MAX_WIDTH / video.videoWidth);
+      if (scale >= 1) { fallback(); return; } // already small enough resolution-wise
+
+      try {
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.round(video.videoWidth * scale);
+        canvas.height = Math.round(video.videoHeight * scale);
+        const ctx = canvas.getContext("2d");
+
+        const audioTracks = video.captureStream().getAudioTracks();
+        const combined = new MediaStream([...canvas.captureStream(30).getVideoTracks(), ...audioTracks]);
+        const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp9,opus") ? "video/webm;codecs=vp9,opus" : "video/webm;codecs=vp8,opus";
+        const recorder = new MediaRecorder(combined, { mimeType, videoBitsPerSecond: VIDEO_COMPRESS_BITRATE });
+        const chunks = [];
+        recorder.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+
+        let raf;
+        const draw = () => { ctx.drawImage(video, 0, 0, canvas.width, canvas.height); raf = requestAnimationFrame(draw); };
+        cleanupFns.push(() => cancelAnimationFrame(raf));
+
+        recorder.onstop = () => {
+          cleanup();
+          const blob = new Blob(chunks, { type: "video/webm" });
+          if (!blob.size || blob.size >= file.size) { resolve(file); return; } // re-encode didn't help
+          resolve(new File([blob], file.name.replace(/\.[^.]+$/, "") + ".webm", { type: "video/webm" }));
+        };
+
+        video.ontimeupdate = () => { if (onProgress && video.duration) onProgress(video.currentTime / video.duration); };
+        video.onended = () => recorder.state !== "inactive" && recorder.stop();
+
+        recorder.start();
+        draw();
+        await video.play();
+      } catch { fallback(); }
+    };
+  } catch { fallback(); }
+});
+
+// Seeks the (already-compressed) video to a point past any lead-in black
+// frame and grabs it as a jpeg, so a video tile never opens on a blank
+// frame. Returns null rather than throwing on any failure — a missing
+// poster just means the tile falls back to showing nothing until played,
+// same as before this existed.
+const SHARE_POSTER_SEEK_RATIO = 0.15;
+const generateVideoPoster = (file, seekSeconds) => new Promise((resolve) => {
+  try {
+    const video = document.createElement("video");
+    video.muted = true;
+    video.playsInline = true;
+    video.preload = "metadata";
+    const url = URL.createObjectURL(file);
+    const done = (result) => { URL.revokeObjectURL(url); resolve(result); };
+
+    video.onerror = () => done(null);
+    video.onloadedmetadata = () => {
+      const t = seekSeconds != null ? seekSeconds : Math.min(video.duration * SHARE_POSTER_SEEK_RATIO, Math.max(0, video.duration - 0.1));
+      video.currentTime = Math.max(0, t);
+    };
+    video.onseeked = () => {
+      try {
+        const canvas = document.createElement("canvas");
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        canvas.getContext("2d").drawImage(video, 0, 0);
+        canvas.toBlob((blob) => done(blob ? new File([blob], "poster.jpg", { type: "image/jpeg" }) : null), "image/jpeg", 0.85);
+      } catch { done(null); }
+    };
+    video.src = url;
+  } catch { resolve(null); }
+});
+
+// supabase-js's storage.upload() has no progress callback (it's a plain
+// fetch under the hood), so a large video upload just spins with no
+// feedback. This hits the same Storage REST endpoint directly via XHR,
+// which does expose upload progress — used only for the video path, where
+// the wait is long enough to need it.
+const uploadFileWithProgress = async (bucket, path, file, contentType, onProgress) => {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData?.session?.access_token || SUPABASE_ANON_KEY;
+
+  await new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `${SUPABASE_URL}/storage/v1/object/${bucket}/${path.split("/").map(encodeURIComponent).join("/")}`, true);
+    xhr.setRequestHeader("apikey", SUPABASE_ANON_KEY);
+    xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+    xhr.setRequestHeader("Content-Type", contentType || file.type || "application/octet-stream");
+    xhr.upload.onprogress = (e) => { if (e.lengthComputable && onProgress) onProgress(e.loaded / e.total); };
+    xhr.onload = () => (xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(`Upload failed (${xhr.status})`)));
+    xhr.onerror = () => reject(new Error("Network error during upload"));
+    xhr.send(file);
+  });
+
+  return supabase.storage.from(bucket).getPublicUrl(path).data?.publicUrl;
+};
+
 // "Share a memory" modal — orient-first choice, relationship-tailored and
 // tense-aware questions (SHARE_QUESTION_BANK), and moderation-aware
 // confirmation copy. Fully remounts each time it opens (see showContribute
@@ -536,12 +670,15 @@ function ShareMemoryModal({ memorial, showToast, onClose }) {
   const [recordPhoto, setRecordPhoto] = useState(null); // { file, preview, cropPos } | null — "record it" mode's "Add a photo too"
   const [showCropAdjuster, setShowCropAdjuster] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [compressingVideo, setCompressingVideo] = useState(false); // re-encoding an oversized video before it becomes the attachment
+  const [uploadProgress, setUploadProgress] = useState(null); // 0-1 while the video's main file is uploading, else null
 
   const photoInputRef = useRef();
   const videoInputRef = useRef();
   const audioInputRef = useRef();
   const avInputRef = useRef();
   const recordPhotoInputRef = useRef();
+  const videoPreviewRef = useRef(); // the <video> shown in the attach row, so "use this frame" can read its scrub position
 
   // A question showing one of the three universal media prompts ("do you
   // have a photo/voicemail/video...") narrows the attach row to just that
@@ -616,7 +753,7 @@ function ShareMemoryModal({ memorial, showToast, onClose }) {
     setScreen("question");
   };
 
-  const clearAttachment = () => { setAttachment(null); setIsRecipe(false); setAvRecording(false); };
+  const clearAttachment = () => { setAttachment(null); setIsRecipe(false); setAvRecording(false); setCompressingVideo(false); };
 
   const handlePhotoSelect = async (file) => {
     if (!file) return;
@@ -630,9 +767,29 @@ function ShareMemoryModal({ memorial, showToast, onClose }) {
   const handleVideoSelect = async (file) => {
     if (!file) return;
     if (!(await shareVideoWithinCap(file))) { showToast("Videos must be 60 seconds or less.", "error"); return; }
-    const preview = await fileToDataURL(file);
-    setAttachment({ kind: "video", file, preview });
     setAvRecording(false);
+    setCompressingVideo(true);
+    const finalFile = await compressVideo(file);
+    const poster = await generateVideoPoster(finalFile);
+    setCompressingVideo(false);
+    setAttachment({
+      kind: "video",
+      file: finalFile,
+      preview: URL.createObjectURL(finalFile),
+      posterFile: poster,
+      posterPreview: poster ? URL.createObjectURL(poster) : null,
+    });
+  };
+
+  // Regenerates the poster from wherever the contributor has scrubbed the
+  // preview video to — the "or allow users to choose a still frame" half of
+  // the ask, without needing a separate scrubber UI.
+  const useCurrentFrameAsPoster = async () => {
+    if (!attachment || attachment.kind !== "video" || !videoPreviewRef.current) return;
+    const t = videoPreviewRef.current.currentTime;
+    const poster = await generateVideoPoster(attachment.file, t);
+    if (!poster) { showToast("Couldn't capture that frame. Try a different spot.", "error"); return; }
+    setAttachment((prev) => (prev?.kind === "video" ? { ...prev, posterFile: poster, posterPreview: URL.createObjectURL(poster) } : prev));
   };
 
   // An uploaded audio FILE, not a live recording — keeps its real extension/
@@ -682,10 +839,16 @@ function ShareMemoryModal({ memorial, showToast, onClose }) {
         cropY = attachment.cropPos.y;
       } else if (attachment?.kind === "video") {
         type = "video";
-        const path = `contributions/${memorial.invite_code}/${uid()}.${attachment.file.name.split(".").pop()}`;
-        const { error: upErr } = await supabase.storage.from("memorial-media").upload(path, attachment.file);
-        if (upErr) throw upErr;
-        mediaUrl = supabase.storage.from("memorial-media").getPublicUrl(path).data?.publicUrl;
+        const id = uid();
+        const path = `contributions/${memorial.invite_code}/${id}.${attachment.file.name.split(".").pop()}`;
+        setUploadProgress(0);
+        mediaUrl = await uploadFileWithProgress("memorial-media", path, attachment.file, attachment.file.type || "video/mp4", setUploadProgress);
+        setUploadProgress(null);
+        if (attachment.posterFile) {
+          const posterPath = `contributions/${memorial.invite_code}/${id}-poster.jpg`;
+          const { error: posterErr } = await supabase.storage.from("memorial-media").upload(posterPath, attachment.posterFile);
+          if (!posterErr) secondaryMediaUrl = supabase.storage.from("memorial-media").getPublicUrl(posterPath).data?.publicUrl;
+        }
       } else if (attachment?.kind === "voice") {
         type = "voice";
         const resp = await fetch(attachment.url);
@@ -696,8 +859,9 @@ function ShareMemoryModal({ memorial, showToast, onClose }) {
         mediaUrl = supabase.storage.from("memorial-media").getPublicUrl(path).data?.publicUrl;
       }
 
-      // "Record it in your own voice" mode's optional "Add a photo too" —
-      // the only case a contribution carries two media files.
+      // "Record it in your own voice" mode's optional "Add a photo too" — the
+      // other case (besides a video's poster frame, set above) where a
+      // contribution carries two media files via secondary_media_url.
       if (recordPhoto) {
         const path = `contributions/${memorial.invite_code}/${uid()}-secondary.${recordPhoto.file.name.split(".").pop()}`;
         const { error: upErr } = await supabase.storage.from("memorial-media").upload(path, recordPhoto.file);
@@ -740,7 +904,7 @@ function ShareMemoryModal({ memorial, showToast, onClose }) {
       notifyCreator(memorial.id);
       setScreen("thanks");
     } catch { showToast("Something went wrong. Please try again.", "error"); }
-    finally { setSubmitting(false); }
+    finally { setSubmitting(false); setUploadProgress(null); }
   };
 
   return (
@@ -852,6 +1016,9 @@ function ShareMemoryModal({ memorial, showToast, onClose }) {
                       onAvClick={() => avInputRef.current?.click()}
                       onAdjustCrop={() => setShowCropAdjuster(true)}
                       onRemove={clearAttachment}
+                      compressingVideo={compressingVideo}
+                      videoPreviewRef={videoPreviewRef}
+                      onUseFrameAsPoster={useCurrentFrameAsPoster}
                     />
                   )}
                   <input ref={photoInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => handlePhotoSelect(e.target.files[0])} />
@@ -873,8 +1040,10 @@ function ShareMemoryModal({ memorial, showToast, onClose }) {
                 </div>
               </div>
 
-              <button className="btn btn-rust btn-lg share-submit-btn" onClick={handleSubmit} disabled={submitting} style={{ justifyContent: "center" }}>
-                {submitting ? <><span className="spinner" /> Sharing...</> : "Share this memory"}
+              <button className="btn btn-rust btn-lg share-submit-btn" onClick={handleSubmit} disabled={submitting || compressingVideo} style={{ justifyContent: "center" }}>
+                {submitting
+                  ? <><span className="spinner" /> {uploadProgress != null ? `Uploading... ${Math.round(uploadProgress * 100)}%` : "Sharing..."}</>
+                  : "Share this memory"}
               </button>
               <span className="share-back-link" onClick={() => setScreen("relationship")}>&larr; choose a different relationship</span>
             </div>
@@ -1061,8 +1230,16 @@ function LiveWaveform({ analyser }) {
 function QuestionAttachOptions({
   kind, attachment, isRecipe, onToggleRecipe, avRecording, setAvRecording, showToast,
   onAttachmentChange, onPhotoClick, onVideoClick, onAudioClick, onAvClick,
-  onAdjustCrop, onRemove,
+  onAdjustCrop, onRemove, compressingVideo, videoPreviewRef, onUseFrameAsPoster,
 }) {
+  if (compressingVideo) {
+    return (
+      <div className="share-attach-row">
+        <span className="spinner spinner-dark" /> Getting your video ready to upload&hellip;
+      </div>
+    );
+  }
+
   if (avRecording) {
     return (
       <div className="share-attach-row">
@@ -1091,7 +1268,16 @@ function QuestionAttachOptions({
   if (attachment?.kind === "video") {
     return (
       <div className="form-group">
-        <video src={attachment.preview} controls style={{ width: "100%", maxHeight: 300, borderRadius: 4 }} />
+        <video ref={videoPreviewRef} src={attachment.preview} poster={attachment.posterPreview || undefined} controls style={{ width: "100%", maxHeight: 300, borderRadius: 4 }} />
+        {attachment.posterPreview && (
+          <div className="share-video-poster-row">
+            <img className="share-video-poster-thumb" src={attachment.posterPreview} alt="" />
+            <div>
+              <div className="share-video-poster-label">Thumbnail</div>
+              <button type="button" className="btn btn-sm btn-ghost" onClick={onUseFrameAsPoster}>Use this frame instead</button>
+            </div>
+          </div>
+        )}
         <button type="button" className="btn btn-sm btn-ghost" style={{ marginTop: 8 }} onClick={onRemove}>Remove video</button>
       </div>
     );
@@ -1275,7 +1461,7 @@ function TileBody({ story: s }) {
   if (s.type === "video" && s.media_url) {
     return (
       <div className="mem-tile-body mem-tile-video">
-        <video src={s.media_url} preload="metadata" muted playsInline />
+        <video src={s.media_url} poster={s.secondary_media_url || undefined} preload="metadata" muted playsInline />
         <div className="mem-tile-play" />
       </div>
     );
@@ -1438,7 +1624,7 @@ function ReaderMedia({ story: s }) {
   if (s.type === "video" && s.media_url) {
     return (
       <div className="reader-media video">
-        <video src={s.media_url} controls playsInline />
+        <video src={s.media_url} poster={s.secondary_media_url || undefined} controls playsInline />
       </div>
     );
   }
