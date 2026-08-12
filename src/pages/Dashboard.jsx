@@ -208,7 +208,7 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
 
                 <div className="dashboard-actions">
                   <div className="dashboard-actions-row">
-                    <ShareMenu onCopyLink={() => copyInviteLink(activeMemorial)} onCopyInvite={() => copyInvite(activeMemorial)} />
+                    <ShareMenu onCopyLink={() => copyInviteLink(activeMemorial)} onCopyInvite={() => copyInvite(activeMemorial)} inviteDisabled={!activeMemorial.is_paid} />
                     <button className="btn btn-sm btn-ghost" onClick={() => onNavigate("memorial", activeMemorial.invite_code)}>Preview</button>
                     <button className="btn btn-sm btn-ghost" onClick={() => onNavigate("edit", activeMemorial)}>Edit</button>
                     <button className="btn btn-sm btn-ghost settings-btn" onClick={() => onNavigate("page-settings", activeMemorial)}>
@@ -295,7 +295,7 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
 // "Copy link" and "Copy invite" stay functionally distinct (different
 // clipboard payloads) — this only changes how they're presented, collapsing
 // two always-visible buttons into one "Share" trigger + dropdown.
-function ShareMenu({ onCopyLink, onCopyInvite }) {
+function ShareMenu({ onCopyLink, onCopyInvite, inviteDisabled }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef(null);
 
@@ -317,9 +317,14 @@ function ShareMenu({ onCopyLink, onCopyInvite }) {
             <span className="share-menu-item-label">Copy link</span>
             <span className="share-menu-item-sub">The page itself, for anyone to view</span>
           </button>
-          <button type="button" className="share-menu-item" onClick={() => { onCopyInvite(); setOpen(false); }}>
+          <button
+            type="button"
+            className="share-menu-item"
+            disabled={inviteDisabled}
+            onClick={() => { if (inviteDisabled) return; onCopyInvite(); setOpen(false); }}
+          >
             <span className="share-menu-item-label">Copy invite</span>
-            <span className="share-menu-item-sub">Ask someone to contribute a memory</span>
+            <span className="share-menu-item-sub">{inviteDisabled ? "Upgrade to invite others to contribute" : "Ask someone to contribute a memory"}</span>
           </button>
         </div>
       )}

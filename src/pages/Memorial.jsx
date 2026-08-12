@@ -15,6 +15,12 @@ import { uid, fmtDate, timeAgo, fileToDataURL, fmtTime, sendThankYou, notifyCrea
 const FILTER_ORDER = ["all", "photo", "video", "voicemail", "spoken", "story", "recipe", "url"];
 const FILTER_LABEL = { all: "Everything", photo: "Photos", video: "Videos", voicemail: "Voicemails", spoken: "Spoken stories", story: "Written stories", recipe: "Recipes", url: "Links" };
 
+// "Five memories included, free" — the number of memories a free-tier
+// memorial can hold before its owner has to upgrade to add more or invite
+// anyone else. Mirrored server-side in the contributions INSERT policy
+// (20260812_free_tier_limit.sql) — keep both in sync if this ever changes.
+const FREE_MEMORY_LIMIT = 5;
+
 function contentTypeLabel(s) {
   if (s.type === "photo") return s.subtype === "recipe" ? "Recipe" : "Photo";
   if (s.type === "video") return "Video";
@@ -335,6 +341,13 @@ export function MemorialPage({ inviteCode, showToast, onNavigate, currentUser })
   // navigates that full list regardless of activeFilter, so this is
   // deliberately independent state, not derived from the filtered view.
   const [openIndex, setOpenIndex] = useState(null);
+  // How many non-rejected memories a free-tier memorial already has — only
+  // loaded (and only relevant) for the owner on an unpaid page, since that's
+  // the only visitor who can contribute there at all. Deliberately a
+  // separate count-only query rather than derived from `stories`, which is
+  // filtered to approved-only when moderation is on and would undercount
+  // pending items against the server's own (unfiltered) RLS check.
+  const [freeContributionCount, setFreeContributionCount] = useState(0);
 
   useEffect(() => {
     loadMemorial();
@@ -353,6 +366,20 @@ export function MemorialPage({ inviteCode, showToast, onNavigate, currentUser })
       .eq("status", "approved")
       .then(({ data }) => setTokenValid(!!data?.length));
   }, [contributeToken, memorial?.id]);
+
+  const isOwner = !!(currentUser && memorial?.steward_id === currentUser.id);
+
+  useEffect(() => {
+    if (!memorial || memorial.is_paid || !isOwner) return;
+    // Covered by the "stewards see their memories" SELECT policy, so this
+    // sees pending items too, not just approved ones.
+    supabase
+      .from("contributions")
+      .select("id", { count: "exact", head: true })
+      .eq("memorial_id", memorial.id)
+      .neq("status", "rejected")
+      .then(({ count }) => setFreeContributionCount(count || 0));
+  }, [memorial?.id, memorial?.is_paid, isOwner]);
 
   const openContribute = () => setShowContribute(true);
 
@@ -415,16 +442,37 @@ export function MemorialPage({ inviteCode, showToast, onNavigate, currentUser })
   const filterTypes = FILTER_ORDER;
   const contributorCount = new Set(stories.map((s) => s.contributor_name)).size;
 
-  // Public pages, anyone with the invite_code link, anyone carrying a valid
-  // approved-request token, and the page's own steward (previewing their
-  // own page) can all add a memory. Everyone else — on an invite_only page,
-  // arrived via the vanity slug or with no token — gets the ask-for-access
-  // flow instead. Viewing is never gated; this only governs contribution.
-  const canContribute =
-    memorial.access_mode !== "invite_only" ||
-    arrivedViaCode ||
-    tokenValid ||
-    (currentUser && memorial.steward_id === currentUser.id);
+  // Paid pages: unchanged from before — public pages, anyone with the
+  // invite_code link, anyone carrying a valid approved-request token, and
+  // the steward (previewing their own page) can all add a memory; everyone
+  // else gets the ask-for-access flow. Free pages: access_mode/token/invite
+  // don't matter at all — only the steward can contribute, and only up to
+  // FREE_MEMORY_LIMIT, so the page genuinely can't be shared beyond them
+  // until it's paid for (also enforced server-side, not just here — see
+  // 20260812_free_tier_limit.sql). Viewing is never gated either way.
+  const canContribute = memorial.is_paid
+    ? (memorial.access_mode !== "invite_only" || arrivedViaCode || tokenValid || isOwner)
+    : (isOwner && freeContributionCount < FREE_MEMORY_LIMIT);
+
+  // Drives both CTA spots (hero + footer) from one place instead of
+  // duplicating the same ladder twice.
+  //   share:       normal ShareMemoryModal flow
+  //   ask:         paid + invite_only + no access — AccessRequestModal flow
+  //   owner-limit: free tier, owner, hit the cap — nudge toward Pricing
+  //   free-locked: free tier, not the owner — nothing to click at all
+  const contributeState = canContribute
+    ? "share"
+    : memorial.is_paid
+      ? "ask"
+      : isOwner
+        ? "owner-limit"
+        : "free-locked";
+
+  // Shared between the hero and footer CTA spots so the label/action ladder
+  // only lives in one place. No entry for "free-locked" — that state has
+  // nothing to click, by design.
+  const ctaLabel = { share: "Add Your Memory", ask: "Ask to add a memory", "owner-limit": "Upgrade to add more" }[contributeState];
+  const ctaOnClick = { share: openContribute, ask: () => setShowRequestAccess(true), "owner-limit": () => onNavigate?.("pricing") }[contributeState];
 
   const heroTitle = (
     <>
@@ -475,9 +523,11 @@ export function MemorialPage({ inviteCode, showToast, onNavigate, currentUser })
               Memory" only existed in the footer, past the entire grid, which
               meant a locked-out visitor had no way to see the ask-for-access
               option without scrolling past everything first. */}
-          <button type="button" className="hero-cta" onClick={canContribute ? openContribute : () => setShowRequestAccess(true)}>
-            {canContribute ? "Add Your Memory" : "Ask to add a memory"}
-          </button>
+          {ctaLabel ? (
+            <button type="button" className="hero-cta" onClick={ctaOnClick}>{ctaLabel}</button>
+          ) : (
+            <p className="hero-cta-note">This page isn't open for contributions yet — check back soon.</p>
+          )}
         </div>
       </header>
 
@@ -519,15 +569,19 @@ export function MemorialPage({ inviteCode, showToast, onNavigate, currentUser })
       <footer className="closing">
         <div className="script">and then...</div>
         <h2>This is only what's been shared so far. There's always another memory somewhere.</h2>
-        {canContribute ? (
-          <button className="add-btn" onClick={openContribute}>Add Your Memory</button>
+        {ctaLabel ? (
+          <button className="add-btn" onClick={ctaOnClick}>{ctaLabel}</button>
         ) : (
-          <button className="add-btn" onClick={() => setShowRequestAccess(true)}>Ask to add a memory</button>
+          <p className="hero-cta-note">This page isn't open for contributions yet — check back soon.</p>
         )}
         <p className="note">
-          {canContribute
+          {contributeState === "share"
             ? <>This page keeps growing &mdash; anyone who knew {memorial.name.split(" ")[0]} can add a photo, story, voice memo, or video, anytime.</>
-            : <>This page keeps growing, one invited memory at a time. Don't have the invite link? Ask {memorial.name.split(" ")[0]}'s family for access.</>}
+            : contributeState === "ask"
+              ? <>This page keeps growing, one invited memory at a time. Don't have the invite link? Ask {memorial.name.split(" ")[0]}'s family for access.</>
+              : contributeState === "owner-limit"
+                ? <>You've added the {FREE_MEMORY_LIMIT} memories included free. Upgrade to add more, and invite others to help gather memories too.</>
+                : <>This page isn't open to contributions yet.</>}
         </p>
       </footer>
 
