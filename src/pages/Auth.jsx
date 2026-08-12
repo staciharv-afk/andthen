@@ -32,7 +32,7 @@ export function AuthPage({ showToast }) {
     <div className="auth-page">
       <style>{STYLES}</style>
       <div className="auth-card fade-up">
-        <div className="auth-logo">And Then<em>...</em></div>
+        <div className="auth-logo"><em>And Then...</em></div>
 
         {sent ? (
           <>

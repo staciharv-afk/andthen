@@ -2,12 +2,12 @@ export function Nav({ currentUser, onSignOut, onNavigate, currentRoute }) {
   return (
     <nav className="nav">
       <span className="nav-logo" onClick={() => onNavigate("home")}>
-        And Then<em>...</em>
+        <em>And Then...</em>
       </span>
       <div className="nav-right">
         <button className={`nav-link${currentRoute === "how-it-works" ? " active" : ""}`} onClick={() => onNavigate("how-it-works")}>How it works</button>
         <button className="nav-link" onClick={() => onNavigate("pricing")}>Pricing</button>
-        <button className={`nav-link${currentRoute === "story" ? " active" : ""}`} onClick={() => onNavigate("story")}>Why And Then</button>
+        <button className={`nav-link${currentRoute === "story" ? " active" : ""}`} onClick={() => onNavigate("story")}>Why <em>And Then</em></button>
         {currentUser ? (
           <>
             <button className="nav-link" onClick={() => onNavigate("dashboard")}>Dashboard</button>

@@ -242,70 +242,38 @@ function WhatYouGetGrid() {
 }
 
 // "Every way a memory can live" — the seven content types And Then accepts.
-// Static/illustrative, same as WHAT_YOU_GET_EXAMPLES above.
-const CONTENT_TYPES = [
-  { icon: "📷", name: "Photos", desc: "The pictures already sitting in a hundred different phones." },
-  { icon: "🎬", name: "Videos", desc: "The way they moved, laughed, and sounded — not just how they looked." },
-  { icon: "📞", name: "Voicemails", desc: "An old message still sitting on someone's phone, saved for years." },
-  { icon: "🎙️", name: "Spoken stories", desc: "Told out loud, in a contributor's own voice, no typing required." },
-  { icon: "✍️", name: "Written stories", desc: "The specific memory, put into words, guided by the right question." },
-  { icon: "📄", name: "Recipes & documents", desc: "A handwritten recipe card, a letter, anything worth scanning in." },
-  { icon: "🔗", name: "Links", desc: "A YouTube video or home movie already uploaded somewhere else." },
+const CONTENT_TYPES = ["Photos", "Videos", "Voicemails", "Spoken stories", "Written stories", "Recipes & documents", "Links"];
+
+// Four larger, icon-free feature blocks explaining how the page actually
+// works, below the plain list of content types it accepts.
+const CONTENT_FEATURES = [
+  { label: "Share it your way", body: "Freeform, if they already know what to say. Tailored questions, matched to how they knew your person, if they don't." },
+  { label: "Keeps growing, on your terms", body: "The page keeps collecting new memories, whenever they come in. You decide who can add — people you invite, or anyone with the link." },
+  { label: "Nothing's locked away", body: "Export everything you've collected, in full, any time you want it." },
+  { label: "No account, no friction", body: "Anyone invited can add a memory without creating a login or downloading anything. Text it, email it, drop it in a group chat — they're in." },
 ];
 
-function ContentTypesGrid() {
+function ContentTypesShowcase() {
   return (
-    <div className="types-grid">
-      {CONTENT_TYPES.map((t) => (
-        <div className="type-card" key={t.name}>
-          <div className="type-icon" aria-hidden="true">{t.icon}</div>
-          <h3 className="type-name">{t.name}</h3>
-          <p className="type-desc">{t.desc}</p>
-        </div>
-      ))}
-    </div>
+    <>
+      <div className="type-pills">
+        {CONTENT_TYPES.map((name) => (
+          <span className="type-pill" key={name}>{name}</span>
+        ))}
+      </div>
+      <p className="type-pills-hint">If it brings them to life, it belongs here.</p>
+
+      <div className="wyg2-grid">
+        {CONTENT_FEATURES.map(({ label, body }) => (
+          <div className="wyg2-item" key={label}>
+            <h3 className="wyg2-label">{label}</h3>
+            <p className="wyg2-body">{body}</p>
+          </div>
+        ))}
+      </div>
+    </>
   );
 }
-
-// Icons for the "Collecting is the easy part" feature row. No icon library
-// is installed (checked — the only existing precedent is the inline SVG in
-// CreateMemorial.jsx's photo-upload icon), so these follow that same outline
-// style: 24x24 viewBox, currentColor stroke, 1.5 stroke width, round joins.
-function LinkIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M9 15l6-6" />
-      <path d="M10.5 6.5l1-1a3.5 3.5 0 0 1 5 5l-1 1" />
-      <path d="M13.5 17.5l-1 1a3.5 3.5 0 0 1-5-5l1-1" />
-    </svg>
-  );
-}
-
-function MailboxIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M5 20V11a4 4 0 0 1 4-4h1a4 4 0 0 1 4 4v9" />
-      <path d="M3 20h12" />
-      <path d="M9 20v-9" />
-      <path d="M14 12h3.5a1.5 1.5 0 0 1 0 3H16" />
-    </svg>
-  );
-}
-
-function ShieldCheckIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 3l7 3v6c0 4.5-3 8-7 9-4-1-7-4.5-7-9V6l7-3z" />
-      <path d="M9 12l2 2 4-4" />
-    </svg>
-  );
-}
-
-const COLLECTING_FEATURES = [
-  { Icon: LinkIcon, label: "Send it anywhere", body: "Text, email, a group chat. One link reaches everyone who loved them, all at once." },
-  { Icon: MailboxIcon, label: "The memories arrive", body: "Some you already know by heart. Others you've never heard before." },
-  { Icon: ShieldCheckIcon, label: "You stay in control", body: "Approve, hold, or remove anything, anytime. The page stays up for good, and it's yours to export whenever you want." },
-];
 
 export function HomePage({ onNavigate }) {
   return (
@@ -315,12 +283,12 @@ export function HomePage({ onNavigate }) {
         <div className="page-wrap">
           <div className="hero">
             <div>
-              <div className="hero-tag fade-up">And Then...</div>
+              <div className="hero-tag fade-up"><em>And Then...</em></div>
               <h1 className="hero-headline fade-up-2">
                 A living story <em>for<br />someone you love</em>.
               </h1>
               <p className="hero-body fade-up-3">
-                Everyone who loved them remembers something different. And Then brings it all together — into one page that keeps growing.
+                Everyone who loved them remembers something different. <em>And Then</em> brings it all together — into one page that keeps growing.
               </p>
               <div className="hero-cta-group fade-up-4">
                 <button className="btn btn-rust btn-lg" onClick={() => onNavigate("onboarding")}>Start their page</button>
@@ -349,7 +317,7 @@ export function HomePage({ onNavigate }) {
             <div className="section-label">What you get</div>
             <h2 className="narrative-headline">Not just a page — a way to collect.</h2>
             <p className="narrative-body wyg-intro">
-              And Then asks each person the right question for who they were to her — so four different people end up telling four completely different stories.
+              <em>And Then</em> asks each person the right question for who they were to her — so four different people end up telling four completely different stories.
             </p>
 
             <WhatYouGetGrid />
@@ -364,34 +332,14 @@ export function HomePage({ onNavigate }) {
             <div className="section-label">Every way a memory can live</div>
             <h2 className="narrative-headline">It's not just photos.</h2>
             <p className="narrative-body">
-              Bring your loved one to life in whatever form the memory actually takes — And Then holds all of it, side by side, in the same page.
+              Bring your loved one to life in whatever form the memory actually takes — <em>And Then</em> holds all of it, side by side, in the same page.
             </p>
 
-            <ContentTypesGrid />
+            <ContentTypesShowcase />
 
             <button className="section-cta-link" onClick={() => onNavigate("memorial", "x58e5wvtmravmszf")}>
               See a real, living page <span aria-hidden="true">→</span>
             </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Collecting is the easy part */}
-      <div style={{ background: "var(--cream)" }}>
-        <div className="page-wrap">
-          <div className="narrative">
-            <div className="section-label">Collecting is the easy part</div>
-            <h2 className="narrative-headline">Create their page, and you get one link.</h2>
-
-            <div className="feature-row">
-              {COLLECTING_FEATURES.map(({ Icon, label, body }) => (
-                <div className="feature-item" key={label}>
-                  <div className="feature-icon"><Icon /></div>
-                  <h3 className="feature-label">{label}</h3>
-                  <p className="feature-body">{body}</p>
-                </div>
-              ))}
-            </div>
           </div>
         </div>
       </div>
@@ -408,7 +356,7 @@ export function HomePage({ onNavigate }) {
 
       {/* Footer */}
       <footer className="footer">
-        <div className="footer-logo">And Then<em>...</em></div>
+        <div className="footer-logo"><em>And Then...</em></div>
         <div className="footer-links">
           <button className="footer-link" onClick={() => onNavigate("how-it-works")}>How it works</button>
           <button className="footer-link">Privacy</button>

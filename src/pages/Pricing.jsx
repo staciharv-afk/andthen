@@ -100,7 +100,7 @@ export function PricingPage({ onNavigate, showToast }) {
 
       {/* Footer */}
       <footer className="footer">
-        <div className="footer-logo">And Then<em>...</em></div>
+        <div className="footer-logo"><em>And Then...</em></div>
         <div className="footer-links">
           <button className="footer-link" onClick={() => onNavigate("home")}>Home</button>
           <button className="footer-link">Privacy</button>

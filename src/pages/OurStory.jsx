@@ -6,7 +6,7 @@ export function OurStoryPage({ onNavigate }) {
       <div className="page-wrap story-wrap">
         <header className="story-hero">
           <div className="hero-tag fade-up">Our Story</div>
-          <h1 className="story-headline fade-up-2">Why I built And Then</h1>
+          <h1 className="story-headline fade-up-2">Why I built <em>And Then</em></h1>
           <p className="story-byline fade-up-3">A note from our founder, Staci Harvey</p>
         </header>
 
@@ -43,7 +43,7 @@ export function OurStoryPage({ onNavigate }) {
 
           <hr className="story-divider" />
 
-          <p>That process was one of the most healing things I've ever done. It's why I built And Then this way — a way to gather everyone's memories, guided by the right questions, without months of manual work and a hundred phone calls.</p>
+          <p>That process was one of the most healing things I've ever done. It's why I built <em>And Then</em> this way — a way to gather everyone's memories, guided by the right questions, without months of manual work and a hundred phone calls.</p>
 
           <p>If you've ever wished you could sit everyone who loved someone down at the same table and just listen — this is that table. I hope you love building yours.</p>
 
@@ -59,7 +59,7 @@ export function OurStoryPage({ onNavigate }) {
       </div>
 
       <footer className="footer">
-        <div className="footer-logo">And Then<em>...</em></div>
+        <div className="footer-logo"><em>And Then...</em></div>
         <div className="footer-links">
           <button className="footer-link" onClick={() => onNavigate("home")}>Home</button>
           <button className="footer-link">Privacy</button>
