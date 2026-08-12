@@ -782,7 +782,7 @@ function ShareMemoryModal({ memorial, showToast, onClose, contributeToken }) {
   const [contributorEmail, setContributorEmail] = useState("");
   const [answerText, setAnswerText] = useState("");
   const [answerMode, setAnswerMode] = useState("type"); // "type" | "record" — general/freeform questions only
-  const [attachment, setAttachment] = useState(null); // { kind: 'photo'|'video'|'voice', ... } | null
+  const [attachment, setAttachment] = useState(null); // { kind: 'photo'|'video'|'voice'|'link', ... } | null
   const [isRecipe, setIsRecipe] = useState(false); // photo attachment only — feeds subtype: 'recipe'
   const [avRecording, setAvRecording] = useState(false); // showing the inline recorder within the "type it out" attach row
   const [recordPhoto, setRecordPhoto] = useState(null); // { file, preview, cropPos } | null — "record it" mode's "Add a photo too"
@@ -923,6 +923,34 @@ function ShareMemoryModal({ memorial, showToast, onClose, contributeToken }) {
     else await handleVideoSelect(file);
   };
 
+  const openLinkInput = () => setAttachment({ kind: "link", url: "", preview: null, loading: false, error: "" });
+
+  // Preview fetch runs on blur, not keystroke — same as the pre-modal-redesign
+  // build this restores. A failed fetch still lets the link be shared
+  // (handleSubmit falls back to the bare url as the title).
+  const fetchLinkPreview = async () => {
+    setAttachment((a) => {
+      if (a?.kind !== "link") return a;
+      const url = a.url.trim();
+      if (!url) return { ...a, preview: null, error: "" };
+      let hostname;
+      try {
+        hostname = new URL(url).hostname.replace(/^www\./, "");
+      } catch {
+        return { ...a, preview: null, error: "That doesn't look like a valid URL." };
+      }
+      fetch("/api/link-preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      })
+        .then((res) => { if (!res.ok) throw new Error("preview failed"); return res.json(); })
+        .then((data) => setAttachment((cur) => (cur?.kind === "link" ? { ...cur, preview: { ...data, hostname }, loading: false, error: "" } : cur)))
+        .catch(() => setAttachment((cur) => (cur?.kind === "link" ? { ...cur, preview: null, loading: false, error: "Couldn't load a preview — you can still share the link." } : cur)));
+      return { ...a, loading: true, error: "" };
+    });
+  };
+
   const handleRecordPhotoSelect = async (file) => {
     if (!file) return;
     const preview = await fileToDataURL(file);
@@ -930,13 +958,13 @@ function ShareMemoryModal({ memorial, showToast, onClose, contributeToken }) {
     setRecordPhoto({ file, preview, cropPos });
   };
 
-  const hasValidAttachment = !!attachment;
+  const hasValidAttachment = attachment && (attachment.kind !== "link" || attachment.url.trim());
   const canSubmit = answerText.trim() || hasValidAttachment;
 
   const handleSubmit = async () => {
     if (!contributorName.trim()) { showToast("Please enter your name.", "error"); return; }
     if (contributorEmail.trim() && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(contributorEmail.trim())) { showToast("That email doesn't look right.", "error"); return; }
-    if (!canSubmit) { showToast("Please write something, or attach a photo, audio, or video.", "error"); return; }
+    if (!canSubmit) { showToast("Please write something, or attach a photo, audio, video, or link.", "error"); return; }
 
     setSubmitting(true);
     try {
@@ -944,6 +972,7 @@ function ShareMemoryModal({ memorial, showToast, onClose, contributeToken }) {
       let secondaryMediaUrl = null;
       let type = "story";
       let cropX = null, cropY = null;
+      let linkMeta = null;
 
       if (attachment?.kind === "photo") {
         type = "photo";
@@ -973,6 +1002,17 @@ function ShareMemoryModal({ memorial, showToast, onClose, contributeToken }) {
         const { error: upErr } = await supabase.storage.from("memorial-media").upload(path, blob, { contentType: attachment.mime || "audio/webm" });
         if (upErr) throw upErr;
         mediaUrl = supabase.storage.from("memorial-media").getPublicUrl(path).data?.publicUrl;
+      } else if (attachment?.kind === "link" && attachment.url.trim()) {
+        type = "url";
+        mediaUrl = attachment.preview?.image || null;
+        linkMeta = {
+          url: attachment.url.trim(),
+          provider: attachment.preview?.provider || null,
+          videoId: attachment.preview?.videoId || null,
+          start: attachment.preview?.start ?? null,
+          title: attachment.preview?.title || null,
+          hostname: attachment.preview?.hostname || null,
+        };
       }
 
       // "Record it in your own voice" mode's optional "Add a photo too" — the
@@ -1003,7 +1043,7 @@ function ShareMemoryModal({ memorial, showToast, onClose, contributeToken }) {
         status: memorial.require_approval ? "pending" : "approved",
         crop_x: cropX,
         crop_y: cropY,
-        link_meta: null,
+        link_meta: linkMeta,
       };
 
       if (memorial.require_approval) {
@@ -1175,6 +1215,9 @@ function ShareMemoryModal({ memorial, showToast, onClose, contributeToken }) {
                       onVideoClick={() => videoInputRef.current?.click()}
                       onAudioClick={() => audioInputRef.current?.click()}
                       onAvClick={() => avInputRef.current?.click()}
+                      onLinkClick={openLinkInput}
+                      onLinkUrlChange={(url) => setAttachment((a) => ({ ...a, url, preview: null, error: "" }))}
+                      onLinkBlur={fetchLinkPreview}
                       onAdjustCrop={() => setShowCropAdjuster(true)}
                       onRemove={clearAttachment}
                       compressingVideo={compressingVideo}
@@ -1488,6 +1531,7 @@ function LiveWaveform({ analyser }) {
 function QuestionAttachOptions({
   kind, attachment, isRecipe, onToggleRecipe, avRecording, setAvRecording, showToast,
   onAttachmentChange, onPhotoClick, onVideoClick, onAudioClick, onAvClick,
+  onLinkClick, onLinkUrlChange, onLinkBlur,
   onAdjustCrop, onRemove, compressingVideo, videoPreviewRef, onUseFrameAsPoster,
 }) {
   if (compressingVideo) {
@@ -1550,6 +1594,39 @@ function QuestionAttachOptions({
     );
   }
 
+  if (attachment?.kind === "link") {
+    return (
+      <div className="form-group">
+        <label className="form-label">Link</label>
+        <input
+          className="form-input"
+          type="url"
+          autoFocus
+          placeholder="Paste a YouTube link, or any URL"
+          value={attachment.url}
+          onChange={(e) => onLinkUrlChange(e.target.value)}
+          onBlur={onLinkBlur}
+        />
+        {attachment.loading && <span className="form-hint">Loading preview&hellip;</span>}
+        {attachment.error && <span className="form-error">{attachment.error}</span>}
+        {attachment.preview && (
+          <div className="link-preview-card">
+            {attachment.preview.image ? (
+              <img src={attachment.preview.image} alt="" className="link-preview-thumb" />
+            ) : (
+              <div className="link-preview-thumb link-preview-thumb-fallback">🔗</div>
+            )}
+            <div>
+              <div className="link-preview-title">{attachment.preview.title || attachment.url.trim()}</div>
+              <div className="link-preview-provider">{attachment.preview.provider === "youtube" ? "YouTube" : attachment.preview.hostname}</div>
+            </div>
+          </div>
+        )}
+        <button type="button" className="btn btn-sm btn-ghost" style={{ marginTop: 8 }} onClick={onRemove}>Remove link</button>
+      </div>
+    );
+  }
+
   if (kind === "voice") {
     return (
       <div className="share-attach-row">
@@ -1577,6 +1654,7 @@ function QuestionAttachOptions({
       <button type="button" className="share-attach-btn" onClick={onPhotoClick}>+ Add a photo</button>
       <button type="button" className="share-attach-btn" onClick={() => setAvRecording(true)}>Record a voice memo</button>
       <button type="button" className="share-attach-btn" onClick={onAvClick}>Upload audio or video</button>
+      <button type="button" className="share-attach-btn" onClick={onLinkClick}>+ Add a link</button>
     </div>
   );
 }
