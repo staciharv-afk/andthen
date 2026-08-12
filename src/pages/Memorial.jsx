@@ -575,13 +575,15 @@ export function MemorialPage({ inviteCode, showToast, onNavigate, currentUser })
           <p className="hero-cta-note">This page isn't open for contributions yet — check back soon.</p>
         )}
         <p className="note">
-          {contributeState === "share"
-            ? <>This page keeps growing &mdash; anyone who knew {memorial.name.split(" ")[0]} can add a photo, story, voice memo, or video, anytime.</>
-            : contributeState === "ask"
-              ? <>This page keeps growing, one invited memory at a time. Don't have the invite link? Ask {memorial.name.split(" ")[0]}'s family for access.</>
-              : contributeState === "owner-limit"
-                ? <>You've added the {FREE_MEMORY_LIMIT} memories included free. Upgrade to add more, and invite others to help gather memories too.</>
-                : <>This page isn't open to contributions yet.</>}
+          {contributeState === "share" && !memorial.is_paid
+            ? <>This page is still on the free plan — only you can add memories to it right now (up to {FREE_MEMORY_LIMIT}). Upgrade anytime to invite others.</>
+            : contributeState === "share"
+              ? <>This page keeps growing &mdash; anyone who knew {memorial.name.split(" ")[0]} can add a photo, story, voice memo, or video, anytime.</>
+              : contributeState === "ask"
+                ? <>This page keeps growing, one invited memory at a time. Don't have the invite link? Ask {memorial.name.split(" ")[0]}'s family for access.</>
+                : contributeState === "owner-limit"
+                  ? <>You've added the {FREE_MEMORY_LIMIT} memories included free. Upgrade to add more, and invite others to help gather memories too.</>
+                  : <>This page isn't open to contributions yet.</>}
         </p>
       </footer>
 
