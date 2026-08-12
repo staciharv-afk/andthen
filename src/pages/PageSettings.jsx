@@ -123,76 +123,91 @@ export function PageSettingsPage({ currentUser, memorial: initialMemorial, onNav
             </div>
           </div>
 
-          <div className="settings-section">
-            <div className="settings-section-title">Who can add memories</div>
-            <p className="settings-section-desc">This controls what happens when someone finds the page without an invite link.</p>
+          {memorial.is_paid ? (
+            <>
+              <div className="settings-section">
+                <div className="settings-section-title">Who can add memories</div>
+                <p className="settings-section-desc">This controls what happens when someone finds the page without an invite link.</p>
 
-            <label className={`access-mode-option${accessMode === "invite_only" ? " selected" : ""}`}>
-              <input type="radio" name="access_mode" checked={accessMode === "invite_only"} disabled={savingAccess} onChange={() => saveAccessMode("invite_only")} />
-              <div>
-                <div className="access-mode-label">Invite only <span className="settings-default-tag">Default</span></div>
-                <div className="access-mode-sub">Only people you've invited can add memories. Anyone else can view the page and ask for access.</div>
-              </div>
-            </label>
-            <label className={`access-mode-option${accessMode === "public" ? " selected" : ""}`}>
-              <input type="radio" name="access_mode" checked={accessMode === "public"} disabled={savingAccess} onChange={() => saveAccessMode("public")} />
-              <div>
-                <div className="access-mode-label">Public</div>
-                <div className="access-mode-sub">Anyone who finds this page can add a memory, no request needed.</div>
-              </div>
-            </label>
-
-            {accessMode === "public" && memorial.slug && (
-              <p className="settings-warning">
-                Switching back to invite only will mean people using your page address (myandthen.com/{memorial.slug}) will need to ask for access — share the invite link from Share instead.
-              </p>
-            )}
-          </div>
-
-          {accessMode === "invite_only" && (
-            <div className="settings-section">
-              <div className="settings-section-title">Access requests</div>
-              <p className="settings-section-desc">Approving emails them a personal link to add a memory — same no-signup flow as anyone you invite directly.</p>
-
-              {loadingRequests ? (
-                <div style={{ display: "flex", justifyContent: "center", padding: "24px 0" }}>
-                  <span className="spinner spinner-dark" />
-                </div>
-              ) : requests.length === 0 ? (
-                <div className="empty-state" style={{ padding: "32px 24px" }}>
-                  <div className="empty-state-icon">✉️</div>
-                  <div className="empty-state-title">No pending requests</div>
-                  <p className="empty-state-sub">When someone asks to add a memory, they'll show up here.</p>
-                </div>
-              ) : (
-                <>
-                  <div className="access-req-bulkbar">
-                    <label className="access-req-selectall">
-                      <input type="checkbox" checked={checked.size > 0 && checked.size === requests.length} onChange={toggleSelectAll} />
-                      Select all
-                    </label>
-                    {checked.size > 0 && (
-                      <button type="button" className="btn btn-sm btn-rust" onClick={approveSelected} disabled={bulkApproving}>
-                        {bulkApproving ? <><span className="spinner" /> Approving...</> : `Approve selected (${checked.size})`}
-                      </button>
-                    )}
+                <label className={`access-mode-option${accessMode === "invite_only" ? " selected" : ""}`}>
+                  <input type="radio" name="access_mode" checked={accessMode === "invite_only"} disabled={savingAccess} onChange={() => saveAccessMode("invite_only")} />
+                  <div>
+                    <div className="access-mode-label">Invite only <span className="settings-default-tag">Default</span></div>
+                    <div className="access-mode-sub">Only people you've invited can add memories. Anyone else can view the page and ask for access.</div>
                   </div>
-                  <div className="access-req-list">
-                    {requests.map((r) => (
-                      <AccessRequestRow
-                        key={r.id}
-                        request={r}
-                        checked={checked.has(r.id)}
-                        onToggleChecked={() => toggleChecked(r.id)}
-                        busy={busyIds.has(r.id)}
-                        onApprove={() => handleApprove(r)}
-                        onDecline={() => declineRequest(r)}
-                      />
-                    ))}
+                </label>
+                <label className={`access-mode-option${accessMode === "public" ? " selected" : ""}`}>
+                  <input type="radio" name="access_mode" checked={accessMode === "public"} disabled={savingAccess} onChange={() => saveAccessMode("public")} />
+                  <div>
+                    <div className="access-mode-label">Public</div>
+                    <div className="access-mode-sub">Anyone who finds this page can add a memory, no request needed.</div>
                   </div>
-                  <p className="settings-hint">Declined requests aren't notified — they stay a regular visitor.</p>
-                </>
+                </label>
+
+                {accessMode === "public" && memorial.slug && (
+                  <p className="settings-warning">
+                    Switching back to invite only will mean people using your page address (myandthen.com/{memorial.slug}) will need to ask for access — share the invite link from Share instead.
+                  </p>
+                )}
+              </div>
+
+              {accessMode === "invite_only" && (
+                <div className="settings-section">
+                  <div className="settings-section-title">Access requests</div>
+                  <p className="settings-section-desc">Approving emails them a personal link to add a memory — same no-signup flow as anyone you invite directly.</p>
+
+                  {loadingRequests ? (
+                    <div style={{ display: "flex", justifyContent: "center", padding: "24px 0" }}>
+                      <span className="spinner spinner-dark" />
+                    </div>
+                  ) : requests.length === 0 ? (
+                    <div className="empty-state" style={{ padding: "32px 24px" }}>
+                      <div className="empty-state-icon">✉️</div>
+                      <div className="empty-state-title">No pending requests</div>
+                      <p className="empty-state-sub">When someone asks to add a memory, they'll show up here.</p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="access-req-bulkbar">
+                        <label className="access-req-selectall">
+                          <input type="checkbox" checked={checked.size > 0 && checked.size === requests.length} onChange={toggleSelectAll} />
+                          Select all
+                        </label>
+                        {checked.size > 0 && (
+                          <button type="button" className="btn btn-sm btn-rust" onClick={approveSelected} disabled={bulkApproving}>
+                            {bulkApproving ? <><span className="spinner" /> Approving...</> : `Approve selected (${checked.size})`}
+                          </button>
+                        )}
+                      </div>
+                      <div className="access-req-list">
+                        {requests.map((r) => (
+                          <AccessRequestRow
+                            key={r.id}
+                            request={r}
+                            checked={checked.has(r.id)}
+                            onToggleChecked={() => toggleChecked(r.id)}
+                            busy={busyIds.has(r.id)}
+                            onApprove={() => handleApprove(r)}
+                            onDecline={() => declineRequest(r)}
+                          />
+                        ))}
+                      </div>
+                      <p className="settings-hint">Declined requests aren't notified — they stay a regular visitor.</p>
+                    </>
+                  )}
+                </div>
               )}
+            </>
+          ) : (
+            <div className="settings-section">
+              <div className="settings-section-title">Who can add memories</div>
+              <p className="settings-warning">
+                {/* 5 mirrors FREE_MEMORY_LIMIT in Memorial.jsx / the contributions
+                    INSERT policy — keep all three in sync if this ever changes. */}
+                This page is still on the free plan — only you can add memories to it (up to 5), and there's no way to invite anyone else yet.
+                Upgrading unlocks invites, access requests, and unlimited memories.
+              </p>
+              <button type="button" className="btn btn-sm btn-rust" style={{ marginTop: 12 }} onClick={() => onNavigate("pricing")}>See upgrade options</button>
             </div>
           )}
         </div>

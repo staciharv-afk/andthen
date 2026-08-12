@@ -451,6 +451,9 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .memorial-hero-desc { font-size: 15px; color: var(--mem-ink-soft); max-width: 560px; margin: 16px auto 0; line-height: 1.75; }
 .stat-line { font-size: 0.92rem; color: var(--mem-ink-soft); margin-top: 18px; }
 .hero-cta { font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 0.85rem; background: transparent; color: var(--mem-ink-soft); border: 1.5px solid rgba(44,36,32,0.18); padding: 10px 22px; border-radius: 999px; cursor: pointer; margin-top: 20px; transition: border-color 0.15s ease, color 0.15s ease; }
+/* Same slot as .hero-cta/.add-btn, for the free-locked state — nothing to
+   click, so plain text rather than a dead-end button. */
+.hero-cta-note { font-family: 'DM Sans', sans-serif; font-size: 0.85rem; font-style: italic; color: var(--mem-ink-soft); margin-top: 20px; }
 .hero-cta:hover { border-color: var(--mem-rose); color: var(--mem-ink); }
 
 /* -- filters -- */
@@ -657,6 +660,8 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .share-menu-dropdown { position: absolute; top: calc(100% + 6px); left: 0; z-index: 20; background: var(--white); border: 1px solid var(--warm-faint); border-radius: 6px; box-shadow: 0 12px 30px -10px rgba(0,0,0,0.25); padding: 6px; min-width: 240px; }
 .share-menu-item { display: block; width: 100%; text-align: left; background: none; border: none; border-radius: 4px; padding: 10px 12px; cursor: pointer; font-family: inherit; transition: background 0.15s ease; }
 .share-menu-item:hover { background: var(--cream-dark); }
+.share-menu-item:disabled { cursor: not-allowed; opacity: 0.55; }
+.share-menu-item:disabled:hover { background: none; }
 .share-menu-item-label { display: block; font-size: 14px; font-weight: 500; color: var(--bark); }
 .share-menu-item-sub { display: block; font-size: 12px; color: var(--warm-light); margin-top: 2px; }
 
