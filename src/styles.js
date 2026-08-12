@@ -588,6 +588,11 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
   .reader-nav.next { right: max(8px, env(safe-area-inset-right)); }
 }
 
+/* -- contribute form: video attachment poster/thumbnail picker -- */
+.share-video-poster-row { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+.share-video-poster-thumb { width: 56px; height: 56px; object-fit: cover; border-radius: 4px; background: var(--warm-faint); flex-shrink: 0; }
+.share-video-poster-label { font-size: 12px; color: var(--mem-ink-soft); font-family: 'DM Sans', sans-serif; margin-bottom: 2px; }
+
 /* -- contribute form: photo preview + crop reposition UI -- */
 .photo-preview-crop { position: relative; width: 100%; aspect-ratio: 1; border-radius: 4px; overflow: hidden; background: var(--warm-faint); }
 .photo-preview-crop img { width: 100%; height: 100%; object-fit: cover; display: block; }
