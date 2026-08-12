@@ -43,7 +43,7 @@ export function OnboardingPage({ showToast }) {
     <div className="auth-page onboarding-page">
       {step === "orientation" && (
         <div className="auth-card onboarding-card fade-up">
-          <div className="auth-logo">And Then<em>...</em></div>
+          <div className="auth-logo"><em>And Then...</em></div>
           <div className="onboarding-eyebrow">Before you start</div>
           <h1 className="onboarding-headline">You're about to build a page for someone you love.</h1>
           <p className="auth-tagline">
@@ -57,7 +57,7 @@ export function OnboardingPage({ showToast }) {
 
       {step === "email" && (
         <div className="auth-card onboarding-card fade-up">
-          <div className="auth-logo">And Then<em>...</em></div>
+          <div className="auth-logo"><em>And Then...</em></div>
           <h1 className="onboarding-headline">Enter your email to start building the page</h1>
           <div className="create-form">
             <div className="form-group">
@@ -75,7 +75,7 @@ export function OnboardingPage({ showToast }) {
 
       {step === "intro" && (
         <div className="auth-card onboarding-card onboarding-card-wide fade-up">
-          <div className="auth-logo">And Then<em>...</em></div>
+          <div className="auth-logo"><em>And Then...</em></div>
 
           {linkSent ? (
             <>

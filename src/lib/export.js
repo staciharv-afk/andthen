@@ -89,7 +89,7 @@ export async function exportMemorial(memorial) {
   ${memorial.description ? `<div class="desc">${esc(memorial.description)}</div>` : ""}
   <div class="count">${memories.length} ${memories.length === 1 ? "memory" : "memories"}</div>
 ${cards.join("\n")}
-  <footer>Exported from And Then · myandthen.com</footer>
+  <footer>Exported from <em>And Then</em> · myandthen.com</footer>
 </body></html>`;
 
   zip.file("memories.html", html);

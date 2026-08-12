@@ -10,7 +10,7 @@ const STEPS = [
   },
   {
     heading: "Invite the people who knew them",
-    body: "Send one link. And Then asks each person the right question for who they were to your loved one — no account needed for them to answer.",
+    body: <>Send one link. <em>And Then</em> asks each person the right question for who they were to your loved one — no account needed for them to answer.</>,
   },
   {
     heading: "Watch it fill in",
@@ -73,7 +73,7 @@ export function HowItWorksPage({ onNavigate }) {
       </div>
 
       <footer className="footer">
-        <div className="footer-logo">And Then<em>...</em></div>
+        <div className="footer-logo"><em>And Then...</em></div>
         <div className="footer-links">
           <button className="footer-link" onClick={() => onNavigate("home")}>Home</button>
           <button className="footer-link">Privacy</button>

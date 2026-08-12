@@ -490,7 +490,7 @@ export function MemorialPage({ inviteCode, showToast, onNavigate, currentUser })
     <div className="memorial-page">
       <nav className="memorial-topbar">
         <button type="button" className="memorial-topbar-logo" onClick={() => onNavigate?.("home")}>
-          And Then<em>...</em>
+          <em>And Then...</em>
         </button>
       </nav>
       <header className="scrapbook-hero">

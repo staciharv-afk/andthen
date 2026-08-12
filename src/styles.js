@@ -264,18 +264,21 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
   .wyg-hint { font-size: 12px; margin-top: 20px; }
 }
 
-/* -- "every way a memory can live" content-type grid -- */
-.types-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-top: 44px; }
-@media (max-width: 860px) { .types-grid { grid-template-columns: repeat(2, 1fr); } }
-.type-card { background: var(--white); border: 1px solid var(--warm-faint); border-radius: 10px; padding: 22px 20px; text-align: left; }
-.type-icon { width: 36px; height: 36px; border-radius: 8px; background: var(--cream); display: flex; align-items: center; justify-content: center; margin-bottom: 14px; font-size: 16px; }
-.type-name { font-family: 'Lora', serif; font-size: 16px; font-weight: 400; color: var(--bark); margin: 0 0 6px; }
-.type-desc { font-size: 13px; font-weight: 300; color: var(--warm-mid); line-height: 1.5; margin: 0; }
+/* -- "every way a memory can live" content-type pills + feature grid -- */
+.type-pills { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 44px; }
+.type-pill { font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; color: var(--bark); background: var(--cream); border: 1px solid var(--warm-faint); border-radius: 999px; padding: 8px 18px; }
+.type-pills-hint { font-size: 14px; color: var(--warm-mid); line-height: 1.6; margin: 20px 0 0; }
+
+.wyg2-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 40px 48px; margin-top: 56px; }
+@media (max-width: 700px) { .wyg2-grid { grid-template-columns: 1fr; gap: 32px; } }
+.wyg2-label { font-family: 'Lora', serif; font-size: 19px; font-weight: 500; color: var(--bark); margin-bottom: 10px; }
+.wyg2-body { font-size: 14.5px; font-weight: 300; line-height: 1.7; color: var(--warm-mid); max-width: 400px; }
 @media (max-width: 600px) {
-  .types-grid { gap: 12px; margin-top: 32px; }
-  .type-card { padding: 16px 14px; }
-  .type-name { font-size: 14.5px; }
-  .type-desc { font-size: 12px; }
+  .type-pills { gap: 8px; margin-top: 32px; }
+  .type-pill { font-size: 12px; padding: 7px 14px; }
+  .wyg2-grid { margin-top: 32px; }
+  .wyg2-label { font-size: 17px; }
+  .wyg2-body { font-size: 13.5px; }
 }
 
 /* Centered variant of .hero-media-cta, for the second "See a real, living
@@ -297,14 +300,6 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .section-label::after { content: ''; flex: 1; height: 1px; background: var(--warm-faint); max-width: 40px; }
 .narrative-headline { font-family: 'Lora', serif; font-size: clamp(26px, 3vw, 36px); font-weight: 400; color: var(--bark); margin-bottom: 24px; max-width: 680px; line-height: 1.3; }
 .narrative-body { font-size: 15px; font-weight: 300; line-height: 1.75; color: var(--warm-mid); max-width: 540px; }
-
-/* "Collecting is the easy part" feature row */
-.feature-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px; margin-top: 44px; }
-@media (max-width: 700px) { .feature-row { grid-template-columns: 1fr; gap: 32px; } }
-.feature-icon { width: 44px; height: 44px; border-radius: 10px; background: var(--warm-faint); color: var(--rust); display: flex; align-items: center; justify-content: center; margin-bottom: 16px; }
-.feature-icon svg { width: 22px; height: 22px; }
-.feature-label { font-family: 'Lora', serif; font-size: 17px; font-weight: 500; color: var(--bark); margin-bottom: 8px; }
-.feature-body { font-size: 14px; font-weight: 300; line-height: 1.65; color: var(--warm-mid); max-width: 320px; }
 
 /* ── FINAL CTA ── */
 .final-cta { padding: 96px 0; text-align: center; }
