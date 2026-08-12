@@ -42,8 +42,10 @@ first — it has the architecture map and conventions this file assumes. See
 - **#3** storage fixed — media uploads (photo/video/voice + cover) now work
 - **#8** RLS cleanup — dropped duplicate policies, closed the weak-insert gap,
   re-hardened `is_paid` · **#10** `supabase/schema.sql` snapshot in git
-- **Paid tier Phase 1** — $149 one-time Stripe upgrade + promo codes + gating
-  (verified in Stripe TEST mode) · **Phase 2** export (download memorial as ZIP)
+- **Paid tier Phase 1** — two-tier Stripe upgrade (pay-as-you-go $49+$10/yr,
+  or pay once $100) + promo codes + gating, wired to three live Stripe
+  products via env vars (`api/_lib/stripeTiers.js`) — no hardcoded price/
+  product IDs anywhere · **Phase 2** export (download memorial as ZIP)
 
 ## 🟢 Ready now (no external blockers)
 
@@ -95,8 +97,12 @@ deduped via `anniversary_notified_on`. Activate: run
   wants a PDF variant, scope it separately.
 
 ## 🔒 Blocked on human setup
-- **Paid tier go-live** 👤 — swap `STRIPE_SECRET_KEY` to the live key + add a
-  live-mode Stripe webhook once Staci's LLC → EIN → business bank are ready.
+- **Paid tier go-live** 👤 — code-side wiring is done (three live product IDs,
+  no hardcoded prices — see §7 in GUIDE.md). Still needs, in Vercel: confirm
+  `STRIPE_SECRET_KEY` is the **live** key (not `sk_test_…`), add
+  `STRIPE_BUILD_FEE_PRODUCT_ID` / `STRIPE_KEEPER_FEE_PRODUCT_ID` /
+  `STRIPE_FOREVER_PRODUCT_ID`, and point the Stripe webhook at a live-mode
+  endpoint.
 
 ## 🧹 Housekeeping
 - **#4 Retire Vercel projects — [quick]** 👤 keep `andthen-civ6`, delete the other two

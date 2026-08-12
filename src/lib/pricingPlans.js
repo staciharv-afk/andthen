@@ -1,7 +1,9 @@
-// Single source of truth for the two paid tiers' copy — imported by both
-// the real Pricing page (interactive, starts Stripe Checkout) and the How
-// It Works page (informational only), so the numbers/copy can't drift
-// apart between the two.
+// Single source of truth for the two paid tiers' copy — imported by the
+// Pricing page (pre-signup, starts Stripe Checkout via start-checkout.js),
+// the Dashboard's upgrade buttons (post-signup, via create-checkout.js),
+// and the How It Works page (informational only), so the numbers/copy can't
+// drift apart between any of them. The actual Stripe pricing/product wiring
+// both checkout entry points share lives in api/_lib/stripeTiers.js.
 export const PRICING_PLANS = [
   {
     tier: "payg",
