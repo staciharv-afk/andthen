@@ -19,7 +19,6 @@ export function CreateMemorialPage({ currentUser, existing, onCreated, onUpdated
   const [inviteMessage, setInviteMessage] = useState(existing?.invite_message || "");
   const [photoFile, setPhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(existing?.photo_url || null);
-  const [requireApproval, setRequireApproval] = useState(existing ? !!existing.require_approval : true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const fileInputRef = useRef();
@@ -62,7 +61,6 @@ export function CreateMemorialPage({ currentUser, existing, onCreated, onUpdated
           prompt: cleanPrompts[0] || null,
           invite_message: inviteMessage.trim() || null,
           photo_url: photoUrl,
-          require_approval: requireApproval,
           slug: cleanSlug,
         }).eq("id", existing.id).select();
 
@@ -97,7 +95,7 @@ export function CreateMemorialPage({ currentUser, existing, onCreated, onUpdated
         photo_url: photoUrl,
         steward_id: currentUser.id,
         invite_code: inviteCode,
-        require_approval: requireApproval,
+        require_approval: true, // reviewed-by-default; changeable afterward from the page's Settings screen
         slug: cleanSlug,
       }).select();
 
@@ -193,16 +191,11 @@ export function CreateMemorialPage({ currentUser, existing, onCreated, onUpdated
             <span className="form-hint">Used by the “Copy invite” button — the link is added automatically. Leave blank for a default.</span>
           </div>
 
-          <div className="moderation-toggle">
-            <div>
-              <div className="toggle-label">Approve stories before they appear</div>
-              <div className="toggle-sub">{requireApproval ? "You'll review each submission before it goes live." : "Stories appear immediately — you can still remove them."}</div>
-            </div>
-            <label className="toggle-switch">
-              <input type="checkbox" checked={requireApproval} onChange={(e) => setRequireApproval(e.target.checked)} />
-              <span className="toggle-slider" />
-            </label>
-          </div>
+          {isEdit && (
+            <p className="form-hint">
+              Moderation and who can add memories now live in the page's Settings screen, from the dashboard.
+            </p>
+          )}
 
           {error && <div className="form-error">{error}</div>}
 

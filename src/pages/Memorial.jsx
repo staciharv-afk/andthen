@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from "../lib/supabase";
-import { uid, fmtDate, timeAgo, fileToDataURL, fmtTime, sendThankYou, notifyCreator } from "../lib/utils";
+import { uid, fmtDate, timeAgo, fileToDataURL, fmtTime, sendThankYou, notifyCreator, notifyAccessRequest } from "../lib/utils";
 
 // Content-type filters, and the label shown on a grid tile / in the reader's
 // type tag — one source of truth (contentTypeLabel) for both, since a filter
@@ -316,12 +316,21 @@ function storeRelationship(memorialId, subjectType, relId) {
   localStorage.setItem(shareRelationshipKey(memorialId), `${subjectType}:${relId}`);
 }
 
-export function MemorialPage({ inviteCode, showToast, onNavigate }) {
+export function MemorialPage({ inviteCode, showToast, onNavigate, currentUser }) {
   const [memorial, setMemorial] = useState(null);
   const [loading, setLoading] = useState(true);
   const [stories, setStories] = useState([]);
   const [showContribute, setShowContribute] = useState(false);
+  const [showRequestAccess, setShowRequestAccess] = useState(false);
   const [activeFilter, setActiveFilter] = useState("all");
+  // Whether the visit resolved via the invite_code column (the "valid
+  // invite" link) vs. the vanity slug column — see canContribute below.
+  const [arrivedViaCode, setArrivedViaCode] = useState(false);
+  // A ?token= from an approved access request. null while unchecked, then
+  // true/false once validated against access_requests — an invalid/missing/
+  // expired token just resolves false rather than blocking anything.
+  const [tokenValid, setTokenValid] = useState(false);
+  const contributeToken = new URLSearchParams(window.location.search).get("token");
   // Index into the full, unfiltered `stories` array — the reader always
   // navigates that full list regardless of activeFilter, so this is
   // deliberately independent state, not derived from the filtered view.
@@ -331,17 +340,36 @@ export function MemorialPage({ inviteCode, showToast, onNavigate }) {
     loadMemorial();
   }, [inviteCode]);
 
+  useEffect(() => {
+    if (!contributeToken || !memorial) return;
+    // Anon-safe: only id/memorial_id/contribute_token/status are readable
+    // for an approved row (see the access_requests RLS policy) — no match
+    // just leaves tokenValid false.
+    supabase
+      .from("access_requests")
+      .select("id, memorial_id, status")
+      .eq("contribute_token", contributeToken)
+      .eq("memorial_id", memorial.id)
+      .eq("status", "approved")
+      .then(({ data }) => setTokenValid(!!data?.length));
+  }, [contributeToken, memorial?.id]);
+
   const openContribute = () => setShowContribute(true);
 
   const loadMemorial = async () => {
     setLoading(true);
     // The URL param may be the invite code (?memorial=<code>) or a custom
     // vanity slug (myandthen.com/<slug>) — try both rather than building a
-    // filter string out of raw URL input.
+    // filter string out of raw URL input. Which column actually matched is
+    // also the signal for "did this visitor arrive via a valid invite" —
+    // simpler and more robust than inferring it from URL shape, since a raw
+    // path segment and a query param can both resolve to either column.
     let { data } = await supabase.from("memorials").select("*").eq("invite_code", inviteCode);
-    if (!data?.length) ({ data } = await supabase.from("memorials").select("*").eq("slug", inviteCode));
+    let viaCode = true;
+    if (!data?.length) { ({ data } = await supabase.from("memorials").select("*").eq("slug", inviteCode)); viaCode = false; }
     if (data?.length) {
       setMemorial(data[0]);
+      setArrivedViaCode(viaCode);
       loadStories(data[0].id, data[0].require_approval);
     }
     setLoading(false);
@@ -386,6 +414,17 @@ export function MemorialPage({ inviteCode, showToast, onNavigate }) {
 
   const filterTypes = FILTER_ORDER;
   const contributorCount = new Set(stories.map((s) => s.contributor_name)).size;
+
+  // Public pages, anyone with the invite_code link, anyone carrying a valid
+  // approved-request token, and the page's own steward (previewing their
+  // own page) can all add a memory. Everyone else — on an invite_only page,
+  // arrived via the vanity slug or with no token — gets the ask-for-access
+  // flow instead. Viewing is never gated; this only governs contribution.
+  const canContribute =
+    memorial.access_mode !== "invite_only" ||
+    arrivedViaCode ||
+    tokenValid ||
+    (currentUser && memorial.steward_id === currentUser.id);
 
   const heroTitle = (
     <>
@@ -432,6 +471,13 @@ export function MemorialPage({ inviteCode, showToast, onNavigate }) {
               </div>
             </>
           )}
+          {/* A visible-without-scrolling entry point — previously "Add Your
+              Memory" only existed in the footer, past the entire grid, which
+              meant a locked-out visitor had no way to see the ask-for-access
+              option without scrolling past everything first. */}
+          <button type="button" className="hero-cta" onClick={canContribute ? openContribute : () => setShowRequestAccess(true)}>
+            {canContribute ? "Add Your Memory" : "Ask to add a memory"}
+          </button>
         </div>
       </header>
 
@@ -473,12 +519,29 @@ export function MemorialPage({ inviteCode, showToast, onNavigate }) {
       <footer className="closing">
         <div className="script">and then...</div>
         <h2>This is only what's been shared so far. There's always another memory somewhere.</h2>
-        <button className="add-btn" onClick={openContribute}>Add Your Memory</button>
-        <p className="note">This page keeps growing &mdash; anyone who knew {memorial.name.split(" ")[0]} can add a photo, story, voice memo, or video, anytime.</p>
+        {canContribute ? (
+          <button className="add-btn" onClick={openContribute}>Add Your Memory</button>
+        ) : (
+          <button className="add-btn" onClick={() => setShowRequestAccess(true)}>Ask to add a memory</button>
+        )}
+        <p className="note">
+          {canContribute
+            ? <>This page keeps growing &mdash; anyone who knew {memorial.name.split(" ")[0]} can add a photo, story, voice memo, or video, anytime.</>
+            : <>This page keeps growing, one invited memory at a time. Don't have the invite link? Ask {memorial.name.split(" ")[0]}'s family for access.</>}
+        </p>
       </footer>
 
       {showContribute && (
-        <ShareMemoryModal memorial={memorial} showToast={showToast} onClose={() => setShowContribute(false)} />
+        <ShareMemoryModal
+          memorial={memorial}
+          showToast={showToast}
+          onClose={() => setShowContribute(false)}
+          contributeToken={tokenValid ? contributeToken : null}
+        />
+      )}
+
+      {showRequestAccess && (
+        <AccessRequestModal memorial={memorial} showToast={showToast} onClose={() => setShowRequestAccess(false)} />
       )}
 
       {openIndex !== null && (
@@ -644,7 +707,7 @@ const uploadFileWithProgress = async (bucket, path, file, contentType, onProgres
 // confirmation copy. Fully remounts each time it opens (see showContribute
 // in MemorialPage), which is what gives the orient screen its "shown every
 // fresh open" behavior for free.
-function ShareMemoryModal({ memorial, showToast, onClose }) {
+function ShareMemoryModal({ memorial, showToast, onClose, contributeToken }) {
   const subjectType = deriveSubjectType(memorial);
   const livingStatus = deriveLivingStatus(memorial);
   const moderationMode = deriveModerationMode(memorial);
@@ -902,6 +965,13 @@ function ShareMemoryModal({ memorial, showToast, onClose }) {
       }
 
       notifyCreator(memorial.id);
+      // Reusable, so this is pure record-keeping (first-use timestamp), not
+      // a gate — only set it if it isn't already, and don't block the
+      // contribution on it either way.
+      if (contributeToken) {
+        supabase.from("access_requests").update({ token_used_at: new Date().toISOString() })
+          .eq("contribute_token", contributeToken).is("token_used_at", null).then(() => {});
+      }
       setScreen("thanks");
     } catch { showToast("Something went wrong. Please try again.", "error"); }
     finally { setSubmitting(false); setUploadProgress(null); }
@@ -1082,6 +1152,103 @@ function ShareMemoryModal({ memorial, showToast, onClose }) {
         />
       )}
     </>
+  );
+}
+
+// "Ask to add a memory" — shown instead of ShareMemoryModal when the page is
+// invite_only and the visitor arrived without a valid invite (see
+// canContribute in MemorialPage). Reuses the same relationship data
+// ShareMemoryModal derives from SHARE_QUESTION_BANK, just without any of the
+// question/media machinery — this is a single short form, not a multi-screen
+// flow. A 23505 (the visitor already has a pending request on file) is
+// treated exactly like a fresh success — same confirmation either way, so a
+// second attempt after some days of silence never looks like an error.
+function AccessRequestModal({ memorial, showToast, onClose }) {
+  const subjectType = deriveSubjectType(memorial);
+  const firstName = memorial.name.split(" ")[0];
+  const relationships = SHARE_QUESTION_BANK[subjectType].relationships;
+
+  const [sent, setSent] = useState(false);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [relationship, setRelationship] = useState(null);
+  const [note, setNote] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!name.trim()) { showToast("Please enter your name.", "error"); return; }
+    if (!email.trim() || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) { showToast("Please enter a valid email — that's what the family will reply to.", "error"); return; }
+
+    setSubmitting(true);
+    const relLabel = relationships.find((r) => r.id === relationship)?.label || null;
+    // A pending row isn't visible back to anon under RLS (see the
+    // "approved tokens are checkable" policy — only approved rows are), so
+    // this can't ask for the inserted row back with .select() the way
+    // contributions' approved-immediately path does. Same fix contributions
+    // already needed for its own pending case: a plain insert.
+    const { error } = await supabase.from("access_requests").insert({
+      memorial_id: memorial.id,
+      requester_name: name.trim(),
+      requester_email: email.trim(),
+      relationship: relLabel,
+      note: note.trim() || null,
+    });
+    setSubmitting(false);
+
+    if (error && error.code !== "23505") { showToast("Something went wrong. Please try again.", "error"); return; }
+    notifyAccessRequest(memorial.id);
+    setSent(true);
+  };
+
+  return (
+    <div className="share-modal-overlay fade-in" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="share-modal" role="dialog" aria-label={`Ask to add a memory of ${memorial.name}`}>
+        <button type="button" className="share-modal-close" aria-label="Close" onClick={onClose}>&times;</button>
+
+        {sent ? (
+          <div>
+            <div className="share-thanks-icon">&#10003;</div>
+            <h2 style={{ textAlign: "center" }}>Sent.</h2>
+            <p className="share-thanks-text">{firstName}'s family will get back to you.</p>
+            <div className="share-thanks-actions">
+              <button type="button" className="btn btn-rust" onClick={onClose}>Done</button>
+            </div>
+          </div>
+        ) : (
+          <div>
+            <div className="share-modal-eyebrow">ASK TO ADD A MEMORY OF {memorial.name.toUpperCase()}</div>
+            <h2>This page is by invitation — ask and the family will get back to you.</h2>
+
+            <div className="form-group">
+              <label className="form-label">Your name</label>
+              <input className="form-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="How you were known to them" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Your email</label>
+              <input className="form-input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="So the family can reply" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">How did you know {firstName}?</label>
+              <div className="share-rel-grid">
+                {relationships.map((r) => (
+                  <button key={r.id} type="button" className={`share-rel-chip${relationship === r.id ? " active" : ""}`} onClick={() => setRelationship(r.id)}>
+                    {r.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="form-group">
+              <label className="form-label">A note (optional)</label>
+              <textarea className="form-input" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Anything that helps the family know it's you" rows={3} />
+            </div>
+
+            <button className="btn btn-rust btn-lg" onClick={handleSubmit} disabled={submitting} style={{ justifyContent: "center", width: "100%" }}>
+              {submitting ? <><span className="spinner" /> Sending...</> : "Send request"}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 

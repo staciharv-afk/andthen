@@ -13,6 +13,7 @@ import { OnboardingPage } from "./pages/Onboarding";
 import { CreateMemorialPage } from "./pages/CreateMemorial";
 import { DashboardPage } from "./pages/Dashboard";
 import { MemorialPage } from "./pages/Memorial";
+import { PageSettingsPage } from "./pages/PageSettings";
 import { PricingPage } from "./pages/Pricing";
 import { OurStoryPage } from "./pages/OurStory";
 import { HowItWorksPage } from "./pages/HowItWorks";
@@ -213,8 +214,24 @@ export default function App() {
         <AuthPage showToast={showToast} />
       )}
 
+      {route === "page-settings" && currentUser && routeParam && (
+        <PageSettingsPage
+          currentUser={currentUser}
+          memorial={routeParam}
+          onNavigate={navigate}
+          showToast={showToast}
+        />
+      )}
+      {/* Reloaded straight onto /?view=page-settings with no memorial in history — fall back to the dashboard. */}
+      {route === "page-settings" && currentUser && !routeParam && (
+        <DashboardPage currentUser={currentUser} onNavigate={navigate} showToast={showToast} />
+      )}
+      {route === "page-settings" && !currentUser && (
+        <AuthPage showToast={showToast} />
+      )}
+
       {route === "memorial" && (
-        <MemorialPage inviteCode={routeParam} showToast={showToast} onNavigate={navigate} />
+        <MemorialPage inviteCode={routeParam} showToast={showToast} onNavigate={navigate} currentUser={currentUser} />
       )}
 
       <ToastContainer toasts={toasts} />
