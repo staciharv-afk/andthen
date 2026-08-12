@@ -28,7 +28,7 @@ flowchart LR
 | **Vercel** | Hosts the website; runs the small backend functions in `api/` | vercel.com → project `andthen-civ6` |
 | **Supabase** | The database, magic-link login, and photo/video/voice storage | supabase.com → "And Then" project |
 | **Resend** | Sends the thank-you / notification / anniversary emails | resend.com → the `staciharv` workspace |
-| **Stripe** | Collects the $149 upgrade payment | dashboard.stripe.com |
+| **Stripe** | Collects the upgrade payment (two tiers — see §4) | dashboard.stripe.com |
 | **Domain (DNS)** | myandthen.com | Squarespace (DNS served by Google) |
 
 **The app itself** is React (built with Vite). One page per file. There is **no
@@ -58,7 +58,7 @@ flowchart TD
   E --> F[Memories arrive → review in Pending]
   F --> G[Approve or Remove]
   G --> H[Approved memories go live on the page]
-  C --> I[Upgrade $149 → unlocks photo/video/voice + export]
+  C --> I[Upgrade: pay-as-you-go $49+$10/yr, or pay once $100 → unlocks photo/video/voice + export]
   C --> J[Export → download everything as a ZIP]
 ```
 
@@ -86,7 +86,7 @@ memories. That's it — no login, and the link works forever.
 
 ## 4. Free vs. Paid
 
-| | Free | Paid — **$149 one-time, per memorial** |
+| | Free | Paid — **per memorial, two ways to pay** |
 |---|---|---|
 | Memorial page + 1 cover photo | ✓ | ✓ |
 | Prompts + text memories | ✓ | ✓ |
@@ -95,7 +95,16 @@ memories. That's it — no login, and the link works forever.
 | **Anniversary emails** | — | ✓ |
 
 The creator pays; contributors never pay. Discount codes are supported (create
-them in Stripe). Payment is a one-time charge — no subscriptions.
+them in Stripe). Two tiers, same unlock either way:
+- **Pay as you go** — $49 to build (unlimited entries/contributors, first
+  year hosting included), then $10/yr to keep it live. This is a Stripe
+  subscription with a 365-day trial on the $10/yr portion, so only the $49
+  is actually charged at checkout — the first renewal charge is a year later.
+- **Pay once** — $100, no subscription at all, nothing to renew ever.
+
+See `api/_lib/stripeTiers.js` for the shared session-building logic both
+`api/start-checkout.js` (pre-signup) and `api/create-checkout.js`
+(post-signup, the Dashboard's Upgrade buttons) use.
 
 ---
 
@@ -155,16 +164,35 @@ All send from `hello@myandthen.com` via Resend.
 
 ```mermaid
 flowchart LR
-  A[Dashboard: Upgrade $149] --> B[api/create-checkout]
-  B --> C[Stripe Checkout page]
-  C --> D[Card / promo code]
-  D --> E[Stripe → api/stripe-webhook]
-  E --> F[(is_paid = true)]
-  F --> G[Photo/video/voice + export unlock]
+  A[Pricing page or Dashboard: Upgrade] --> B[api/start-checkout or api/create-checkout]
+  B --> C["Stripe Checkout: $49 or $100, one-time — card saved via setup_future_usage"]
+  C --> D[Stripe → api/stripe-webhook / api/attach-presignup-payment]
+  D --> E{payg tier?}
+  E -- Yes --> F["Create the $10/yr subscription server-side (Subscriptions API, 365-day trial) using the saved card"]
+  E -- No / forever --> G[Skip — no subscription ever]
+  F --> H[(is_paid = true, stripe_customer_id, stripe_subscription_id)]
+  G --> H
+  H --> I[Photo/video/voice + export unlock]
 ```
 
-Currently in **Stripe test mode**. To take real money: swap the Stripe key to the
-**live** key + add a live webhook (waiting on the business bank account).
+Live mode, wired to three real Stripe products via env vars (see §8) —
+`STRIPE_BUILD_FEE_PRODUCT_ID`, `STRIPE_KEEPER_FEE_PRODUCT_ID`,
+`STRIPE_FOREVER_PRODUCT_ID` — rather than any hardcoded price.
+
+**Why the $10/yr subscription is created separately, after the fact, rather
+than in the same Checkout Session as the $49:** Stripe Checkout Sessions
+can't reliably defer a recurring line item's first charge when a one-time
+line item is mixed into the same session — tested against a real (sandbox)
+Stripe session and confirmed both amounts got charged immediately despite
+`trial_period_days` being set. So the Checkout Session only ever covers a
+single one-time charge ($49 or $100), with the card saved for later use; a
+`payg` purchase then gets its $10/yr subscription created directly via the
+Subscriptions API (a single recurring price with a trial, which behaves
+exactly as documented) once payment is confirmed. See the long comment atop
+`api/_lib/stripeTiers.js` for the full explanation. A forever-tier memorial
+never gets a `stripe_subscription_id` at all (no subscription is ever
+created for it), so it's never touched by the $10/yr renewal-lapse pause
+logic below.
 
 ---
 
@@ -178,7 +206,9 @@ src/
   components/         Toast (popups) · Nav
   pages/              Home · Auth · CreateMemorial (create+edit) · Dashboard · Memorial
 api/                 backend functions: thank-you, notify-creator,
-                     create-checkout, stripe-webhook, anniversary-cron
+                     start-checkout, create-checkout, stripe-webhook,
+                     attach-presignup-payment, anniversary-cron
+                     _lib/stripeTiers.js — shared pricing/session shape
 supabase/
   migrations/         database changes (run these by hand — see §9)
   schema.sql          snapshot of the database structure
@@ -187,7 +217,9 @@ supabase/
 **Secrets & config** are NOT in the code — they live as environment variables in
 Vercel (Settings → Environment Variables):
 `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`,
-`RESEND_API_KEY`, `RESEND_FROM`, `STRIPE_SECRET_KEY`, `CRON_SECRET`.
+`RESEND_API_KEY`, `RESEND_FROM`, `STRIPE_SECRET_KEY`,
+`STRIPE_BUILD_FEE_PRODUCT_ID`, `STRIPE_KEEPER_FEE_PRODUCT_ID`,
+`STRIPE_FOREVER_PRODUCT_ID`, `CRON_SECRET`.
 
 ---
 
@@ -329,9 +361,11 @@ migration or a deploy.
   upgrade — just tell Claude "turn the thank-you email into a styled HTML email".
 
 **💳 Change the price or the free-vs-paid split**
-- *Tell Claude:* "change the upgrade to $129", or "make video a free feature".
-- *Where:* price → `api/create-checkout.js` (or the `UPGRADE_PRICE_CENTS` env var
-  in Vercel); the free/paid gating → `Memorial.jsx` / `Dashboard.jsx`.
+- *Tell Claude:* "change the build fee to $59", or "make video a free feature".
+- *Where:* price/tier shape → `api/_lib/stripeTiers.js` (shared by both
+  `start-checkout.js` and `create-checkout.js`) — the dollar amounts and the
+  three `STRIPE_*_PRODUCT_ID` env vars in Vercel; the free/paid gating →
+  `Memorial.jsx` / `Dashboard.jsx`.
 - *Needs:* a deploy; then run a test checkout.
 
 **🖼️ Add an image / logo**
@@ -361,7 +395,9 @@ database, or a server function?"* before you say go.
 - **Supabase** — "And Then" project (Pro plan). Holds the database, logins, files.
 - **Vercel** — project `andthen-civ6` (production = myandthen.com). Holds the env vars.
 - **Resend** — `staciharv` workspace; domain `myandthen.com` verified.
-- **Stripe** — the $149 product; test mode now, live when the business bank is set.
+- **Stripe** — three live products (keeper fee $10/yr, build fee $49
+  one-time, forever $100 one-time), wired via env vars in Vercel, not
+  hardcoded — live mode.
 - **Domain** — Squarespace (DNS on Google nameservers).
 - **GitHub** — `staciharv-afk/andthen` (the code).
 
