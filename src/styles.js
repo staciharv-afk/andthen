@@ -737,6 +737,10 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .share-question-text { font-family: 'Fraunces', serif; font-style: italic; font-size: 19px; line-height: 1.45; margin: 0; color: var(--mem-ink); }
 .share-shuffle-link { display: inline-block; font-size: 12px; color: var(--mem-rose); text-decoration: underline; cursor: pointer; margin-top: 12px; }
 
+.share-question-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+.share-question-card { font-family: 'Fraunces', serif; font-style: italic; font-size: 15px; line-height: 1.45; text-align: left; padding: 16px 18px; border-radius: 8px; border: 1px solid rgba(44,36,32,0.14); background: var(--mem-paper); color: var(--mem-ink); cursor: pointer; transition: border-color 0.15s ease, background 0.15s ease; }
+.share-question-card:hover { border-color: var(--mem-rose); background: var(--mem-card); }
+
 .share-attach-row { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
 .share-attach-btn { font-size: 12px; color: var(--mem-ink-soft); border: 1px solid rgba(44,36,32,0.14); background: transparent; padding: 8px 12px; border-radius: 16px; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.15s ease; }
 .share-attach-btn:hover { border-color: var(--mem-rose); color: var(--mem-rose); }
