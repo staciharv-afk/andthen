@@ -773,11 +773,10 @@ function ShareMemoryModal({ memorial, showToast, onClose, contributeToken }) {
   const universalTexts = universal.map((u) => u.text);
   const universalKindMap = Object.fromEntries(universal.map((u) => [u.text, u.kind]));
 
-  const [screen, setScreen] = useState("orient"); // orient | relationship | question | thanks
+  const [screen, setScreen] = useState("orient"); // orient | fork | relationship | questionList | question | thanks
   const [relationship, setRelationship] = useState(null);
   const [freeform, setFreeform] = useState(false);
   const [question, setQuestion] = useState(null);
-  const usedQuestions = useRef([]);
 
   const [contributorName, setContributorName] = useState("");
   const [contributorEmail, setContributorEmail] = useState("");
@@ -819,21 +818,17 @@ function ShareMemoryModal({ memorial, showToast, onClose, contributeToken }) {
     setRecordPhoto(null);
   };
 
-  const pickQuestion = (relId) => {
-    const bank = SHARE_QUESTION_BANK[subjectType].banks[livingStatus];
-    const relBank = bank[relId] || bank[relationships[0].id];
-    const pool = relBank.concat(universalTexts);
-    let available = pool.filter((q) => !usedQuestions.current.includes(q));
-    if (!available.length) { usedQuestions.current = []; available = pool; }
-    const q = available[Math.floor(Math.random() * available.length)];
-    usedQuestions.current.push(q);
-    setQuestion(q);
-    resetAnswerArea();
+  // Replaces the old random shuffle entirely — the list itself is derived
+  // at render time (see screen === "questionList" below) from `relationship`
+  // + subjectType/livingStatus, so there's nothing to compute or store here.
+  const goToQuestionListScreen = () => {
+    setFreeform(false);
+    setScreen("questionList");
   };
 
-  const goToQuestionScreen = (relId) => {
-    setFreeform(false);
-    pickQuestion(relId);
+  const chooseQuestion = (q) => {
+    setQuestion(q);
+    resetAnswerArea();
     setScreen("question");
   };
 
@@ -841,9 +836,9 @@ function ShareMemoryModal({ memorial, showToast, onClose, contributeToken }) {
     const stored = loadStoredRelationship(memorial.id, subjectType, relationships);
     if (stored) {
       setRelationship(stored);
-      goToQuestionScreen(stored);
+      goToQuestionListScreen();
     } else {
-      setScreen("relationship");
+      setScreen("fork");
     }
   };
 
@@ -855,7 +850,7 @@ function ShareMemoryModal({ memorial, showToast, onClose, contributeToken }) {
   const chooseRelationship = (relId) => {
     setRelationship(relId);
     storeRelationship(memorial.id, subjectType, relId);
-    goToQuestionScreen(relId);
+    goToQuestionListScreen();
   };
 
   const skipToFreewrite = () => {
@@ -866,10 +861,12 @@ function ShareMemoryModal({ memorial, showToast, onClose, contributeToken }) {
     setScreen("question");
   };
 
+  // From the thanks screen's "Add another" — lands on the question list
+  // rather than auto-picking, same reasoning as goToQuestionListScreen:
+  // there's no more "random question" concept to jump to.
   const addAnother = () => {
-    setFreeform(false);
-    pickQuestion(relationship || relationships[relationships.length - 1].id);
-    setScreen("question");
+    setRelationship((r) => r || relationships[relationships.length - 1].id);
+    goToQuestionListScreen();
   };
 
   const clearAttachment = () => { setAttachment(null); setIsRecipe(false); setAvRecording(false); setCompressingVideo(false); };
@@ -1056,6 +1053,23 @@ function ShareMemoryModal({ memorial, showToast, onClose, contributeToken }) {
             </div>
           )}
 
+          {screen === "fork" && (
+            <div>
+              <div className="share-modal-eyebrow">SHARE A MEMORY OF {memorial.name.toUpperCase()}</div>
+              <h2>How would you like to share?</h2>
+              <div className="share-orient-actions">
+                <button type="button" className="share-orient-btn" onClick={() => setScreen("relationship")}>
+                  <span className="title">Answer a question</span>
+                  <span className="sub">We'll ask something specific to help a memory come back to you.</span>
+                </button>
+                <button type="button" className="share-orient-btn" onClick={skipToFreewrite}>
+                  <span className="title">I know what I want to share</span>
+                  <span className="sub">Skip the questions — go straight to writing or recording it.</span>
+                </button>
+              </div>
+            </div>
+          )}
+
           {screen === "relationship" && (
             <div>
               <div className="share-modal-eyebrow">SHARE A MEMORY OF {memorial.name.toUpperCase()}</div>
@@ -1067,7 +1081,28 @@ function ShareMemoryModal({ memorial, showToast, onClose, contributeToken }) {
                   </button>
                 ))}
               </div>
-              <span className="share-freewrite-link" onClick={skipToFreewrite}>I already know what I want to share &rarr;</span>
+              <span className="share-back-link" onClick={() => setScreen("fork")}>&larr; Back</span>
+            </div>
+          )}
+
+          {screen === "questionList" && (
+            <div>
+              <div className="share-modal-eyebrow">
+                SHARE A MEMORY OF {memorial.name.toUpperCase()}
+                {relationship && ` · AS ${relationships.find((r) => r.id === relationship)?.label.toUpperCase()}`}
+              </div>
+              <h2>Pick whichever sparks something.</h2>
+              <div className="share-question-list">
+                {(SHARE_QUESTION_BANK[subjectType].banks[livingStatus][relationship] || [])
+                  .concat(universalTexts)
+                  .map((q) => (
+                    <button key={q} type="button" className="share-question-card" onClick={() => chooseQuestion(q)}>
+                      &ldquo;{q}&rdquo;
+                    </button>
+                  ))}
+              </div>
+              <span className="share-freewrite-link" onClick={skipToFreewrite}>Or, share whatever you'd like — skip the questions</span>
+              <span className="share-back-link" onClick={() => setScreen("relationship")}>&larr; Choose a different relationship</span>
             </div>
           )}
 
@@ -1083,7 +1118,7 @@ function ShareMemoryModal({ memorial, showToast, onClose, contributeToken }) {
               ) : (
                 <div className="share-question-box">
                   <p className="share-question-text">{question}</p>
-                  <span className="share-shuffle-link" onClick={() => pickQuestion(relationship)}>Give me a different question</span>
+                  <span className="share-shuffle-link" onClick={() => setScreen("questionList")}>Choose a different question</span>
                 </div>
               )}
 
