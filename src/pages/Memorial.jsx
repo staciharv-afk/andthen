@@ -122,80 +122,79 @@ async function detectCropPosition(file) {
 }
 
 // Relationship-tailored, tense-aware question bank for the Share a Memory
-// modal — ported verbatim (including gendered "she/her" phrasing) from the
-// and-then-share-memory-modal.html prototype. Do not rewrite, shorten, or
-// gender-neutralize this copy without checking with Staci first; the
-// gendered pronouns are a known content gap carried over from the
-// prototype, not an oversight.
+// modal. Uses gender-neutral "they/their/theirs" throughout — a memorial's
+// subject isn't necessarily female, and a memorial page has no gender field
+// to key off of, so singular "they" is the only phrasing that's correct for
+// every memorial.
 const SHARE_QUESTION_BANK = {
   adult: {
     relationships: [
-      { id: "child", label: "Her child" },
-      { id: "spouse", label: "Her spouse" },
+      { id: "child", label: "Their child" },
+      { id: "spouse", label: "Their spouse" },
       { id: "friend", label: "A friend" },
       { id: "coworker", label: "A coworker" },
-      { id: "grandchild", label: "Her grandchild" },
+      { id: "grandchild", label: "Their grandchild" },
       { id: "other", label: "Someone else" },
     ],
     banks: {
       living: {
         child: [
-          "What's something she always says that you can still hear in her voice?",
-          "What does she do that only a mom would do?",
-          "What's something she's taught you without meaning to?",
+          "What's something they always say that you can still hear in their voice?",
+          "What do they do that only a parent would do?",
+          "What's something they've taught you without meaning to?",
         ],
         spouse: [
-          "What's something about her most people don't get to see?",
-          "What does she do that still makes you fall for her?",
+          "What's something about them most people don't get to see?",
+          "What do they do that still makes you fall for them?",
           "What's your version of a perfect ordinary day together?",
         ],
         friend: [
-          "What's the most \"her\" thing she does?",
+          "What's the most \"them\" thing they do?",
           "What do you two always end up talking about?",
           "Is there a trip or night out you still think about?",
         ],
         coworker: [
-          "What's she like under pressure?",
-          "What's something she does that makes the job better for everyone?",
+          "What are they like under pressure?",
+          "What's something they do that makes the job better for everyone?",
         ],
         grandchild: [
-          "What does she let you get away with?",
-          "What's something at her house that's just hers?",
+          "What do they let you get away with?",
+          "What's something at their house that's just theirs?",
         ],
         other: [
-          "What's a memory of her that makes you smile?",
-          "What's something she says that sticks with you?",
-          "What's a small habit of hers you think about?",
+          "What's a memory of them that makes you smile?",
+          "What's something they say that sticks with you?",
+          "What's a small habit of theirs you think about?",
         ],
       },
       passed: {
         child: [
-          "What's something she always said that you can still hear in her voice?",
-          "What did she do that only a mom would do?",
-          "What's something she taught you without meaning to?",
+          "What's something they always said that you can still hear in their voice?",
+          "What did they do that only a parent would do?",
+          "What's something they taught you without meaning to?",
         ],
         spouse: [
-          "What's something about her most people never got to see?",
-          "What did she do that made you fall for her, looking back?",
+          "What's something about them most people never got to see?",
+          "What did they do that made you fall for them, looking back?",
           "What was your version of a perfect ordinary day together?",
         ],
         friend: [
-          "What's the most \"her\" thing she ever did?",
+          "What's the most \"them\" thing they ever did?",
           "What did you two always end up talking about?",
           "Is there a trip or night out you still think about?",
         ],
         coworker: [
-          "What was she like under pressure?",
-          "What's something she did that made the job better for everyone?",
+          "What were they like under pressure?",
+          "What's something they did that made the job better for everyone?",
         ],
         grandchild: [
-          "What did she let you get away with?",
-          "What's something at her house that was just hers?",
+          "What did they let you get away with?",
+          "What's something at their house that was just theirs?",
         ],
         other: [
-          "What's a memory of her that still makes you smile?",
-          "What's something she said that stuck with you?",
-          "What's a small habit of hers you still think about?",
+          "What's a memory of them that still makes you smile?",
+          "What's something they said that stuck with you?",
+          "What's a small habit of theirs you still think about?",
         ],
       },
     },
@@ -203,16 +202,16 @@ const SHARE_QUESTION_BANK = {
     // fishing for — the question screen uses this to show only the one
     // relevant attach option (see questionMediaKind / QUESTION_MEDIA_KIND).
     universal: [
-      { text: "Do you have a photo of her you keep coming back to?", kind: "photo" },
-      { text: "Is there a voicemail from her still sitting on your phone?", kind: "voice" },
-      { text: "Do you have a video of her that nobody else has seen?", kind: "video" },
+      { text: "Do you have a photo of them you keep coming back to?", kind: "photo" },
+      { text: "Is there a voicemail from them still sitting on your phone?", kind: "voice" },
+      { text: "Do you have a video of them that nobody else has seen?", kind: "video" },
     ],
   },
   child: {
     relationships: [
-      { id: "parent", label: "Her parent" },
-      { id: "sibling", label: "Her sibling" },
-      { id: "grandparent", label: "Her grandparent" },
+      { id: "parent", label: "Their parent" },
+      { id: "sibling", label: "Their sibling" },
+      { id: "grandparent", label: "Their grandparent" },
       { id: "friend", label: "A friend" },
       { id: "teacher", label: "A teacher or coach" },
       { id: "other", label: "Someone else" },
@@ -220,65 +219,65 @@ const SHARE_QUESTION_BANK = {
     banks: {
       living: {
         parent: [
-          "What does she love more than anything right now?",
-          "What makes her laugh the hardest?",
-          "What's something she's learning to do?",
+          "What do they love more than anything right now?",
+          "What makes them laugh the hardest?",
+          "What's something they're learning to do?",
         ],
         sibling: [
           "What do you two always play together?",
-          "What's she like to share a room with?",
+          "What are they like to share a room with?",
         ],
         grandparent: [
-          "What does she call you, or you call her?",
-          "What's something she does that's just her?",
+          "What do they call you, or you call them?",
+          "What's something they do that's just them?",
         ],
         friend: [
           "What do you two always do together?",
-          "What's recess or lunch with her like?",
+          "What's recess or lunch with them like?",
         ],
         teacher: [
-          "What does she love learning about?",
-          "What's she like in class or on the team?",
+          "What do they love learning about?",
+          "What are they like in class or on the team?",
         ],
         other: [
-          "What's a memory of her that makes you smile?",
-          "What's something she does that's just her?",
+          "What's a memory of them that makes you smile?",
+          "What's something they do that's just them?",
         ],
       },
       passed: {
         parent: [
-          "What did she love more than anything?",
-          "What made her laugh the hardest?",
-          "What was she learning to do?",
+          "What did they love more than anything?",
+          "What made them laugh the hardest?",
+          "What were they learning to do?",
         ],
         sibling: [
           "What did you two always play together?",
-          "What was she like to share a room with?",
+          "What were they like to share a room with?",
         ],
         grandparent: [
-          "What did she call you, or you call her?",
-          "What was something she did that was just her?",
+          "What did they call you, or you call them?",
+          "What was something they did that was just them?",
         ],
         friend: [
           "What did you two always do together?",
-          "What was recess or lunch with her like?",
+          "What was recess or lunch with them like?",
         ],
         teacher: [
-          "What did she love learning about?",
-          "What was she like in class or on the team?",
+          "What did they love learning about?",
+          "What were they like in class or on the team?",
         ],
         other: [
-          "What's a memory of her that makes you smile?",
-          "What's something she said that was just her?",
+          "What's a memory of them that makes you smile?",
+          "What's something they said that was just them?",
         ],
       },
     },
-    // "Something she made, drew, or wrote" is tagged 'photo' — a picture of
+    // "Something they made, drew, or wrote" is tagged 'photo' — a picture of
     // the object is the natural single-upload answer to that one.
     universal: [
-      { text: "Do you have a photo of her being completely herself?", kind: "photo" },
-      { text: "Do you have a video of her that nobody else has seen?", kind: "video" },
-      { text: "Do you have something she made, drew, or wrote?", kind: "photo" },
+      { text: "Do you have a photo of them being completely themselves?", kind: "photo" },
+      { text: "Do you have a video of them that nobody else has seen?", kind: "video" },
+      { text: "Do you have something they made, drew, or wrote?", kind: "photo" },
     ],
   },
 };
