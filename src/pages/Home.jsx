@@ -1,12 +1,54 @@
 import { useState, useEffect, useRef } from "react";
 import { fmtTime } from "../lib/utils";
+import { PRICING_PLANS } from "../lib/pricingPlans";
+
+const PAYG = PRICING_PLANS.find((p) => p.tier === "payg");
+const FOREVER = PRICING_PLANS.find((p) => p.tier === "forever");
+
+// Condensed 3-step version of the real How It Works page's 4-step
+// walkthrough — own copy, not sourced from HowItWorksPage's STEPS, since
+// both the count and the wording differ here.
+const HOME_STEPS = [
+  { lead: "Start their page, free", rest: "the whole product, up to five memories. Upgrade when you're ready to share it and start collecting." },
+  { lead: "Invite the people who knew them", rest: "one link, no account needed for them." },
+  { lead: "Watch it fill in", rest: "photos, voicemails, stories arrive from everyone invited." },
+];
+
+// Watches a sentinel placed at the end of the hero section and shows a
+// fixed bottom CTA once it's scrolled out of view — mobile only (CSS hides
+// this above the site's existing 768px breakpoint). Same destination/label
+// as the hero's own primary CTA.
+function StickyBottomCta({ heroEndRef, onNavigate }) {
+  const [show, setShow] = useState(false);
+
+  useEffect(() => {
+    const el = heroEndRef.current;
+    if (!el) return;
+    // isIntersecting alone can't tell "not yet scrolled to" (sentinel still
+    // below the viewport, top > 0) from "scrolled past" (sentinel above the
+    // viewport, top < 0) — both report isIntersecting: false. Only the
+    // second case should reveal the CTA, or it shows immediately on load.
+    const observer = new IntersectionObserver(
+      ([entry]) => setShow(!entry.isIntersecting && entry.boundingClientRect.top < 0),
+      { threshold: 0 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [heroEndRef]);
+
+  return (
+    <div className={`sticky-cta${show ? " show" : ""}`}>
+      <button type="button" onClick={() => onNavigate("onboarding")}>Start their page, free</button>
+    </div>
+  );
+}
 
 // Hero collage — a 2x2 grid of small square tiles matching the memorial
 // page's own tile system, using the same four pieces of content already
 // established as live on the homepage (real photos/video/audio, just
 // re-captioned to fit the tile's small hover caption instead of a full
-// pull-quote). Purely illustrative, same as WhatYouGetGrid below — no
-// click-through to anything, hover/tap only reveals the caption.
+// pull-quote). Purely illustrative — no click-through to anything,
+// hover/tap only reveals the caption.
 const HERO_COLLAGE_TILES = [
   {
     id: "video",
@@ -153,101 +195,13 @@ function HeroCollage() {
   );
 }
 
-// "What you get" — a static demonstration that different people get asked
-// different questions. Four hardcoded examples for now; `image` is null on
-// all of them so each card falls back to its placeholder gradient
-// (placeholderClass) until real photos/video thumbnails replace it — set
-// `image` to a real src and the gradient stops being used, no other change
-// needed. Purely illustrative — no state, no interaction beyond layout.
-const WHAT_YOU_GET_EXAMPLES = [
-  {
-    id: "daughter",
-    relation: "Her daughter",
-    question: "What's something they always said?",
-    mediaType: "photo",
-    image: "/home/wyg-daughter.jpg",
-    placeholderClass: "m1",
-    caption: "Mom always told us how beautiful we were, inside and out. That has stuck with me all these years later, now that I'm raising my own daughters.",
-    credit: "Staci",
-  },
-  {
-    id: "spouse",
-    relation: "Her spouse",
-    question: "What's something about them most people never got to see?",
-    // Video, using the real photo as its poster frame — same pattern the
-    // real memorial page's video tiles already use (a still image behind
-    // the play button until it's actually played).
-    mediaType: "video",
-    image: "/home/wyg-spouse.jpg",
-    placeholderClass: "m2",
-    caption: "Before she was known as reliable and conservative, she rode on the back of my 1978 Honda 750.",
-    credit: "Dan · 0:38",
-  },
-  {
-    id: "roommate",
-    relation: "Her college roommate",
-    question: "What's the most \"them\" thing they ever did?",
-    mediaType: "photo",
-    image: "/home/wyg-roommate.jpg",
-    placeholderClass: "m3",
-    // Shortened from the original memory at Staci's OK — the full version:
-    // "Deb went on a date one night and we all got ready together. She had
-    // bought a new sweater and tried to wash it in time, but it was still
-    // too wet. So all of us roommates sat with our blowdryers and got it
-    // dry just in time!"
-    caption: "She bought a new sweater for a date and tried to wash it in time — but it was still too wet, so all of us roommates sat there with our blow dryers to get it dry just in time!",
-    credit: "Jayne",
-  },
-  {
-    id: "coworker",
-    relation: "A coworker",
-    question: "What were they like under pressure?",
-    mediaType: "video",
-    image: "/home/wyg-coworker.jpg",
-    placeholderClass: "m4",
-    caption: "Deb was the heart and soul of Bluffsview, and she knew every single one of the kids' names. Even years after they had graduated!",
-    credit: "Ellen · 0:29",
-  },
-];
-
-function WhatYouGetGrid() {
-  return (
-    <>
-      <div className="wyg-grid">
-        {WHAT_YOU_GET_EXAMPLES.map((ex) => (
-          <div className="wyg-card" key={ex.id}>
-            <div className="wyg-card-rel">{ex.relation}</div>
-            <p className="wyg-card-question">"{ex.question}"</p>
-            <div className="wyg-tile">
-              <div className="wyg-tile-body">
-                {ex.image ? (
-                  <img className="wyg-media-bg" src={ex.image} alt="" />
-                ) : (
-                  <div className={`wyg-media-bg wyg-media-${ex.placeholderClass}`} />
-                )}
-                {ex.mediaType === "video" && <div className="wyg-tile-play" aria-hidden="true" />}
-                <div className="wyg-caption-scrim"><p>{ex.caption}</p></div>
-              </div>
-              <div className="wyg-tile-bar">
-                <span className="type">{ex.mediaType === "video" ? "Video + story" : "Photo + story"}</span>
-                <span className="meta">{ex.credit}</span>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-      <p className="wyg-hint">Four people. Four different questions. Every memory lands in the same page.</p>
-    </>
-  );
-}
-
 // "Every way a memory can live" — the seven content types And Then accepts.
 const CONTENT_TYPES = ["Photos", "Videos", "Voicemails", "Spoken stories", "Written stories", "Recipes & documents", "Links"];
 
 // Four larger, icon-free feature blocks explaining how the page actually
 // works, below the plain list of content types it accepts.
 const CONTENT_FEATURES = [
-  { label: "Share it your way", body: "Freeform, if they already know what to say. Tailored questions, matched to how they knew your person, if they don't." },
+  { label: "Never a blank page", body: "The questions help gather memories from everyone who knew them. You don't need the exact right words — just an answer." },
   { label: "Keeps growing, on your terms", body: "The page keeps collecting new memories, whenever they come in. You decide who can add — people you invite, or anyone with the link." },
   { label: "Nothing's locked away", body: "Export everything you've collected, in full, any time you want it." },
   { label: "No account, no friction", body: "Anyone invited can add a memory without creating a login or downloading anything. Text it, email it, drop it in a group chat — they're in." },
@@ -276,6 +230,8 @@ function ContentTypesShowcase() {
 }
 
 export function HomePage({ onNavigate }) {
+  const heroEndRef = useRef(null);
+
   return (
     <div>
       {/* Hero */}
@@ -289,6 +245,9 @@ export function HomePage({ onNavigate }) {
               </h1>
               <p className="hero-body fade-up-3">
                 Everyone who loved them remembers something different. <em>And Then</em> brings it all together — into one page that keeps growing.
+              </p>
+              <p className="hero-scope-note fade-up-3">
+                For someone you've lost — or someone you want to celebrate while they're still here to see it.
               </p>
               <div className="hero-cta-group fade-up-4">
                 <button className="btn btn-rust btn-lg" onClick={() => onNavigate("onboarding")}>Start their page</button>
@@ -305,22 +264,42 @@ export function HomePage({ onNavigate }) {
               <button className="hero-media-cta" onClick={() => onNavigate("memorial", "x58e5wvtmravmszf")}>
                 See a real, living page <span aria-hidden="true">→</span>
               </button>
+
+              <div className="hero-wyg-card">
+                <div className="section-label">What you get</div>
+                <h2 className="hero-wyg-headline">Not just a page — a way to collect.</h2>
+                <p className="hero-wyg-body">
+                  <em>And Then</em> asks each person the right question for who they were to them — so four different people end up telling four completely different stories.
+                </p>
+              </div>
             </div>
           </div>
+          {/* 1px, not 0 — a zero-area target has inconsistently-defined
+              intersection ratio across browsers, which was causing the
+              observer below to miss real threshold crossings on scroll. */}
+          <div ref={heroEndRef} style={{ height: 1 }} />
         </div>
       </div>
 
-      {/* What you get */}
+      {/* How it works */}
       <div style={{ background: "var(--white)" }}>
         <div className="page-wrap">
           <div className="narrative">
-            <div className="section-label">What you get</div>
-            <h2 className="narrative-headline">Not just a page — a way to collect.</h2>
-            <p className="narrative-body wyg-intro">
-              <em>And Then</em> asks each person the right question for who they were to her — so four different people end up telling four completely different stories.
-            </p>
+            <div className="section-label">How it works</div>
+            <h2 className="narrative-headline">Here's what happens when you start.</h2>
 
-            <WhatYouGetGrid />
+            <div className="home-steps">
+              {HOME_STEPS.map((step, i) => (
+                <div className="hiw-step" key={step.lead}>
+                  <div className="hiw-step-num">{i + 1}</div>
+                  <p className="home-step-text"><strong>{step.lead}</strong> — {step.rest}</p>
+                </div>
+              ))}
+            </div>
+
+            <button className="section-cta-link" onClick={() => onNavigate("how-it-works")}>
+              See the full walkthrough <span aria-hidden="true">→</span>
+            </button>
           </div>
         </div>
       </div>
@@ -344,11 +323,59 @@ export function HomePage({ onNavigate }) {
         </div>
       </div>
 
+      {/* Pricing */}
+      <div style={{ background: "var(--white)" }}>
+        <div className="page-wrap">
+          <div className="narrative" style={{ paddingTop: 0 }}>
+            <div className="section-label">Pricing</div>
+            <h2 className="narrative-headline">Two ways to pay, whenever you're ready.</h2>
+            <p className="narrative-body">
+              Nothing is charged until you move past the free five. Each page is priced on its own, so you're free to create one for every person you want to honor.
+            </p>
+
+            <div className="pricing-teaser-cards">
+              <div className="pricing-teaser-card pricing-teaser-card-light">
+                <div className="pricing-teaser-label">{PAYG.label}</div>
+                <p className="pricing-teaser-price">{PAYG.price}</p>
+                <p className="pricing-teaser-sub">{PAYG.sub}</p>
+              </div>
+              <div className="pricing-teaser-card pricing-teaser-card-dark">
+                <div className="pricing-teaser-label">{FOREVER.label}</div>
+                <p className="pricing-teaser-price">{FOREVER.price}</p>
+                <p className="pricing-teaser-sub">{FOREVER.sub}</p>
+              </div>
+            </div>
+
+            <button className="section-cta-link" onClick={() => onNavigate("pricing")}>
+              See full pricing details <span aria-hidden="true">→</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Why And Then */}
+      <div style={{ background: "var(--white)" }}>
+        <div className="page-wrap">
+          <div className="narrative" style={{ paddingTop: 0 }}>
+            <div className="section-label">Why And Then</div>
+            <h2 className="narrative-headline">No one person remembers all of them.</h2>
+            <p className="narrative-body">
+              She wasn't just your mother — she was a coworker's mentor, a neighbor's confidant, a best friend's whole world. Each of those people holds a piece nobody else has. <em>And Then</em> exists to gather all of it, so she gets remembered as the whole person she was — not one version of her.
+            </p>
+
+            <button className="section-cta-link" onClick={() => onNavigate("story")}>
+              The story behind <em>And Then</em> <span aria-hidden="true">→</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* Closing CTA */}
       <div style={{ background: "var(--bark-light)" }}>
         <div className="page-wrap">
           <div className="final-cta">
-            <h2>Every great story starts with and then they&hellip;</h2>
+            <h2>Start their page today.</h2>
+            <p>The whole product, free for five memories. Upgrade when you're ready to share it and start collecting.</p>
             <button className="btn btn-rust btn-lg" onClick={() => onNavigate("onboarding")}>Start their page, free</button>
           </div>
         </div>
@@ -364,6 +391,8 @@ export function HomePage({ onNavigate }) {
         </div>
         <div className="footer-copy">© 2026 And Then</div>
       </footer>
+
+      <StickyBottomCta heroEndRef={heroEndRef} onNavigate={onNavigate} />
     </div>
   );
 }

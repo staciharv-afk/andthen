@@ -62,21 +62,51 @@ body { font-family: 'DM Sans', sans-serif; background: var(--cream); color: var(
 .nav-link:hover { color: var(--bark); }
 .nav-link.active { color: var(--bark); font-weight: 600; }
 
-/* Five nav links plus a CTA button don't fit at phone width with the
-   desktop's fixed padding/gap — rather than wrap (overlapping the page
-   below) or clip (hiding the sign-up CTA entirely), let the link row
-   scroll horizontally on its own axis so every item stays reachable and
-   nothing overlaps. The outer page itself never gains horizontal scroll
-   from this — it's contained to .nav-right. */
+.nav-hamburger { display: none; width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--warm-faint); background: var(--white); flex-direction: column; align-items: center; justify-content: center; gap: 4px; cursor: pointer; flex-shrink: 0; }
+.nav-hamburger span { width: 16px; height: 1.5px; background: var(--bark); }
+
+.nav-drawer-overlay { position: fixed; inset: 0; background: rgba(36,27,20,0.5); z-index: 60; display: none; }
+.nav-drawer-overlay.open { display: block; }
+.nav-drawer {
+  position: fixed; top: 0; right: 0; bottom: 0; width: 78%; max-width: 320px; z-index: 61;
+  background: var(--cream); padding: 22px 26px;
+  transform: translateX(100%); transition: transform 0.25s ease;
+  overflow-y: auto;
+}
+.nav-drawer.open { transform: translateX(0); }
+.nav-drawer-close { display: block; margin-left: auto; margin-bottom: 26px; font-size: 20px; color: var(--bark); background: none; border: none; cursor: pointer; }
+.nav-drawer-link { display: block; width: 100%; text-align: left; font-family: 'Lora', serif; font-size: 19px; color: var(--bark); background: none; border: none; border-bottom: 1px solid var(--warm-faint); padding: 14px 0; cursor: pointer; }
+.nav-drawer-link em { font-style: italic; color: var(--rust); }
+.nav-drawer-link.active { color: var(--rust); }
+
+/* Five nav links plus a CTA button don't fit at phone width, so below the
+   breakpoint the inline row is replaced entirely by the hamburger + drawer
+   (previously this scrolled the row horizontally on its own axis — the
+   drawer is a cleaner fix for the same "too many items, not enough width"
+   problem, and matches the mobile-first nav pattern). */
 @media (max-width: 768px) {
   .nav { padding: 0 20px; }
-  /* min-width: 0 overrides flexbox's default "never shrink below content
-     size" — without it, overflow-x: auto has nothing to scroll within,
-     since .nav-right just pushes .nav (and the page) wider instead. */
-  .nav-right { gap: 16px; min-width: 0; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
-  .nav-right::-webkit-scrollbar { display: none; }
-  .nav-link { font-size: 13px; white-space: nowrap; flex-shrink: 0; }
-  .nav-right .btn { white-space: nowrap; flex-shrink: 0; }
+  .nav-right { display: none; }
+  .nav-hamburger { display: flex; }
+}
+
+/* Sticky bottom CTA — mobile only (a fixed full-width bar reads as mobile
+   chrome, and the hero's own inline CTAs are already visible at desktop
+   widths without needing a persistent bottom bar). Hidden by default via
+   translateY, shown once the hero scrolls out of view (see
+   StickyBottomCta's IntersectionObserver in Home.jsx). */
+.sticky-cta {
+  display: none;
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 55;
+  background: rgba(253,250,245,0.97); backdrop-filter: blur(6px);
+  border-top: 1px solid var(--warm-faint);
+  padding: 12px 20px calc(12px + env(safe-area-inset-bottom));
+  transform: translateY(100%); transition: transform 0.25s ease;
+}
+.sticky-cta button { display: block; width: 100%; text-align: center; background: var(--rust); color: #fff; font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 15px; padding: 14px; border-radius: 10px; border: none; cursor: pointer; }
+@media (max-width: 768px) {
+  .sticky-cta { display: block; }
+  .sticky-cta.show { transform: translateY(0); }
 }
 .btn { font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500; padding: 10px 24px; border-radius: var(--radius); border: none; cursor: pointer; transition: all 0.2s; letter-spacing: 0.01em; display: inline-flex; align-items: center; gap: 8px; }
 .btn-primary { background: var(--bark); color: var(--cream); }
@@ -149,12 +179,11 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
    media area + dark type/meta bar + hover-reveal caption scrim. Built as
    its own scoped copy (.hero-tile*) rather than reusing .mem-tile
    directly, since --mem-* tokens are scoped to .memorial-page and don't
-   resolve on the homepage — and rather than reusing .wyg-tile (the "What
-   you get" grid's version of the same pattern), since these are a
-   noticeably smaller physical size with two media variants (recipe,
-   voicemail) that system doesn't have. Same visual language, tuned scale,
-   ported fresh — not literally shared markup, per this app's established
-   pattern for porting UI across unrelated page contexts. */
+   resolve on the homepage, and these tiles are a noticeably smaller
+   physical size with two media variants (recipe, voicemail) that system
+   doesn't have. Same visual language, tuned scale, ported fresh — not
+   literally shared markup, per this app's established pattern for porting
+   UI across unrelated page contexts. */
 .hero-collage-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
 @media (max-width: 900px) { .hero-collage-grid { max-width: 420px; margin: 0 auto; } }
 
@@ -199,6 +228,18 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .hero-media-cta { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; margin-top: 4px; padding: 12px 8px; background: none; border: none; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; color: var(--rust); transition: color 0.2s; }
 .hero-media-cta:hover { color: var(--rust-light); text-decoration: underline; }
 
+.hero-scope-note { font-size: 14px; font-weight: 500; color: var(--rust); line-height: 1.6; max-width: 500px; margin: 0 0 32px; }
+
+.hero-wyg-card { background: var(--cream-dark); border-radius: 10px; padding: 24px 26px; margin-top: 22px; }
+.hero-wyg-headline { font-family: 'Lora', serif; font-weight: 500; font-size: 20px; color: var(--bark); margin: 0 0 10px; line-height: 1.3; }
+.hero-wyg-body { font-size: 14px; font-weight: 300; line-height: 1.6; color: var(--warm-mid); margin: 0; }
+@media (max-width: 600px) {
+  .hero-scope-note { font-size: 13px; margin-top: -16px; }
+  .hero-wyg-card { padding: 18px 20px; }
+  .hero-wyg-headline { font-size: 18px; }
+  .hero-wyg-body { font-size: 13.5px; }
+}
+
 .icon-pause { width: 4px; height: 16px; background: #fff; box-shadow: 8px 0 0 #fff; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3)); }
 
 .avatar-on-dark { background: rgba(253,250,245,0.15); color: var(--cream); border-color: rgba(253,250,245,0.25); }
@@ -210,59 +251,6 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .voice-waveform span { flex: 1; background: rgba(253,250,245,0.3); border-radius: 2px; transition: background 0.15s ease; }
 .voice-waveform span.played { background: var(--rust-light); }
 .voice-time { flex-shrink: 0; font-size: 11px; font-variant-numeric: tabular-nums; color: rgba(253,250,245,0.6); }
-
-/* "What you get" static grid — four cards, no interaction. Same app-token
-   translation as everywhere else on this page: mockup's ivory/ink/ink-soft/
-   rust/line map to --cream-dark, --bark, --warm-mid, --rust, --warm-faint;
-   its Fraunces italic maps to this page's existing Lora italic convention
-   (see .narrative-headline, .demo-question-text elsewhere on the homepage).
-   4-across by default; 2x2 at <=900px (an intermediate step before true
-   mobile, matching the reference desktop mockup's own breakpoint); sizing
-   shrinks further at <=600px, this app's established mobile breakpoint
-   (see .memory-grid, .form-row), matching the separate mobile reference's
-   smaller type/spacing at true phone width. */
-.wyg-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 22px; margin-top: 8px; }
-@media (max-width: 900px) { .wyg-grid { grid-template-columns: repeat(2, 1fr); } }
-
-.wyg-card { display: flex; flex-direction: column; }
-.wyg-card-rel { font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--rust); margin-bottom: 8px; }
-.wyg-card-question { font-family: 'Lora', serif; font-style: italic; font-size: 14.5px; line-height: 1.45; color: var(--warm-mid); margin: 0 0 14px; min-height: 42px; }
-
-.wyg-tile { aspect-ratio: 1; border-radius: 10px; overflow: hidden; box-shadow: 0 8px 20px rgba(43,38,32,0.14); display: flex; flex-direction: column; }
-.wyg-tile-body { flex: 1; position: relative; overflow: hidden; display: flex; align-items: flex-end; }
-.wyg-media-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-.wyg-media-m1 { background: linear-gradient(135deg, #D8A574, #B5652E); }
-.wyg-media-m2 { background: linear-gradient(135deg, #4A5A52, #232C28); }
-.wyg-media-m3 { background: linear-gradient(135deg, #8C9A87, #5E6E59); }
-.wyg-media-m4 { background: linear-gradient(135deg, #B7AC93, #8C7F5F); }
-.wyg-tile-play { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 38px; height: 38px; border-radius: 50%; background: rgba(255,255,255,0.9); display: flex; align-items: center; justify-content: center; }
-.wyg-tile-play::after { content: ""; border-left: 12px solid var(--bark); border-top: 8px solid transparent; border-bottom: 8px solid transparent; margin-left: 3px; }
-.wyg-caption-scrim { position: relative; width: 100%; background: linear-gradient(to top, rgba(15,13,10,0.85) 0%, rgba(15,13,10,0.35) 65%, transparent 100%); padding: 18px 16px 14px; }
-.wyg-caption-scrim p { font-family: 'Lora', serif; font-style: italic; font-size: 13px; line-height: 1.45; color: var(--cream); margin: 0; }
-.wyg-tile-bar { display: flex; height: 15%; background: var(--bark); align-items: center; gap: 8px; padding: 0 12px; color: var(--cream-dark); font-size: 10px; }
-.wyg-tile-bar .type { text-transform: uppercase; letter-spacing: 0.06em; font-size: 9px; color: var(--warm-light); }
-.wyg-tile-bar .meta { margin-left: auto; font-size: 9px; color: var(--warm-light); }
-
-.wyg-hint { font-size: 14px; color: var(--warm-mid); line-height: 1.6; margin: 36px 0 0; text-align: center; }
-
-/* Extra breathing room below the section's intro paragraph specifically —
-   .wyg-grid's own margin-top (8px) stacks on top of this, landing on the
-   same ~56px gap the reference mockup used between .body-copy and its grid. */
-.wyg-intro { margin-bottom: 48px; }
-
-@media (max-width: 600px) {
-  .wyg-grid { gap: 14px; }
-  .wyg-card-rel { font-size: 10.5px; margin-bottom: 5px; }
-  .wyg-card-question { font-size: 12.5px; line-height: 1.35; min-height: 0; margin-bottom: 8px; }
-  .wyg-tile { border-radius: 8px; }
-  .wyg-tile-play { width: 26px; height: 26px; }
-  .wyg-tile-play::after { border-left-width: 8px; border-top-width: 5px; border-bottom-width: 5px; }
-  .wyg-caption-scrim { padding: 10px 10px 8px; }
-  .wyg-caption-scrim p { font-size: 10.5px; line-height: 1.3; }
-  .wyg-tile-bar { height: 20px; font-size: 8.5px; padding: 0 8px; }
-  .wyg-tile-bar .type, .wyg-tile-bar .meta { font-size: inherit; }
-  .wyg-hint { font-size: 12px; margin-top: 20px; }
-}
 
 /* -- "every way a memory can live" content-type pills + feature grid -- */
 .type-pills { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 44px; }
@@ -836,6 +824,23 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .pricing-path-dot.filled { background: var(--rust); }
 .pricing-path-dots-caption { display: block; font-size: 12px; color: var(--warm-light); margin-bottom: 20px; }
 
+/* Homepage's condensed pricing teaser — label/price/sub only, no body copy
+   and not clickable (checkout only happens on the real Pricing page).
+   Same light/dark color treatment as .pricing-path-card above, lighter
+   touch since there's much less content per card. */
+.pricing-teaser-cards { display: flex; flex-direction: column; gap: 14px; margin-top: 40px; max-width: 360px; }
+.pricing-teaser-card { border-radius: 10px; padding: 20px 24px; }
+.pricing-teaser-card-light { background: var(--white); border: 1px solid var(--warm-faint); }
+.pricing-teaser-card-dark { background: var(--bark); }
+.pricing-teaser-label { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--rust); margin-bottom: 6px; }
+.pricing-teaser-card-dark .pricing-teaser-label { color: var(--rust-light); }
+.pricing-teaser-price { font-family: 'Lora', serif; font-weight: 500; font-size: 22px; margin: 0 0 3px; }
+.pricing-teaser-card-light .pricing-teaser-price { color: var(--bark); }
+.pricing-teaser-card-dark .pricing-teaser-price { color: var(--cream); }
+.pricing-teaser-sub { font-size: 13px; margin: 0; }
+.pricing-teaser-card-light .pricing-teaser-sub { color: var(--warm-mid); }
+.pricing-teaser-card-dark .pricing-teaser-sub { color: rgba(253,250,245,0.6); }
+
 .pricing-path-ring { width: 34px; height: 34px; border-radius: 50%; border: 2px solid var(--rust-light); display: flex; align-items: center; justify-content: center; margin-bottom: 20px; }
 .pricing-path-ring-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--rust-light); }
 
@@ -904,6 +909,17 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .hiw-step-num { font-family: 'Lora', serif; font-style: italic; font-size: 22px; color: var(--rust); width: 36px; flex-shrink: 0; }
 .hiw-step-body h3 { font-family: 'Lora', serif; font-weight: 500; font-size: 19px; color: var(--bark); margin: 0 0 8px; }
 .hiw-step-body p { font-size: 15px; font-weight: 300; line-height: 1.6; color: var(--warm-mid); margin: 0; }
+
+/* Homepage's condensed how-it-works — reuses .hiw-step/.hiw-step-num above
+   for the numbered-row layout, but each step is one inline sentence with a
+   bold lead-in phrase rather than a separate heading + paragraph. */
+.home-steps { margin-top: 40px; }
+.home-step-text { font-size: 14.5px; font-weight: 300; line-height: 1.6; color: var(--warm-mid); margin: 0; }
+.home-step-text strong { font-weight: 600; color: var(--bark); }
+@media (max-width: 600px) {
+  .home-steps { margin-top: 28px; }
+  .home-step-text { font-size: 13.5px; }
+}
 
 .hiw-paths-heading { font-family: 'Lora', serif; font-size: 22px; font-weight: 400; color: var(--bark); margin: 0 0 8px; }
 .hiw-paths-sub { font-size: 15px; font-weight: 300; color: var(--warm-mid); margin: 0 0 26px; }
