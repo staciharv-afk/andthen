@@ -41,7 +41,7 @@ export function PricingPage({ onNavigate, showToast }) {
               Start for free. The rest is simple.
             </h1>
             <p className="hero-body fade-up-3 pricing-hero-body">
-              Five memories included, free — no card required. That's five photos, videos, voicemails, or stories, mixed however you like, with every feature unlocked. Start there, and see how it comes together before you pay anything. Once you're ready, there are two ways to pay for it.
+              Five memories included, free — no card required. That's five photos, videos, voicemails, or stories, mixed however you like, with every feature unlocked. Start there, and see how it comes together before you pay anything.
             </p>
           </div>
         </div>
@@ -50,13 +50,14 @@ export function PricingPage({ onNavigate, showToast }) {
       {/* Two ways to pay */}
       <div style={{ background: "var(--cream)" }}>
         <div className="page-wrap">
+          <p className="hiw-paths-sub">When you're ready to keep it, there are two ways to pay — pick whichever matches how long you think you'll want the page around.</p>
           <div className="pricing-paths">
             <button
               type="button"
               className="pricing-path-card pricing-path-card-light pricing-path-card-clickable"
               onClick={() => startCheckout("payg")}
               disabled={!!loadingTier}
-              aria-label="Pay as you go — $49 to build, $10 a year to keep it live. Continue to checkout."
+              aria-label="Pay Yearly — $49 to start, then $10 a year to keep it live. Continue to checkout."
             >
               <div className="pricing-path-label pricing-path-label-rust">{PAYG.label}</div>
               <div className="pricing-path-price">{PAYG.price}</div>
@@ -75,7 +76,7 @@ export function PricingPage({ onNavigate, showToast }) {
               className="pricing-path-card pricing-path-card-dark pricing-path-card-clickable"
               onClick={() => startCheckout("forever")}
               disabled={!!loadingTier}
-              aria-label="Pay once — $100 forever, no renewals. Continue to checkout."
+              aria-label="Pay Once — $100, no renewals ever. Continue to checkout."
             >
               <div className="pricing-path-label pricing-path-label-gold">{FOREVER.label}</div>
               <div className="pricing-path-price">{FOREVER.price}</div>
@@ -91,7 +92,8 @@ export function PricingPage({ onNavigate, showToast }) {
       <div style={{ background: "var(--cream)" }}>
         <div className="page-wrap">
           <div className="pricing-closing">
-            <p className="pricing-closing-line">That's the whole model — pick whichever one means you never have to think about it again.</p>
+            <p className="pricing-closing-line">Rough guide: five years of Pay Yearly costs about the same as Pay Once. Expect to keep the page longer than that? Pay Once is the better value. Just getting started? Pay Yearly costs less today.</p>
+            <p className="pricing-closing-line">That's the whole model — no surprises either way.</p>
             <button className="btn btn-rust btn-lg" onClick={() => onNavigate("onboarding")}>Start your page, free</button>
             <span className="pricing-cta-note">Five entries, no card required. Upgrade any time.</span>
           </div>

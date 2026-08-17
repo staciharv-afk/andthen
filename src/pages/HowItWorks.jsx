@@ -66,6 +66,8 @@ export function HowItWorksPage({ onNavigate }) {
           </div>
         </div>
 
+        <p className="hiw-paths-sub">Rough guide: five years of Pay Yearly costs about the same as Pay Once. Expect to keep the page longer than that? Pay Once is the better value. Just getting started? Pay Yearly costs less today.</p>
+
         <div className="hiw-cta-block">
           <button className="btn btn-rust btn-lg" onClick={() => onNavigate("onboarding")}>Start their page, free</button>
           <span className="pricing-cta-note">Takes about two minutes. Nothing to pay yet.</span>

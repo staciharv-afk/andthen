@@ -7,16 +7,16 @@
 export const PRICING_PLANS = [
   {
     tier: "payg",
-    label: "Pay as you go",
-    price: "$49 + $10/yr.",
-    sub: "Build once, renew yearly.",
-    body: "$49 unlocks unlimited entries and contributors, first year hosting included. $10/yr after that keeps it online — flat rate, never increases. Miss a payment and the page pauses, it doesn't disappear.",
+    label: "Pay Yearly",
+    price: "$49 to start, then $10/yr",
+    sub: "Best if you're not sure how long you'll keep this.",
+    body: "$49 unlocks unlimited entries and contributors, plus your first year online. After that, $10/year keeps it live — that rate never goes up. If a payment is ever missed, the page simply pauses until you're ready to pick it back up.",
   },
   {
     tier: "forever",
-    label: "Pay once",
-    price: "$100.",
-    sub: "Forever — no renewals.",
-    body: "One payment instead of the build fee. No annual fee, ever. Nothing to renew, nothing to miss, nothing that pauses.",
+    label: "Pay Once",
+    price: "$100",
+    sub: "Best if you want this to last, with nothing to remember.",
+    body: "One payment covers the build and hosting for as long as the page exists. No bill, ever — nothing to renew, nothing to miss, nothing that can lapse.",
   },
 ];
