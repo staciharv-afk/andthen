@@ -522,7 +522,9 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .mem-tile-wave span.played { background: var(--mem-gold); }
 .mem-tile-voice-photo { position: absolute; bottom: 8px; right: 8px; width: 40px; height: 40px; border-radius: 4px; object-fit: cover; border: 2px solid rgba(253,250,245,0.5); box-shadow: 0 4px 10px -2px rgba(0,0,0,0.35); }
 
-.mem-tile-story { background: var(--mem-card); padding: 18px; }
+/* Overrides .mem-tile-body's align-items: center — a long story should crop
+   off the bottom, not show whatever falls in the vertical middle. */
+.mem-tile-story { background: var(--mem-card); padding: 18px; align-items: flex-start; }
 .mem-tile-story blockquote { margin: 0; font-family: 'Fraunces', serif; font-style: italic; font-size: 0.85rem; line-height: 1.5; color: var(--mem-ink); text-align: left; }
 
 /* Caption reveal for a media entry with attached text — visible on
