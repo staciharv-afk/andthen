@@ -18,7 +18,7 @@ function NavLinks({ currentUser, onSignOut, onNavigate, currentRoute, linkClassN
       ) : (
         <>
           <button className={linkClassName} onClick={() => go("login")}>Sign in</button>
-          <button className={linkClassName === "nav-link" ? "btn btn-primary btn-sm" : linkClassName} onClick={() => go("onboarding")}>Start gathering their stories</button>
+          <button className={linkClassName === "nav-link" ? "btn btn-primary btn-sm" : linkClassName} onClick={() => go("onboarding")}>Try it free</button>
         </>
       )}
     </>

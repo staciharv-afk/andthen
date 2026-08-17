@@ -38,7 +38,7 @@ function StickyBottomCta({ heroEndRef, onNavigate }) {
 
   return (
     <div className={`sticky-cta${show ? " show" : ""}`}>
-      <button type="button" onClick={() => onNavigate("onboarding")}>Start their page, free</button>
+      <button type="button" onClick={() => onNavigate("onboarding")}>Try it free</button>
     </div>
   );
 }
@@ -250,7 +250,7 @@ export function HomePage({ onNavigate }) {
                 For someone you've lost — or someone you want to celebrate while they're still here to see it.
               </p>
               <div className="hero-cta-group fade-up-4">
-                <button className="btn btn-rust btn-lg" onClick={() => onNavigate("onboarding")}>Start their page</button>
+                <button className="btn btn-rust btn-lg" onClick={() => onNavigate("onboarding")}>Try it free</button>
                 <button className="btn btn-ghost btn-lg hero-cta-secondary" onClick={() => onNavigate("how-it-works")}>
                   <span className="pulse-dot" aria-hidden="true" />
                   See how it works
@@ -376,7 +376,7 @@ export function HomePage({ onNavigate }) {
           <div className="final-cta">
             <h2>Start their page today.</h2>
             <p>The whole product, free for five memories. Upgrade when you're ready to share it and start collecting.</p>
-            <button className="btn btn-rust btn-lg" onClick={() => onNavigate("onboarding")}>Start their page, free</button>
+            <button className="btn btn-rust btn-lg" onClick={() => onNavigate("onboarding")}>Try it free</button>
           </div>
         </div>
       </div>
