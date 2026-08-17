@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from "../lib/supabase";
 import { uid, fmtDate, timeAgo, fileToDataURL, fmtTime, sendThankYou, notifyCreator, notifyAccessRequest } from "../lib/utils";
+import { trackEvent } from "../lib/analytics";
 
 // Content-type filters, and the label shown on a grid tile / in the reader's
 // type tag — one source of truth (contentTypeLabel) for both, since a filter
@@ -1057,6 +1058,7 @@ function ShareMemoryModal({ memorial, showToast, onClose, contributeToken }) {
       }
 
       notifyCreator(memorial.id);
+      trackEvent("memory_submitted", { content_type: contentTypeLabel(row) });
       // Reusable, so this is pure record-keeping (first-use timestamp), not
       // a gate — only set it if it isn't already, and don't block the
       // contribution on it either way.
@@ -1330,6 +1332,7 @@ function AccessRequestModal({ memorial, showToast, onClose }) {
 
     if (error && error.code !== "23505") { showToast("Something went wrong. Please try again.", "error"); return; }
     notifyAccessRequest(memorial.id);
+    trackEvent("access_requested");
     setSent(true);
   };
 

@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { uid, fileToDataURL, slugify } from "../lib/utils";
 import { RESERVED_SLUGS } from "../lib/router";
+import { trackEvent } from "../lib/analytics";
 
 export function CreateMemorialPage({ currentUser, existing, onCreated, onUpdated, onCancel, showToast }) {
   const isEdit = Boolean(existing);
@@ -102,6 +103,9 @@ export function CreateMemorialPage({ currentUser, existing, onCreated, onUpdated
       if (err) { setError(err.code === "23505" ? "That page address is already taken — please choose another." : (err.message || "Failed to create your story. Please try again.")); return; }
 
       showToast("Story created! Share the link to start gathering stories.");
+      // No promo_code param yet — there's no in-app promo code entry, only
+      // Stripe Checkout's own hosted promo box, which this app never sees.
+      trackEvent("page_created");
       onCreated(data[0] || { id: uid(), name, invite_code: inviteCode });
     } catch (e) {
       setError("Something went wrong. Please try again.");

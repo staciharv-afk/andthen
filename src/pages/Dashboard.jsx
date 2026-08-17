@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { fmtDate, timeAgo, sendThankYou } from "../lib/utils";
+import { trackEvent } from "../lib/analytics";
 import { exportMemorial } from "../lib/export";
 import { PRICING_PLANS } from "../lib/pricingPlans";
 
@@ -87,10 +88,12 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
   const inviteUrl = (memorial) => `${window.location.origin}?memorial=${memorial.invite_code}`;
 
   const copyInviteLink = (memorial) => {
+    trackEvent("share_clicked", { share_option: "copy_link" });
     navigator.clipboard.writeText(memorialUrl(memorial)).then(() => showToast("Link copied! Share it with family and friends."));
   };
 
   const copyInvite = (memorial) => {
+    trackEvent("share_clicked", { share_option: "copy_invite" });
     const msg = memorial.invite_message || `I'm gathering memories of ${memorial.name}. Would you share one?`;
     navigator.clipboard.writeText(`${msg}\n\n${inviteUrl(memorial)}`).then(() => showToast("Invitation copied — message + link."));
   };

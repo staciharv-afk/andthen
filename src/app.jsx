@@ -5,6 +5,7 @@ import { readDraft, clearDraft } from "./lib/onboardingDraft";
 import { savePendingPayment, readPendingPayment, clearPendingPayment } from "./lib/pendingPayment";
 import { STYLES } from "./styles";
 import { parseLocation, routeToUrl } from "./lib/router";
+import { initAnalytics, trackPageview } from "./lib/analytics";
 import { useToast, ToastContainer } from "./components/Toast";
 import { Nav } from "./components/Nav";
 import { HomePage } from "./pages/Home";
@@ -29,6 +30,7 @@ export default function App() {
   // and auto-detects the magic-link token in the URL), and listen for
   // Back/Forward.
   useEffect(() => {
+    initAnalytics();
     const { page, param } = parseLocation();
     window.history.replaceState({ page, param }, "");
 
@@ -78,6 +80,14 @@ export default function App() {
       if (subscription) subscription.unsubscribe();
     };
   }, []);
+
+  // Fires on both navigate()-driven and popstate-driven (Back/Forward) route
+  // changes, since this is an SPA and GA4's default pageview only fires once
+  // on initial page load.
+  useEffect(() => {
+    const url = new URL(routeToUrl(route, routeParam));
+    trackPageview(url.pathname + url.search);
+  }, [route, routeParam]);
 
   const navigate = (page, param = null) => {
     setRoute(page);
