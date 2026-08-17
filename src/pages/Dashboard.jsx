@@ -4,6 +4,7 @@ import { fmtDate, timeAgo, sendThankYou } from "../lib/utils";
 import { trackEvent } from "../lib/analytics";
 import { exportMemorial } from "../lib/export";
 import { PRICING_PLANS } from "../lib/pricingPlans";
+import { ShareMemoryModal } from "./Memorial";
 
 const PAYG = PRICING_PLANS.find((p) => p.tier === "payg");
 const FOREVER = PRICING_PLANS.find((p) => p.tier === "forever");
@@ -19,6 +20,7 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
   const [deleteTarget, setDeleteTarget] = useState(null); // memorial pending delete confirmation, or null
   const [pendingAccessRequests, setPendingAccessRequests] = useState(0);
   const [upgradingTier, setUpgradingTier] = useState(null); // "payg" | "forever" | null, while a checkout redirect is starting
+  const [addingMemory, setAddingMemory] = useState(false);
 
   useEffect(() => {
     loadMemorials();
@@ -32,9 +34,22 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
     }
   }, []);
 
+  // Includes both memorials this user created (steward_id) and ones they've
+  // accepted a co-steward invite on (memorial_stewards) — see the
+  // 20260817_page_stewards.sql migration and is_memorial_steward().
   const loadMemorials = async () => {
     setLoading(true);
-    const { data } = await supabase.from("memorials").select("*").eq("steward_id", currentUser.id).order("created_at", { ascending: false });
+    const { data: coStewardRows } = await supabase
+      .from("memorial_stewards")
+      .select("memorial_id")
+      .eq("user_id", currentUser.id)
+      .eq("status", "accepted");
+    const coStewardIds = (coStewardRows || []).map((r) => r.memorial_id);
+    let query = supabase.from("memorials").select("*").order("created_at", { ascending: false });
+    query = coStewardIds.length
+      ? query.or(`steward_id.eq.${currentUser.id},id.in.(${coStewardIds.join(",")})`)
+      : query.eq("steward_id", currentUser.id);
+    const { data } = await query;
     setLoading(false);
     if (data?.length) {
       setMemorials(data);
@@ -211,6 +226,7 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
 
                 <div className="dashboard-actions">
                   <div className="dashboard-actions-row">
+                    <button className="btn btn-sm btn-rust" onClick={() => setAddingMemory(true)}>+ Add a memory</button>
                     <ShareMenu onCopyLink={() => copyInviteLink(activeMemorial)} onCopyInvite={() => copyInvite(activeMemorial)} inviteDisabled={!activeMemorial.is_paid} />
                     <button className="btn btn-sm btn-ghost" onClick={() => onNavigate("memorial", activeMemorial.invite_code)}>Preview</button>
                     <button className="btn btn-sm btn-ghost" onClick={() => onNavigate("edit", activeMemorial)}>Edit</button>
@@ -287,6 +303,15 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
 
       {deleteTarget && (
         <DeleteMemorialModal memorial={deleteTarget} onCancel={() => setDeleteTarget(null)} onDeleted={handleDeleted} showToast={showToast} />
+      )}
+
+      {addingMemory && activeMemorial && (
+        <ShareMemoryModal
+          memorial={activeMemorial}
+          showToast={showToast}
+          contributeToken={null}
+          onClose={() => { setAddingMemory(false); loadSubmissions(activeMemorial.id); }}
+        />
       )}
     </div>
   );

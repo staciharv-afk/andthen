@@ -763,7 +763,7 @@ const uploadFileWithProgress = async (bucket, path, file, contentType, onProgres
 // confirmation copy. Fully remounts each time it opens (see showContribute
 // in MemorialPage), which is what gives the orient screen its "shown every
 // fresh open" behavior for free.
-function ShareMemoryModal({ memorial, showToast, onClose, contributeToken }) {
+export function ShareMemoryModal({ memorial, showToast, onClose, contributeToken }) {
   const subjectType = deriveSubjectType(memorial);
   const livingStatus = deriveLivingStatus(memorial);
   const moderationMode = deriveModerationMode(memorial);

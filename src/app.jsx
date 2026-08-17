@@ -3,6 +3,7 @@ import { supabase, CONFIG_OK, ARRIVED_VIA_MAGIC_LINK } from "./lib/supabase";
 import { uid } from "./lib/utils";
 import { readDraft, clearDraft } from "./lib/onboardingDraft";
 import { savePendingPayment, readPendingPayment, clearPendingPayment } from "./lib/pendingPayment";
+import { savePendingStewardInvite, readPendingStewardInvite, clearPendingStewardInvite } from "./lib/pendingStewardInvite";
 import { STYLES } from "./styles";
 import { parseLocation, routeToUrl } from "./lib/router";
 import { initAnalytics, trackPageview } from "./lib/analytics";
@@ -49,6 +50,18 @@ export default function App() {
       window.history.replaceState({ page, param }, "", window.location.pathname + (qs ? `?${qs}` : ""));
     }
 
+    // Landing from an emailed co-steward invite (see api/notify-steward-invite.js)
+    // — stash the token so it survives the magic-link round trip, whether the
+    // visitor is already signed in (handled right below) or needs to sign in
+    // first (handled once SIGNED_IN fires, in finishSignIn).
+    const stewardInviteToken = params.get("steward_invite");
+    if (stewardInviteToken) {
+      savePendingStewardInvite(stewardInviteToken);
+      params.delete("steward_invite");
+      const qs2 = params.toString();
+      window.history.replaceState({ page, param }, "", window.location.pathname + (qs2 ? `?${qs2}` : ""));
+    }
+
     const onPopState = (e) => {
       const loc = e.state && e.state.page ? e.state : parseLocation();
       setRoute(loc.page);
@@ -60,7 +73,12 @@ export default function App() {
     let subscription = null;
     if (supabase) {
       supabase.auth.getSession().then(({ data }) => {
-        if (data.session?.user) setCurrentUser(data.session.user);
+        if (data.session?.user) {
+          setCurrentUser(data.session.user);
+          if (stewardInviteToken) tryAcceptPendingStewardInvite(data.session.user.id);
+        } else if (stewardInviteToken) {
+          navigate("login");
+        }
       });
       const res = supabase.auth.onAuthStateChange((event, session) => {
         setCurrentUser(session?.user ?? null);
@@ -96,12 +114,38 @@ export default function App() {
     window.scrollTo(0, 0);
   };
 
-  // Runs once, right after a magic-link sign-in. If the user left an
+  // Accepts a stashed co-steward invite token (see the mount effect and
+  // pendingStewardInvite.js) against the now-signed-in user. A plain client
+  // update under RLS — the "invitee accepts their invite" policy only lets
+  // this succeed if the invite's email matches the signed-in JWT's email, so
+  // there's no bespoke accept endpoint to build or trust. Returns true on
+  // success so callers can decide how to route afterward.
+  const tryAcceptPendingStewardInvite = async (userId) => {
+    const token = readPendingStewardInvite();
+    if (!token) return false;
+    clearPendingStewardInvite();
+    const { error } = await supabase
+      .from("memorial_stewards")
+      .update({ status: "accepted", user_id: userId, accepted_at: new Date().toISOString() })
+      .eq("invite_token", token)
+      .eq("status", "pending");
+    if (error) { showToast("That invite link isn't valid anymore.", "error"); return false; }
+    showToast("You're in — you can now help steward this page.");
+    return true;
+  };
+
+  // Runs once, right after a magic-link sign-in. A pending co-steward invite
+  // takes priority over an onboarding draft — someone accepting an invite
+  // isn't necessarily building their own page. If the user left an
   // onboarding draft (name/relation/description from the intro step)
   // before confirming their email, create their memorial now — this is
   // the earliest point a steward_id exists to satisfy the memorials
   // INSERT policy — and land them on it instead of the dashboard.
   const finishSignIn = async (session) => {
+    if (session?.user) {
+      const accepted = await tryAcceptPendingStewardInvite(session.user.id);
+      if (accepted) { navigate("dashboard"); return; }
+    }
     const draft = readDraft();
     if (draft?.name && session?.user) {
       clearDraft();

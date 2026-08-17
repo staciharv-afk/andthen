@@ -90,3 +90,14 @@ export const notifyAccessApproved = (requestId) => {
     body: JSON.stringify({ requestId }),
   }).catch(() => {});
 };
+
+// Fire-and-forget: ask the server to email a newly-invited co-steward their
+// accept link. No-ops locally.
+export const notifyStewardInvite = (inviteId) => {
+  if (!inviteId) return;
+  fetch("/api/notify-steward-invite", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ inviteId }),
+  }).catch(() => {});
+};
