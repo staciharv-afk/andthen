@@ -8,21 +8,16 @@
 // session from Stripe by id and checks its actual payment_status, same
 // "don't trust the POST, trust Stripe" approach as stripe-webhook.js.
 //
-// Every Checkout Session is `mode: "payment"` (see api/_lib/stripeTiers.js)
-// — for a "payg" purchase, that session only covers the one-time $49 build
-// fee; this creates the actual $10/yr keeper-fee subscription (with its
-// 365-day trial) via createKeeperFeeSubscription, using the card the
-// Checkout Session saved. Mirrors stripe-webhook.js's post-signup version
-// of the same step.
+// The Checkout Session is `mode: "payment"` (see api/_lib/stripeTiers.js) —
+// a single one-time $49 build fee, no subscription ever created.
 //
 // Required env vars (Vercel → Settings → Environment Variables):
 //   STRIPE_SECRET_KEY           = Stripe secret key (must be sk_live_… in production)
 //   SUPABASE_SERVICE_ROLE_KEY   = Supabase service_role key (secret)
-//   See api/_lib/stripeTiers.js for the three STRIPE_*_PRODUCT_ID vars.
+//   See api/_lib/stripeTiers.js for STRIPE_BUILD_FEE_PRODUCT_ID.
 // Optional: SUPABASE_URL (falls back to VITE_SUPABASE_URL)
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
-import { createKeeperFeeSubscription } from "./_lib/stripeTiers.js";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
@@ -42,29 +37,12 @@ export default async function handler(req, res) {
   });
 
   try {
-    const session = await stripe.checkout.sessions.retrieve(sessionId, {
-      expand: ["payment_intent.payment_method"],
-    });
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
     if (session.payment_status !== "paid") return res.status(200).json({ skipped: "not paid" });
 
     const customerId = session.customer ? (typeof session.customer === "string" ? session.customer : session.customer.id) : null;
     const update = { is_paid: true, paused: false };
     if (customerId) update.stripe_customer_id = customerId;
-
-    if (session.metadata?.tier === "payg") {
-      try {
-        const pm = session.payment_intent?.payment_method;
-        const paymentMethodId = typeof pm === "string" ? pm : pm?.id;
-        const subscription = await createKeeperFeeSubscription(stripe, { customerId, paymentMethodId });
-        update.stripe_subscription_id = subscription.id;
-      } catch (e) {
-        // The build fee is paid and the page still unlocks below either
-        // way — a failed keeper-fee subscription needs manual follow-up,
-        // not a blocked signup. Logged for visibility since there's no
-        // retry queue in this app.
-        console.error(`Keeper-fee subscription creation failed for memorial ${memorialId}:`, e.message);
-      }
-    }
 
     const { error } = await admin.from("memorials").update(update).eq("id", memorialId);
     if (error) return res.status(500).json({ error: error.message });

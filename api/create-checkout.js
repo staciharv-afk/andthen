@@ -1,11 +1,9 @@
 // Vercel serverless function — starts a Stripe Checkout to upgrade an
-// EXISTING memorial (the Dashboard's "Upgrade" buttons, for a page still on
-// the free tier). Same two tiers as the pre-signup Pricing page
-// (api/start-checkout.js) — "payg" ($49 + $10/yr) or "forever" ($100
-// one-time) — built from the shared shape in api/_lib/stripeTiers.js, so a
-// creator upgrading later gets identical pricing to one who pays upfront.
-// Previously this was a bespoke one-time $149 price unrelated to either
-// live tier; that's gone.
+// EXISTING memorial (the Dashboard's "Upgrade" button, for a page still on
+// the free tier). Same one tier as the pre-signup Pricing page
+// (api/start-checkout.js) — "build" ($49 one-time) — built from the shared
+// shape in api/_lib/stripeTiers.js, so a creator upgrading later gets
+// identical pricing to one who pays upfront.
 //
 // Returns the hosted-checkout URL; the client redirects to it. The actual
 // unlock happens server-side in stripe-webhook.js after payment, so nothing
@@ -32,7 +30,7 @@ export default async function handler(req, res) {
 
   const { memorialId, tier } = req.body || {};
   if (!memorialId) return res.status(400).json({ error: "Missing memorialId" });
-  if (tier !== "payg" && tier !== "forever") return res.status(400).json({ error: "Unknown pricing tier" });
+  if (tier !== "build") return res.status(400).json({ error: "Unknown pricing tier" });
 
   const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },

@@ -1,24 +1,23 @@
 import { useState } from "react";
 import { PRICING_PLANS } from "../lib/pricingPlans";
 
-const PAYG = PRICING_PLANS.find((p) => p.tier === "payg");
-const FOREVER = PRICING_PLANS.find((p) => p.tier === "forever");
+const BUILD = PRICING_PLANS.find((p) => p.tier === "build");
 
 export function PricingPage({ onNavigate, showToast }) {
-  const [loadingTier, setLoadingTier] = useState(null); // "payg" | "forever" | null
+  const [loading, setLoading] = useState(false);
 
   // Pre-signup checkout (api/start-checkout.js) — no memorial/account exists
   // yet, so payment happens first and gets attached to the memorial once one
   // is created via the normal magic-link onboarding flow (see app.jsx's
   // finishSignIn + attachPendingPaymentIfAny).
-  const startCheckout = async (tier) => {
-    if (loadingTier) return;
-    setLoadingTier(tier);
+  const startCheckout = async () => {
+    if (loading) return;
+    setLoading(true);
     try {
       const res = await fetch("/api/start-checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tier }),
+        body: JSON.stringify({ tier: BUILD.tier }),
       });
       const data = await res.json();
       if (data.url) { window.location.href = data.url; return; } // off to Stripe Checkout
@@ -26,7 +25,7 @@ export function PricingPage({ onNavigate, showToast }) {
     } catch {
       showToast?.("Couldn't start checkout. Please try again.", "error");
     } finally {
-      setLoadingTier(null);
+      setLoading(false);
     }
   };
 
@@ -47,42 +46,23 @@ export function PricingPage({ onNavigate, showToast }) {
         </div>
       </div>
 
-      {/* Two ways to pay */}
+      {/* One way to pay */}
       <div style={{ background: "var(--cream)" }}>
         <div className="page-wrap">
-          <p className="hiw-paths-sub">When you're ready to keep it, there are two ways to pay — pick whichever matches how long you think you'll want the page around.</p>
-          <div className="pricing-paths">
-            <button
-              type="button"
-              className="pricing-path-card pricing-path-card-light pricing-path-card-clickable"
-              onClick={() => startCheckout("payg")}
-              disabled={!!loadingTier}
-              aria-label="Pay Yearly — $49 to start, then $10 a year to keep it live. Continue to checkout."
-            >
-              <div className="pricing-path-label pricing-path-label-rust">{PAYG.label}</div>
-              <div className="pricing-path-price">{PAYG.price}</div>
-              <div className="pricing-path-sub">{PAYG.sub}</div>
-              <div className="pricing-path-dots">
-                {[0, 1, 2, 3, 4].map((i) => (
-                  <span key={i} className={`pricing-path-dot${i === 0 ? " filled" : ""}`} />
-                ))}
-              </div>
-              <span className="pricing-path-dots-caption">year 1 &rarr; onward</span>
-              <p className="pricing-path-body">{PAYG.body}</p>
-            </button>
-
+          <p className="hiw-paths-sub">When you're ready to keep it, one payment unlocks everything — no plans to choose between, nothing to renew later.</p>
+          <div className="pricing-paths pricing-paths-single">
             <button
               type="button"
               className="pricing-path-card pricing-path-card-dark pricing-path-card-clickable"
-              onClick={() => startCheckout("forever")}
-              disabled={!!loadingTier}
-              aria-label="Pay Once — $100, no renewals ever. Continue to checkout."
+              onClick={startCheckout}
+              disabled={loading}
+              aria-label="Pay Once — $49, no renewals ever. Continue to checkout."
             >
-              <div className="pricing-path-label pricing-path-label-gold">{FOREVER.label}</div>
-              <div className="pricing-path-price">{FOREVER.price}</div>
-              <div className="pricing-path-sub">{FOREVER.sub}</div>
+              <div className="pricing-path-label pricing-path-label-gold">{BUILD.label}</div>
+              <div className="pricing-path-price">{BUILD.price}</div>
+              <div className="pricing-path-sub">{BUILD.sub}</div>
               <div className="pricing-path-ring"><span className="pricing-path-ring-dot" /></div>
-              <p className="pricing-path-body">{FOREVER.body}</p>
+              <p className="pricing-path-body">{BUILD.body}</p>
             </button>
           </div>
         </div>
@@ -92,7 +72,6 @@ export function PricingPage({ onNavigate, showToast }) {
       <div style={{ background: "var(--cream)" }}>
         <div className="page-wrap">
           <div className="pricing-closing">
-            <p className="pricing-closing-line">Rough guide: five years of Pay Yearly costs about the same as Pay Once. Expect to keep the page longer than that? Pay Once is the better value. Just getting started? Pay Yearly costs less today.</p>
             <p className="pricing-closing-line">That's the whole model — no surprises either way.</p>
             <button className="btn btn-rust btn-lg" onClick={() => onNavigate("onboarding")}>Start your page, free</button>
             <span className="pricing-cta-note">Five entries, no card required. Upgrade any time.</span>

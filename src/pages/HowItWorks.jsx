@@ -1,7 +1,6 @@
 import { PRICING_PLANS } from "../lib/pricingPlans";
 
-const PAYG = PRICING_PLANS.find((p) => p.tier === "payg");
-const FOREVER = PRICING_PLANS.find((p) => p.tier === "forever");
+const BUILD = PRICING_PLANS.find((p) => p.tier === "build");
 
 const STEPS = [
   {
@@ -17,8 +16,8 @@ const STEPS = [
     body: "Photos, voicemails, videos, and stories start arriving from everyone you invited — each one landing in the same page, building a fuller picture than any one person could on their own.",
   },
   {
-    heading: "When you're ready, choose how to keep it",
-    body: "Once you've seen it come together, pick how you want to pay — a small yearly fee, or once and never again.",
+    heading: "When you're ready, keep it",
+    body: "Once you've seen it come together, one payment unlocks everything — for good.",
   },
 ];
 
@@ -48,25 +47,17 @@ export function HowItWorksPage({ onNavigate }) {
 
         <hr className="story-divider" />
 
-        <p className="hiw-paths-heading">Two ways to pay, whenever you're ready</p>
+        <p className="hiw-paths-heading">One way to pay, whenever you're ready</p>
         <p className="hiw-paths-sub">Nothing is charged until you decide to move past the free five.</p>
 
-        <div className="pricing-paths hiw-paths">
-          <div className="pricing-path-card pricing-path-card-light">
-            <div className="pricing-path-label pricing-path-label-rust">{PAYG.label}</div>
-            <div className="pricing-path-price">{PAYG.price}</div>
-            <div className="pricing-path-sub">{PAYG.sub}</div>
-            <p className="pricing-path-body">{PAYG.body}</p>
-          </div>
+        <div className="pricing-paths hiw-paths pricing-paths-single">
           <div className="pricing-path-card pricing-path-card-dark">
-            <div className="pricing-path-label pricing-path-label-gold">{FOREVER.label}</div>
-            <div className="pricing-path-price">{FOREVER.price}</div>
-            <div className="pricing-path-sub">{FOREVER.sub}</div>
-            <p className="pricing-path-body">{FOREVER.body}</p>
+            <div className="pricing-path-label pricing-path-label-gold">{BUILD.label}</div>
+            <div className="pricing-path-price">{BUILD.price}</div>
+            <div className="pricing-path-sub">{BUILD.sub}</div>
+            <p className="pricing-path-body">{BUILD.body}</p>
           </div>
         </div>
-
-        <p className="hiw-paths-sub">Rough guide: five years of Pay Yearly costs about the same as Pay Once. Expect to keep the page longer than that? Pay Once is the better value. Just getting started? Pay Yearly costs less today.</p>
 
         <div className="hiw-cta-block">
           <button className="btn btn-rust btn-lg" onClick={() => onNavigate("onboarding")}>Start their page, free</button>

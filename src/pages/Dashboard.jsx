@@ -6,8 +6,7 @@ import { exportMemorial } from "../lib/export";
 import { PRICING_PLANS } from "../lib/pricingPlans";
 import { ShareMemoryModal } from "./Memorial";
 
-const PAYG = PRICING_PLANS.find((p) => p.tier === "payg");
-const FOREVER = PRICING_PLANS.find((p) => p.tier === "forever");
+const BUILD = PRICING_PLANS.find((p) => p.tier === "build");
 
 export function DashboardPage({ currentUser, onNavigate, showToast }) {
   const [memorials, setMemorials] = useState([]);
@@ -19,7 +18,7 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
   const [exporting, setExporting] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null); // memorial pending delete confirmation, or null
   const [pendingAccessRequests, setPendingAccessRequests] = useState(0);
-  const [upgradingTier, setUpgradingTier] = useState(null); // "payg" | "forever" | null, while a checkout redirect is starting
+  const [upgrading, setUpgrading] = useState(false); // true while a checkout redirect is starting
   const [addingMemory, setAddingMemory] = useState(false);
 
   useEffect(() => {
@@ -125,15 +124,14 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
     }
   };
 
-  // tier: "payg" ($49 + $10/yr) or "forever" ($100 one-time) — same two
-  // choices as the Pricing page, via api/create-checkout.js.
-  const handleUpgrade = async (memorialId, tier) => {
-    setUpgradingTier(tier);
+  // $49 one-time build fee — same tier as the Pricing page, via api/create-checkout.js.
+  const handleUpgrade = async (memorialId) => {
+    setUpgrading(true);
     try {
       const res = await fetch("/api/create-checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ memorialId, tier }),
+        body: JSON.stringify({ memorialId, tier: BUILD.tier }),
       });
       const data = await res.json();
       if (data.url) { window.location.href = data.url; return; } // off to Stripe Checkout
@@ -141,7 +139,7 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
     } catch {
       showToast("Couldn't start checkout. Please try again.", "error");
     } finally {
-      setUpgradingTier(null);
+      setUpgrading(false);
     }
   };
 
@@ -253,14 +251,11 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
                 ) : (
                   <div className="invite-box" style={{ flexWrap: "wrap" }}>
                     <span className="invite-url" style={{ whiteSpace: "normal" }}>
-                      <strong>Free plan</strong> — written memories only. Unlock photo, video &amp; voice contributions (and exports, coming soon) — same two ways to pay as the Pricing page.
+                      <strong>Free plan</strong> — written memories only. Unlock photo, video &amp; voice contributions (and exports, coming soon) — same one-time fee as the Pricing page.
                     </span>
                     <div style={{ display: "flex", gap: 8 }}>
-                      <button className="btn btn-sm btn-rust" onClick={() => handleUpgrade(activeMemorial.id, "payg")} disabled={!!upgradingTier}>
-                        {upgradingTier === "payg" ? "Starting…" : `${PAYG.label} — ${PAYG.price}`}
-                      </button>
-                      <button className="btn btn-sm btn-ghost" onClick={() => handleUpgrade(activeMemorial.id, "forever")} disabled={!!upgradingTier}>
-                        {upgradingTier === "forever" ? "Starting…" : `${FOREVER.label} — ${FOREVER.price}`}
+                      <button className="btn btn-sm btn-rust" onClick={() => handleUpgrade(activeMemorial.id)} disabled={upgrading}>
+                        {upgrading ? "Starting…" : `${BUILD.label} — ${BUILD.price}`}
                       </button>
                     </div>
                   </div>

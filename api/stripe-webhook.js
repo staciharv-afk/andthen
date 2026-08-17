@@ -2,27 +2,22 @@
 //
 // Handles two things:
 // 1. checkout.session.completed — unlocks a memorial (is_paid = true) for
-//    the EXISTING post-signup upgrade flow (create-checkout.js, either
-//    tier, metadata.memorial_id). Every Checkout Session here is now
-//    `mode: "payment"` (see api/_lib/stripeTiers.js) — for a "payg" upgrade,
-//    that session only covers the one-time $49 build fee; once payment is
-//    confirmed, this creates the actual $10/yr keeper-fee subscription
-//    (with its 365-day trial) via createKeeperFeeSubscription, using the
-//    card the Checkout Session saved. Forever-tier upgrades never get a
-//    stripe_subscription_id, since no subscription is ever created for
-//    that tier. Re-delivery-safe: skips creating a second subscription if
-//    the memorial already has one. Pre-signup checkouts (start-checkout.js)
+//    the EXISTING post-signup upgrade flow (create-checkout.js,
+//    metadata.memorial_id). The Checkout Session here is `mode: "payment"`
+//    (see api/_lib/stripeTiers.js) — a single one-time $49 build fee, no
+//    subscription ever created. Pre-signup checkouts (start-checkout.js)
 //    have no memorial_id yet at this point — they're skipped here and
-//    unlocked instead by attach-presignup-payment.js (which does the same
-//    subscription-creation step) once the memorial exists, right after
-//    magic-link signup completes.
-// 2. customer.subscription.updated / customer.subscription.deleted — the
-//    "pay as you go" tier's $10/yr renewal. When a subscription's status
-//    moves to past_due/unpaid/canceled (Stripe already retried and gave up),
-//    the matching memorial (by stripe_subscription_id) gets paused = true;
-//    moving back to active (e.g. they update their card and the retry
-//    succeeds) un-pauses it. This is the "miss a payment and the page
-//    pauses, it doesn't disappear" behavior promised on the pricing page.
+//    unlocked instead by attach-presignup-payment.js once the memorial
+//    exists, right after magic-link signup completes.
+// 2. customer.subscription.updated / customer.subscription.deleted — no
+//    purchase creates a subscription anymore (the $10/yr "keeper's fee" was
+//    retired; this is now a one-time-only tier), so this branch is inert
+//    for every new purchase. Left in place only so any subscription created
+//    before that change keeps behaving correctly: when its status moves to
+//    past_due/unpaid/canceled (Stripe already retried and gave up), the
+//    matching memorial (by stripe_subscription_id) gets paused = true;
+//    moving back to active un-pauses it. Safe to delete once no memorial
+//    has a stripe_subscription_id left.
 //
 // Rather than verify the raw-body signature (fragile under Vercel's body
 // parsing), we treat the POST only as a nudge: we re-fetch the object
@@ -42,7 +37,6 @@
 // customer.subscription.deleted
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
-import { createKeeperFeeSubscription } from "./_lib/stripeTiers.js";
 
 // Statuses Stripe uses once its own automatic retry schedule has been
 // exhausted (or the subscription was outright canceled) — anything before
@@ -67,9 +61,7 @@ export default async function handler(req, res) {
   try {
     if (event?.type === "checkout.session.completed") {
       // Re-fetch from Stripe — the source of truth. Never trust the POST body's contents.
-      const session = await stripe.checkout.sessions.retrieve(event.data.object.id, {
-        expand: ["payment_intent.payment_method"],
-      });
+      const session = await stripe.checkout.sessions.retrieve(event.data.object.id);
       if (session.payment_status !== "paid") return res.status(200).json({ skipped: "not paid" });
       const memorialId = session.metadata?.memorial_id;
       if (!memorialId) return res.status(200).json({ skipped: "no memorial_id — likely a pre-signup checkout" });
@@ -77,24 +69,6 @@ export default async function handler(req, res) {
       const customerId = session.customer ? (typeof session.customer === "string" ? session.customer : session.customer.id) : null;
       const update = { is_paid: true };
       if (customerId) update.stripe_customer_id = customerId;
-
-      if (session.metadata?.tier === "payg") {
-        const { data: existingRows } = await admin.from("memorials").select("stripe_subscription_id").eq("id", memorialId).limit(1);
-        if (!existingRows?.[0]?.stripe_subscription_id) {
-          try {
-            const pm = session.payment_intent?.payment_method;
-            const paymentMethodId = typeof pm === "string" ? pm : pm?.id;
-            const subscription = await createKeeperFeeSubscription(stripe, { customerId, paymentMethodId });
-            update.stripe_subscription_id = subscription.id;
-          } catch (e) {
-            // The build fee is paid and the page still unlocks below either
-            // way — a failed keeper-fee subscription needs manual follow-up,
-            // not a blocked upgrade. Logged for visibility since there's no
-            // retry queue in this app.
-            console.error(`Keeper-fee subscription creation failed for memorial ${memorialId}:`, e.message);
-          }
-        }
-      }
 
       const { error } = await admin.from("memorials").update(update).eq("id", memorialId);
       if (error) return res.status(500).json({ error: error.message });

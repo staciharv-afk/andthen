@@ -1,16 +1,15 @@
-// Vercel serverless function — starts a pre-signup Stripe Checkout for one of
-// the two pricing-page tiers. Unlike create-checkout.js (which upgrades an
+// Vercel serverless function — starts a pre-signup Stripe Checkout for the
+// pricing page's one tier. Unlike create-checkout.js (which upgrades an
 // EXISTING memorial), there's no memorial yet at this point — the person
 // hasn't signed up. Payment happens first; the memorial gets created after,
 // through the normal magic-link onboarding flow, and is attached to this
 // checkout session by api/attach-presignup-payment.js once it exists.
 //
-// Tier shape (both tiers) lives in api/_lib/stripeTiers.js, shared with
-// create-checkout.js.
+// Tier shape lives in api/_lib/stripeTiers.js, shared with create-checkout.js.
 //
 // Required env vars (Vercel → Settings → Environment Variables):
 //   STRIPE_SECRET_KEY = Stripe secret key (must be sk_live_… in production)
-//   See api/_lib/stripeTiers.js for the three STRIPE_*_PRODUCT_ID vars.
+//   See api/_lib/stripeTiers.js for STRIPE_BUILD_FEE_PRODUCT_ID.
 import Stripe from "stripe";
 import { buildCheckoutParams, stripeProductIdsConfigured } from "./_lib/stripeTiers.js";
 
@@ -23,7 +22,7 @@ export default async function handler(req, res) {
   }
 
   const tier = req.body?.tier;
-  if (tier !== "payg" && tier !== "forever") return res.status(400).json({ error: "Unknown pricing tier" });
+  if (tier !== "build") return res.status(400).json({ error: "Unknown pricing tier" });
 
   const origin = req.headers.origin || `https://${req.headers.host}`;
   const stripe = new Stripe(STRIPE_SECRET_KEY);

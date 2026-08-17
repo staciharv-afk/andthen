@@ -796,6 +796,7 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
    still reads clearly against --bark — no new colors introduced. */
 .pricing-paths { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: stretch; padding: 8px 0 64px; }
 @media (max-width: 720px) { .pricing-paths { grid-template-columns: 1fr; } }
+.pricing-paths-single { grid-template-columns: 1fr; max-width: 420px; }
 
 .pricing-path-card { display: flex; flex-direction: column; height: 100%; border-radius: 10px; padding: 36px 32px; }
 /* Button-chrome reset, ahead of the -light/-dark variants below so their own

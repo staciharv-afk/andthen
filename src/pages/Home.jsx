@@ -2,8 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { fmtTime } from "../lib/utils";
 import { PRICING_PLANS } from "../lib/pricingPlans";
 
-const PAYG = PRICING_PLANS.find((p) => p.tier === "payg");
-const FOREVER = PRICING_PLANS.find((p) => p.tier === "forever");
+const BUILD = PRICING_PLANS.find((p) => p.tier === "build");
 
 // Condensed 3-step version of the real How It Works page's 4-step
 // walkthrough — own copy, not sourced from HowItWorksPage's STEPS, since
@@ -328,21 +327,16 @@ export function HomePage({ onNavigate }) {
         <div className="page-wrap">
           <div className="narrative" style={{ paddingTop: 0 }}>
             <div className="section-label">Pricing</div>
-            <h2 className="narrative-headline">Two ways to pay, whenever you're ready.</h2>
+            <h2 className="narrative-headline">One way to pay, whenever you're ready.</h2>
             <p className="narrative-body">
               Nothing is charged until you move past the free five. Each page is priced on its own, so you're free to create one for every person you want to honor.
             </p>
 
             <div className="pricing-teaser-cards">
-              <div className="pricing-teaser-card pricing-teaser-card-light">
-                <div className="pricing-teaser-label">{PAYG.label}</div>
-                <p className="pricing-teaser-price">{PAYG.price}</p>
-                <p className="pricing-teaser-sub">{PAYG.sub}</p>
-              </div>
               <div className="pricing-teaser-card pricing-teaser-card-dark">
-                <div className="pricing-teaser-label">{FOREVER.label}</div>
-                <p className="pricing-teaser-price">{FOREVER.price}</p>
-                <p className="pricing-teaser-sub">{FOREVER.sub}</p>
+                <div className="pricing-teaser-label">{BUILD.label}</div>
+                <p className="pricing-teaser-price">{BUILD.price}</p>
+                <p className="pricing-teaser-sub">{BUILD.sub}</p>
               </div>
             </div>
 
