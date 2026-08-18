@@ -263,15 +263,21 @@ export function HomePage({ onNavigate }) {
               <button className="hero-media-cta" onClick={() => onNavigate("memorial", "x58e5wvtmravmszf")}>
                 See a real, living page <span aria-hidden="true">→</span>
               </button>
-
-              <div className="hero-wyg-card">
-                <div className="section-label">What you get</div>
-                <h2 className="hero-wyg-headline">Not just a page — a way to collect.</h2>
-                <p className="hero-wyg-body">
-                  <em>And Then</em> asks each person the right question for who they were to them — so four different people end up telling four completely different stories.
-                </p>
-              </div>
             </div>
+          </div>
+
+          {/* Standalone, not part of the two-column grid above — with the
+              left column (headline/body/buttons) shorter than the right
+              column's collage stack, a card nested inside that right column
+              ended up visually stranded once the left column ran out,
+              floating with empty space to its left. Sitting on its own row
+              keeps it left-aligned with the rest of the page instead. */}
+          <div className="hero-wyg-card fade-up-3">
+            <div className="section-label">What you get</div>
+            <h2 className="hero-wyg-headline">Not just a page — a way to collect.</h2>
+            <p className="hero-wyg-body">
+              <em>And Then</em> asks each person the right question for who they were to them — so four different people end up telling four completely different stories.
+            </p>
           </div>
           {/* 1px, not 0 — a zero-area target has inconsistently-defined
               intersection ratio across browsers, which was causing the

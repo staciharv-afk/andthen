@@ -230,7 +230,7 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 
 .hero-scope-note { font-size: 14px; font-weight: 500; color: var(--rust); line-height: 1.6; max-width: 500px; margin: 0 0 32px; }
 
-.hero-wyg-card { background: var(--cream-dark); border-radius: 10px; padding: 24px 26px; margin-top: 22px; }
+.hero-wyg-card { background: var(--cream-dark); border-radius: 10px; padding: 24px 26px; max-width: 500px; margin-top: 48px; }
 .hero-wyg-headline { font-family: 'Lora', serif; font-weight: 500; font-size: 20px; color: var(--bark); margin: 0 0 10px; line-height: 1.3; }
 .hero-wyg-body { font-size: 14px; font-weight: 300; line-height: 1.6; color: var(--warm-mid); margin: 0; }
 @media (max-width: 600px) {
@@ -287,7 +287,7 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .section-label { font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--rust); margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
 .section-label::after { content: ''; flex: 1; height: 1px; background: var(--warm-faint); max-width: 40px; }
 .narrative-headline { font-family: 'Lora', serif; font-size: clamp(26px, 3vw, 36px); font-weight: 400; color: var(--bark); margin-bottom: 24px; max-width: 680px; line-height: 1.3; }
-.narrative-body { font-size: 15px; font-weight: 300; line-height: 1.75; color: var(--warm-mid); max-width: 540px; }
+.narrative-body { font-size: 15px; font-weight: 300; line-height: 1.75; color: var(--warm-mid); max-width: 500px; }
 
 /* ── FINAL CTA ── */
 .final-cta { padding: 96px 0; text-align: center; }
@@ -906,7 +906,7 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
    for the narrow single-column layout, and .pricing-path-* for the two
    pricing cards (as plain non-interactive divs here, not buttons — this
    page doesn't sell anything, it just explains). -- */
-.hiw-sub { font-size: 17px; font-weight: 300; line-height: 1.65; color: var(--warm-mid); margin: 0 0 50px; }
+.hiw-sub { font-size: 17px; font-weight: 300; line-height: 1.65; color: var(--warm-mid); max-width: 500px; margin: 0 0 50px; }
 
 .hiw-step { display: flex; gap: 20px; margin-bottom: 40px; }
 .hiw-step-num { font-family: 'Lora', serif; font-style: italic; font-size: 22px; color: var(--rust); width: 36px; flex-shrink: 0; }
@@ -925,7 +925,7 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 }
 
 .hiw-paths-heading { font-family: 'Lora', serif; font-size: 22px; font-weight: 400; color: var(--bark); margin: 0 0 8px; }
-.hiw-paths-sub { font-size: 15px; font-weight: 300; color: var(--warm-mid); margin: 0 0 26px; }
+.hiw-paths-sub { font-size: 15px; font-weight: 300; color: var(--warm-mid); max-width: 500px; margin: 0 0 26px; }
 .hiw-paths { padding: 0 0 40px; }
 
 .hiw-cta-block { text-align: center; padding-top: 10px; }
