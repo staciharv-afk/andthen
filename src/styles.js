@@ -626,6 +626,16 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .crop-adjust-img { width: 100%; height: 100%; object-fit: cover; display: block; user-select: none; -webkit-user-drag: none; }
 .crop-adjust-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
 
+/* Wider card for a non-square crop window (the header photo banner) —
+   the default 380px is sized for the original square per-memory-photo case. */
+.crop-adjust-card-wide { max-width: 560px; }
+
+/* Read-only live preview at a second aspect ratio, shown beside the
+   interactive window — see CropAdjuster's header comment for why. */
+.crop-adjust-secondary { margin-top: 14px; }
+.crop-adjust-secondary-label { display: block; font-size: 12px; color: var(--warm-light); margin-bottom: 6px; }
+.crop-adjust-secondary-window { position: relative; width: 100%; max-width: 220px; border-radius: 4px; overflow: hidden; background: var(--warm-faint); }
+
 /* -- delete-memorial confirm modal: reuses .crop-adjust-overlay/-card, just wider -- */
 .confirm-delete-card { max-width: 440px; }
 .confirm-delete-warning { color: var(--warm-mid); line-height: 1.6; margin-bottom: 20px; }

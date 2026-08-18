@@ -3,6 +3,19 @@ import { supabase } from "../lib/supabase";
 import { uid, fileToDataURL, slugify } from "../lib/utils";
 import { RESERVED_SLUGS } from "../lib/router";
 import { trackEvent } from "../lib/analytics";
+import { CropAdjuster, detectCropPosition } from "../components/CropAdjuster";
+
+// The header banner isn't a fixed shape — its height is a fluid clamp()
+// that runs from ~220px tall on mobile up to 420px on desktop, and its
+// width is unconstrained (the memorial page has no max-width), so the
+// visible aspect ratio genuinely differs by device rather than just
+// scaling. HEADER_DESKTOP_RATIO/HEADER_MOBILE_RATIO are representative
+// approximations (not exact for every viewport) used only to give the
+// person cropping a sense of both extremes before they save one position —
+// see CropAdjuster's header comment for why this is one stored position,
+// not two.
+const HEADER_DESKTOP_RATIO = 3;
+const HEADER_MOBILE_RATIO = 1.8;
 
 export function CreateMemorialPage({ currentUser, existing, onCreated, onUpdated, onCancel, showToast }) {
   const isEdit = Boolean(existing);
@@ -20,15 +33,23 @@ export function CreateMemorialPage({ currentUser, existing, onCreated, onUpdated
   const [inviteMessage, setInviteMessage] = useState(existing?.invite_message || "");
   const [photoFile, setPhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(existing?.photo_url || null);
+  const [cropPos, setCropPos] = useState({ x: existing?.crop_x ?? 50, y: existing?.crop_y ?? 50 });
+  const [showCropAdjuster, setShowCropAdjuster] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const fileInputRef = useRef();
 
+  // A freshly-chosen photo gets a smart default crop (face detection where
+  // the browser supports it, center otherwise — see detectCropPosition),
+  // then opens the adjuster right away so it's easy to fix if the guess is
+  // off, rather than a separate step someone might not notice they need.
   const handlePhotoSelect = async (file) => {
     if (!file) return;
     setPhotoFile(file);
     const preview = await fileToDataURL(file);
     setPhotoPreview(preview);
+    setCropPos(await detectCropPosition(file));
+    setShowCropAdjuster(true);
   };
 
   const handleSubmit = async () => {
@@ -62,6 +83,8 @@ export function CreateMemorialPage({ currentUser, existing, onCreated, onUpdated
           prompt: cleanPrompts[0] || null,
           invite_message: inviteMessage.trim() || null,
           photo_url: photoUrl,
+          crop_x: cropPos.x,
+          crop_y: cropPos.y,
           slug: cleanSlug,
         }).eq("id", existing.id).select();
 
@@ -94,6 +117,8 @@ export function CreateMemorialPage({ currentUser, existing, onCreated, onUpdated
         prompt: cleanPrompts[0] || null,
         invite_message: inviteMessage.trim() || null,
         photo_url: photoUrl,
+        crop_x: cropPos.x,
+        crop_y: cropPos.y,
         steward_id: currentUser.id,
         invite_code: inviteCode,
         require_approval: true, // reviewed-by-default; changeable afterward from the page's Settings screen
@@ -128,7 +153,16 @@ export function CreateMemorialPage({ currentUser, existing, onCreated, onUpdated
             onClick={() => fileInputRef.current?.click()}
           >
             {photoPreview ? (
-              <img src={photoPreview} alt="Preview" />
+              <>
+                <img src={photoPreview} alt="Preview" style={{ objectPosition: `${cropPos.x}% ${cropPos.y}%` }} />
+                <button
+                  type="button"
+                  className="crop-adjust-btn"
+                  onClick={(e) => { e.stopPropagation(); setShowCropAdjuster(true); }}
+                >
+                  Reposition
+                </button>
+              </>
             ) : (
               <>
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#C4A882" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -139,6 +173,21 @@ export function CreateMemorialPage({ currentUser, existing, onCreated, onUpdated
             )}
             <input ref={fileInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => handlePhotoSelect(e.target.files[0])} />
           </div>
+
+          {showCropAdjuster && photoPreview && (
+            <CropAdjuster
+              imageUrl={photoPreview}
+              initialPos={cropPos}
+              aspectRatio={HEADER_DESKTOP_RATIO}
+              secondaryAspectRatio={HEADER_MOBILE_RATIO}
+              secondaryLabel="How this looks on mobile"
+              wide
+              title="Reposition header photo"
+              subtitle="Drag to choose what shows across the top of the page."
+              onCancel={() => setShowCropAdjuster(false)}
+              onConfirm={(pos) => { setCropPos(pos); setShowCropAdjuster(false); }}
+            />
+          )}
 
           <div className="form-group">
             <label className="form-label">Their name *</label>

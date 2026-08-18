@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from "../lib/supabase";
 import { uid, fmtDate, timeAgo, fileToDataURL, fmtTime, sendThankYou, notifyCreator, notifyAccessRequest } from "../lib/utils";
 import { trackEvent } from "../lib/analytics";
+import { CropAdjuster, coverSize, detectCropPosition, clamp } from "../components/CropAdjuster";
 
 // Content-type filters, and the label shown on a grid tile / in the reader's
 // type tag — one source of truth (contentTypeLabel) for both, since a filter
@@ -55,8 +56,6 @@ const seedFor = (id) => {
   return h;
 };
 
-const clamp = (n, lo, hi) => Math.min(hi, Math.max(lo, n));
-
 // Existing brand hues already used elsewhere on this page (rose/gold/sage
 // from the memorial palette, plus the video/link tag colors) rather than
 // inventing new ones — hashed per contributor via seedFor so the same
@@ -86,40 +85,6 @@ function ContributorAvatars({ stories }) {
       {overflow > 0 && <span className="mem-avatar mem-avatar-overflow">+{overflow}</span>}
     </div>
   );
-}
-
-// object-fit: cover's rendered size for a natural image inside a box —
-// used to convert a pixel drag distance into an object-position percentage.
-function coverSize({ w, h }, boxW, boxH) {
-  const scale = Math.max(boxW / w, boxH / h);
-  return { w: w * scale, h: h * scale };
-}
-
-// Smart default crop anchor for a freshly-selected photo, run at upload
-// time (before the file is even uploaded). Tries the browser's built-in
-// Shape Detection API where it exists — support is spotty (mainly older
-// Android Chrome; Safari and Firefox never implemented it, and it's not a
-// dependency worth adding a real face-detection library for) — and falls
-// back to a plain center crop everywhere else, silently, never blocking
-// the upload.
-async function detectCropPosition(file) {
-  try {
-    if (!("FaceDetector" in window)) return { x: 50, y: 50 };
-    const bitmap = await createImageBitmap(file);
-    const detector = new window.FaceDetector({ maxDetectedFaces: 5, fastMode: true });
-    const faces = await detector.detect(bitmap);
-    if (!faces?.length) return { x: 50, y: 50 };
-    const largest = faces.reduce((a, b) =>
-      a.boundingBox.width * a.boundingBox.height >= b.boundingBox.width * b.boundingBox.height ? a : b
-    );
-    const { x, y, width, height } = largest.boundingBox;
-    return {
-      x: clamp(((x + width / 2) / bitmap.width) * 100, 10, 90),
-      y: clamp(((y + height / 2) / bitmap.height) * 100, 10, 90),
-    };
-  } catch {
-    return { x: 50, y: 50 }; // detection failing is never a reason to block the upload
-  }
 }
 
 // Relationship-tailored, tense-aware question bank for the Share a Memory
@@ -496,7 +461,11 @@ export function MemorialPage({ inviteCode, showToast, onNavigate, currentUser })
       <header className="scrapbook-hero">
         {memorial.photo_url ? (
           <div className="hero-banner">
-            <img src={memorial.photo_url} alt={memorial.name} />
+            <img
+              src={memorial.photo_url}
+              alt={memorial.name}
+              style={{ objectPosition: `${memorial.crop_x ?? 50}% ${memorial.crop_y ?? 50}%` }}
+            />
             <div className="hero-banner-scrim" />
             <div className="hero-banner-label">{heroTitle}</div>
           </div>
@@ -1657,94 +1626,6 @@ function QuestionAttachOptions({
       <button type="button" className="share-attach-btn" onClick={() => setAvRecording(true)}>Record a voice memo</button>
       <button type="button" className="share-attach-btn" onClick={onAvClick}>Upload audio or video</button>
       <button type="button" className="share-attach-btn" onClick={onLinkClick}>+ Add a link</button>
-    </div>
-  );
-}
-
-// Manual crop reposition — drag the full photo behind a fixed square
-// window (no zoom/rotate, matching a Facebook/LinkedIn profile-photo
-// repositioner). Renders the same object-fit: cover + object-position the
-// final tile uses, so what's shown while dragging is exactly what gets
-// saved — the drag math just needs to convert a pixel offset into the
-// object-position percentage that would produce that same view.
-function CropAdjuster({ file, initialPos, onCancel, onConfirm }) {
-  const CROP_SIZE = 300;
-  const [pos, setPos] = useState(initialPos);
-  const [naturalSize, setNaturalSize] = useState(null);
-  const [dragging, setDragging] = useState(false);
-  const dragStart = useRef(null);
-  const [imgUrl, setImgUrl] = useState(null);
-
-  // Create and revoke the object URL in the same effect (keyed to `file`,
-  // not a lazily-initialized ref) — StrictMode double-invokes effects in
-  // dev (mount, cleanup, mount again), and a ref-cached "create once" URL
-  // would get revoked by the first synthetic cleanup and never recreated.
-  useEffect(() => {
-    const url = URL.createObjectURL(file);
-    setImgUrl(url);
-    return () => URL.revokeObjectURL(url);
-  }, [file]);
-
-  const rendered = naturalSize ? coverSize(naturalSize, CROP_SIZE, CROP_SIZE) : null;
-  const overflowX = rendered ? Math.max(0, rendered.w - CROP_SIZE) : 0;
-  const overflowY = rendered ? Math.max(0, rendered.h - CROP_SIZE) : 0;
-
-  const beginDrag = (clientX, clientY) => {
-    dragStart.current = { x: clientX, y: clientY, posX: pos.x, posY: pos.y };
-    setDragging(true);
-  };
-  const onMouseDown = (e) => beginDrag(e.clientX, e.clientY);
-  const onTouchStart = (e) => beginDrag(e.touches[0].clientX, e.touches[0].clientY);
-
-  useEffect(() => {
-    if (!dragging) return;
-    const onMove = (e) => {
-      const point = e.touches ? e.touches[0] : e;
-      if (e.touches) e.preventDefault(); // don't let the page scroll while repositioning
-      const dx = point.clientX - dragStart.current.x;
-      const dy = point.clientY - dragStart.current.y;
-      // Dragging the photo right reveals more of its left side, i.e. the
-      // object-position anchor moves the opposite direction of the drag.
-      setPos({
-        x: overflowX ? clamp(dragStart.current.posX - (dx / overflowX) * 100, 0, 100) : 50,
-        y: overflowY ? clamp(dragStart.current.posY - (dy / overflowY) * 100, 0, 100) : 50,
-      });
-    };
-    const onUp = () => setDragging(false);
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
-    window.addEventListener("touchmove", onMove, { passive: false });
-    window.addEventListener("touchend", onUp);
-    return () => {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
-      window.removeEventListener("touchmove", onMove);
-      window.removeEventListener("touchend", onUp);
-    };
-  }, [dragging, overflowX, overflowY]);
-
-  return (
-    <div className="crop-adjust-overlay fade-in" role="dialog" aria-label="Adjust photo crop">
-      <div className="crop-adjust-card">
-        <h3 className="crop-adjust-title">Reposition photo</h3>
-        <p className="crop-adjust-sub">Drag to choose what shows in the square.</p>
-        <div className="crop-adjust-window" onMouseDown={onMouseDown} onTouchStart={onTouchStart}>
-          {imgUrl && (
-            <img
-              src={imgUrl}
-              alt=""
-              className="crop-adjust-img"
-              draggable={false}
-              onLoad={(e) => setNaturalSize({ w: e.target.naturalWidth, h: e.target.naturalHeight })}
-              style={{ objectPosition: `${pos.x}% ${pos.y}%` }}
-            />
-          )}
-        </div>
-        <div className="crop-adjust-actions">
-          <button type="button" className="btn btn-ghost" onClick={onCancel}>Cancel</button>
-          <button type="button" className="btn btn-rust" onClick={() => onConfirm(pos)}>Save position</button>
-        </div>
-      </div>
     </div>
   );
 }

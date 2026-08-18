@@ -207,7 +207,12 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
           <>
             <div className="memorial-banner fade-up-2">
               {activeMemorial.photo_url && (
-                <img className="memorial-banner-img" src={activeMemorial.photo_url} alt={activeMemorial.name} />
+                <img
+                  className="memorial-banner-img"
+                  src={activeMemorial.photo_url}
+                  alt={activeMemorial.name}
+                  style={{ objectPosition: `${activeMemorial.crop_x ?? 50}% ${activeMemorial.crop_y ?? 50}%` }}
+                />
               )}
               <div className="memorial-banner-body">
                 <div className="memorial-name">{activeMemorial.name}</div>
