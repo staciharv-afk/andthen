@@ -172,9 +172,9 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
       <div className="dashboard-inner">
         <div className="empty-state fade-up">
           <div className="empty-state-icon">📖</div>
-          <div className="empty-state-title">No stories yet</div>
-          <p className="empty-state-sub" style={{ marginBottom: 24 }}>Create your first page and start gathering stories.</p>
-          <button className="btn btn-rust" onClick={() => onNavigate("create")}>Start gathering their stories</button>
+          <div className="empty-state-title">No pages yet</div>
+          <p className="empty-state-sub" style={{ marginBottom: 24 }}>Create your first page and start gathering memories.</p>
+          <button className="btn btn-rust" onClick={() => onNavigate("create")}>Start their page</button>
         </div>
       </div>
     </div>
@@ -185,10 +185,10 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
       <div className="dashboard-inner">
         <div className="dashboard-header fade-up">
           <div>
-            <div className="dashboard-title">Your Stories</div>
-            <div className="dashboard-sub">Manage stories and submissions</div>
+            <div className="dashboard-title">Your People</div>
+            <div className="dashboard-sub">Manage memories and submissions</div>
           </div>
-          <button className="btn btn-rust btn-sm" onClick={() => onNavigate("create")}>+ New story</button>
+          <button className="btn btn-rust btn-sm" onClick={() => onNavigate("create")}>+ Start another page</button>
         </div>
 
         {memorials.length > 1 && (
@@ -281,10 +281,10 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
               ) : filtered.length === 0 ? (
                 <div className="empty-state">
                   <div className="empty-state-icon">✉️</div>
-                  <div className="empty-state-title">{activeTab === "pending" ? "No pending submissions" : "No stories yet"}</div>
+                  <div className="empty-state-title">{activeTab === "pending" ? "No pending submissions" : "No memories yet"}</div>
                   <p className="empty-state-sub">
                     {activeTab === "pending"
-                      ? "You're all caught up. Share the invite link to get more stories coming in."
+                      ? "You're all caught up. Share the invite link to get more memories coming in."
                       : "Share the link below to invite friends and family to contribute."}
                   </p>
                 </div>
