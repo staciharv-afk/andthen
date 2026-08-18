@@ -16,6 +16,7 @@ import { CreateMemorialPage } from "./pages/CreateMemorial";
 import { DashboardPage } from "./pages/Dashboard";
 import { MemorialPage } from "./pages/Memorial";
 import { PageSettingsPage } from "./pages/PageSettings";
+import { AdminPage } from "./pages/Admin";
 import { PricingPage } from "./pages/Pricing";
 import { OurStoryPage } from "./pages/OurStory";
 import { HowItWorksPage } from "./pages/HowItWorks";
@@ -286,6 +287,13 @@ export default function App() {
 
       {route === "memorial" && (
         <MemorialPage inviteCode={routeParam} showToast={showToast} onNavigate={navigate} currentUser={currentUser} />
+      )}
+
+      {route === "admin" && currentUser && (
+        <AdminPage currentUser={currentUser} />
+      )}
+      {route === "admin" && !currentUser && (
+        <AuthPage showToast={showToast} />
       )}
 
       <ToastContainer toasts={toasts} />
