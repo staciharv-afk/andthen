@@ -9,12 +9,15 @@
 //    app.jsx pendingPayment.js stash-and-attach mechanism either way
 //    (see app.jsx's handleMemorialCreated), just a different return view.
 //
-// ui_mode: "embedded" (see src/components/EmbeddedCheckoutModal.jsx) mounts
-// Stripe's payment form inline in the page instead of redirecting the whole
-// tab to checkout.stripe.com — this returns a client_secret for that, not a
-// redirect url. return_url is where Stripe's iframe navigates internally
-// once payment completes; app.jsx bounces the real tab there itself (see
-// its mount effect).
+// ui_mode: "embedded_page" (see src/components/EmbeddedCheckoutModal.jsx)
+// mounts Stripe's payment form inline in the page instead of redirecting
+// the whole tab to checkout.stripe.com — this returns a client_secret for
+// that, not a redirect url. (Older Stripe accounts/docs call this
+// "embedded" — that value is rejected now; the API error is explicit:
+// "The ui_mode value `embedded` is no longer supported. Use `embedded_page`
+// instead.") return_url is where Stripe's iframe navigates internally once
+// payment completes; app.jsx bounces the real tab there itself (see its
+// mount effect).
 //
 // Tier shape lives in api/_lib/stripeTiers.js, shared with create-checkout.js.
 //
@@ -44,7 +47,7 @@ export default async function handler(req, res) {
   try {
     const session = await stripe.checkout.sessions.create(buildCheckoutParams(tier, {
       metadata: { tier },
-      ui_mode: "embedded",
+      ui_mode: "embedded_page",
       return_url: `${origin}/?view=${returnView}&paid_session={CHECKOUT_SESSION_ID}&tier=${tier}`,
     }));
     return res.status(200).json({ clientSecret: session.client_secret });

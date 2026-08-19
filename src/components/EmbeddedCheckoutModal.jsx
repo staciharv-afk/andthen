@@ -37,7 +37,10 @@ export function EmbeddedCheckoutModal({ tier, returnView, title, subtitle, onCan
         const stripe = await stripePromise;
         if (cancelled) return;
         if (!stripe) { setError("Couldn't start checkout."); setStatus("error"); return; }
-        const checkout = await stripe.initEmbeddedCheckout({ clientSecret: data.clientSecret });
+        // Named initEmbeddedCheckout in older Stripe.js docs/versions — this
+        // installed version (@stripe/stripe-js ^9) renamed it to match the
+        // server's ui_mode: "embedded_page" (see api/start-checkout.js).
+        const checkout = await stripe.createEmbeddedCheckoutPage({ clientSecret: data.clientSecret });
         if (cancelled) { checkout.destroy(); return; }
         checkoutRef.current = checkout;
         checkout.mount(containerRef.current);
