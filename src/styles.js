@@ -618,7 +618,7 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .crop-adjust-btn:hover { background: rgba(45,33,24,0.9); }
 
 .crop-adjust-overlay { position: fixed; inset: 0; z-index: 500; background: rgba(26,14,8,0.6); display: flex; align-items: center; justify-content: center; padding: 24px; }
-.crop-adjust-card { background: var(--cream); border-radius: 6px; padding: 28px; max-width: 380px; width: 100%; box-shadow: 0 24px 60px -20px rgba(0,0,0,0.4); }
+.crop-adjust-card { background: var(--cream); border-radius: 6px; padding: 28px; max-width: 380px; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 24px 60px -20px rgba(0,0,0,0.4); }
 .crop-adjust-title { font-family: 'Lora', serif; font-size: 18px; color: var(--bark); margin-bottom: 4px; }
 .crop-adjust-sub { font-size: 13px; color: var(--warm-light); margin-bottom: 16px; }
 .crop-adjust-window { position: relative; width: 100%; aspect-ratio: 1; border-radius: 4px; overflow: hidden; cursor: grab; touch-action: none; background: var(--warm-faint); }
