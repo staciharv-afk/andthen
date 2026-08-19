@@ -22,6 +22,11 @@ export function CreateMemorialPage({ currentUser, existing, onCreated, onUpdated
   const [name, setName] = useState(existing?.name || "");
   const [born, setBorn] = useState(existing?.born || "");
   const [passed, setPassed] = useState(existing?.passed || "");
+  // Defaults to "living" rather than surfacing a Passed field up front —
+  // asking for a death date by default presumes the person has died, which
+  // isn't always true (this app supports living tributes too). Someone
+  // building a memorial explicitly says so by unchecking this.
+  const [isLiving, setIsLiving] = useState(!existing?.passed);
   const [description, setDescription] = useState(existing?.description || "");
   const [stewardRelation, setStewardRelation] = useState(existing?.steward_relation || "");
   const [slug, setSlug] = useState(existing?.slug || "");
@@ -30,6 +35,10 @@ export function CreateMemorialPage({ currentUser, existing, onCreated, onUpdated
     return [src[0] || "", src[1] || "", src[2] || ""];
   });
   const setPromptAt = (i, v) => setPrompts((p) => p.map((x, idx) => (idx === i ? v : x)));
+  // Collapsed by default for a fresh page — three blank "optional" inputs
+  // up front reads as a chore before a first-time user even knows what
+  // they're for. Starts expanded in edit mode if custom prompts already exist.
+  const [useCustomPrompts, setUseCustomPrompts] = useState(() => prompts.some((p) => p.trim()));
   const [inviteMessage, setInviteMessage] = useState(existing?.invite_message || "");
   const [photoFile, setPhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(existing?.photo_url || null);
@@ -139,6 +148,8 @@ export function CreateMemorialPage({ currentUser, existing, onCreated, onUpdated
     }
   };
 
+  const firstName = name.trim().split(" ")[0] || "them";
+
   return (
     <div className="create-page">
       <div className="create-inner">
@@ -207,15 +218,38 @@ export function CreateMemorialPage({ currentUser, existing, onCreated, onUpdated
             </span>
           </div>
 
+          <div className="form-group">
+            <div className="moderation-toggle">
+              <div>
+                <div className="toggle-label">{firstName === "them" ? "They're" : `${firstName}'s`} still with us</div>
+                <div className="toggle-sub">Uncheck this if you're building a memorial for someone who has passed.</div>
+              </div>
+              <label className="toggle-switch">
+                <input
+                  type="checkbox"
+                  checked={isLiving}
+                  onChange={(e) => {
+                    const living = e.target.checked;
+                    setIsLiving(living);
+                    if (living) setPassed("");
+                  }}
+                />
+                <span className="toggle-slider" />
+              </label>
+            </div>
+          </div>
+
           <div className="form-row">
             <div className="form-group">
               <label className="form-label">Born</label>
               <input className="form-input" type="date" value={born} onChange={(e) => setBorn(e.target.value)} />
             </div>
-            <div className="form-group">
-              <label className="form-label">Passed</label>
-              <input className="form-input" type="date" value={passed} onChange={(e) => setPassed(e.target.value)} />
-            </div>
+            {!isLiving && (
+              <div className="form-group">
+                <label className="form-label">Passed</label>
+                <input className="form-input" type="date" value={passed} onChange={(e) => setPassed(e.target.value)} />
+              </div>
+            )}
           </div>
 
           <div className="form-group">
@@ -225,22 +259,38 @@ export function CreateMemorialPage({ currentUser, existing, onCreated, onUpdated
 
           <div className="form-group">
             <label className="form-label">Starter prompts for contributors</label>
-            {[0, 1, 2].map((i) => (
-              <input
-                key={i}
-                className="form-input"
-                style={{ marginTop: i ? 8 : 0 }}
-                placeholder={i === 0 ? `e.g. And then ${(name.trim().split(" ")[0]) || "they"}…` : "Another prompt (optional)"}
-                value={prompts[i]}
-                onChange={(e) => setPromptAt(i, e.target.value)}
-              />
-            ))}
-            <span className="form-hint">Up to 3 — contributors see them rotating on the sharing form. Leave blank for a default.</span>
+            <p className="form-hint" style={{ marginTop: -4, marginBottom: 10 }}>
+              By default, each person you invite gets a thoughtful question based on how they knew {firstName} — so nobody stares at a blank box wondering what to write. Want to ask your own questions instead?
+            </p>
+            <select
+              className="form-input"
+              value={useCustomPrompts ? "custom" : "default"}
+              onChange={(e) => setUseCustomPrompts(e.target.value === "custom")}
+            >
+              <option value="default">Use the default questions</option>
+              <option value="custom">Write my own prompts</option>
+            </select>
+
+            {useCustomPrompts && (
+              <div style={{ marginTop: 12 }}>
+                {[0, 1, 2].map((i) => (
+                  <input
+                    key={i}
+                    className="form-input"
+                    style={{ marginTop: i ? 8 : 0 }}
+                    placeholder={i === 0 ? `e.g. And then ${firstName}…` : "Another prompt (optional)"}
+                    value={prompts[i]}
+                    onChange={(e) => setPromptAt(i, e.target.value)}
+                  />
+                ))}
+                <span className="form-hint">Up to 3 — contributors see them rotating on the sharing form.</span>
+              </div>
+            )}
           </div>
 
           <div className="form-group">
             <label className="form-label">Invitation message</label>
-            <textarea className="form-input" placeholder={`e.g. I'm gathering memories of ${(name.trim().split(" ")[0]) || "them"}. Would you share one?`} value={inviteMessage} onChange={(e) => setInviteMessage(e.target.value)} rows={3} />
+            <textarea className="form-input" placeholder={`e.g. I'm gathering memories of ${firstName}. Would you share one?`} value={inviteMessage} onChange={(e) => setInviteMessage(e.target.value)} rows={3} />
             <span className="form-hint">Used by the “Copy invite” button — the link is added automatically. Leave blank for a default.</span>
           </div>
 
