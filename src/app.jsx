@@ -204,7 +204,13 @@ export default function App() {
     showToast("Signed out.");
   };
 
-  const handleMemorialCreated = (memorial) => {
+  // A no-op for the common case (no pending payment stashed). When it does
+  // find one — a signed-in user who just paid via Dashboard's "+ Start
+  // another page" flow, same mechanism as the pre-signup path in
+  // finishSignIn — it attaches that payment to the memorial that was just
+  // created for it.
+  const handleMemorialCreated = async (memorial) => {
+    await attachPendingPaymentIfAny(memorial.id);
     navigate("dashboard");
   };
 

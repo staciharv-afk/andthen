@@ -20,6 +20,7 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
   const [pendingAccessRequests, setPendingAccessRequests] = useState(0);
   const [upgrading, setUpgrading] = useState(false); // true while a checkout redirect is starting
   const [addingMemory, setAddingMemory] = useState(false);
+  const [showPagePaywall, setShowPagePaywall] = useState(false);
 
   useEffect(() => {
     loadMemorials();
@@ -188,7 +189,7 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
             <div className="dashboard-title">Your People</div>
             <div className="dashboard-sub">Manage memories and submissions</div>
           </div>
-          <button className="btn btn-rust btn-sm" onClick={() => onNavigate("create")}>+ Start another page</button>
+          <button className="btn btn-rust btn-sm" onClick={() => setShowPagePaywall(true)}>+ Start another page</button>
         </div>
 
         {memorials.length > 1 && (
@@ -313,6 +314,54 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
           onClose={() => { setAddingMemory(false); loadSubmissions(activeMemorial.id); }}
         />
       )}
+
+      {showPagePaywall && (
+        <AdditionalPagePaywallModal onCancel={() => setShowPagePaywall(false)} showToast={showToast} />
+      )}
+    </div>
+  );
+}
+
+// A first page is always free (five memories, upgrade optional). Any page
+// after that skips the free tier entirely — this collects payment before
+// the page exists at all, reusing the exact same pre-signup "pay now,
+// create after, attach once it exists" flow Pricing.jsx already uses (see
+// api/start-checkout.js's returnView and app.jsx's handleMemorialCreated).
+function AdditionalPagePaywallModal({ onCancel, showToast }) {
+  const [starting, setStarting] = useState(false);
+
+  const startCheckout = async () => {
+    setStarting(true);
+    try {
+      const res = await fetch("/api/start-checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tier: BUILD.tier, returnView: "create" }),
+      });
+      const data = await res.json();
+      if (data.url) { window.location.href = data.url; return; } // off to Stripe Checkout
+      showToast(data.error || "Couldn't start checkout. Please try again.", "error");
+    } catch {
+      showToast("Couldn't start checkout. Please try again.", "error");
+    } finally {
+      setStarting(false);
+    }
+  };
+
+  return (
+    <div className="crop-adjust-overlay fade-in" onClick={(e) => { if (e.target === e.currentTarget) onCancel(); }}>
+      <div className="crop-adjust-card" role="dialog" aria-label="Pay for another page">
+        <h3 className="crop-adjust-title">One more page — {BUILD.price}</h3>
+        <p className="crop-adjust-sub">
+          Your first page includes a free trial. Every page after that is {BUILD.price}, one-time — same as the Pricing page, no separate free tier. You'll pay first, then come straight back to set it up.
+        </p>
+        <div className="crop-adjust-actions">
+          <button type="button" className="btn btn-ghost" onClick={onCancel} disabled={starting}>Cancel</button>
+          <button type="button" className="btn btn-rust" onClick={startCheckout} disabled={starting}>
+            {starting ? <><span className="spinner" /> Starting...</> : "Continue to Stripe"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
