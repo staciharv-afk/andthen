@@ -15,7 +15,7 @@ function NavLinks({ currentUser, onSignOut, onNavigate, currentRoute, linkClassN
       <button className={`${linkClassName}${currentRoute === "story" ? " active" : ""}`} onClick={() => go("story")}>Why <em>And Then</em></button>
       {currentUser ? (
         <>
-          <button className={linkClassName} onClick={() => go("dashboard")}>Dashboard</button>
+          <button className={linkClassName} onClick={() => go("dashboard")}>My Pages</button>
           <button className={linkClassName} onClick={() => { onSignOut(); onLinkClick?.(); }}>Sign out</button>
         </>
       ) : (
