@@ -1,5 +1,5 @@
-// Vercel serverless function — starts a Stripe Checkout for the site's one
-// tier, for a memorial that doesn't exist yet. Two callers:
+// Vercel serverless function — starts an embedded Stripe Checkout for the
+// site's one tier, for a memorial that doesn't exist yet. Two callers:
 //  - Pricing.jsx (pre-signup): the person hasn't signed up yet, lands back
 //    on onboarding, and the memorial is attached to this session by
 //    api/attach-presignup-payment.js right after magic-link signup creates it.
@@ -8,6 +8,13 @@
 //    upfront, so this lands back on the create form instead — same
 //    app.jsx pendingPayment.js stash-and-attach mechanism either way
 //    (see app.jsx's handleMemorialCreated), just a different return view.
+//
+// ui_mode: "embedded" (see src/components/EmbeddedCheckoutModal.jsx) mounts
+// Stripe's payment form inline in the page instead of redirecting the whole
+// tab to checkout.stripe.com — this returns a client_secret for that, not a
+// redirect url. return_url is where Stripe's iframe navigates internally
+// once payment completes; app.jsx bounces the real tab there itself (see
+// its mount effect).
 //
 // Tier shape lives in api/_lib/stripeTiers.js, shared with create-checkout.js.
 //
@@ -37,10 +44,10 @@ export default async function handler(req, res) {
   try {
     const session = await stripe.checkout.sessions.create(buildCheckoutParams(tier, {
       metadata: { tier },
-      success_url: `${origin}/?view=${returnView}&paid_session={CHECKOUT_SESSION_ID}&tier=${tier}`,
-      cancel_url: `${origin}/?view=${returnView === "create" ? "dashboard" : "pricing"}`,
+      ui_mode: "embedded",
+      return_url: `${origin}/?view=${returnView}&paid_session={CHECKOUT_SESSION_ID}&tier=${tier}`,
     }));
-    return res.status(200).json({ url: session.url });
+    return res.status(200).json({ clientSecret: session.client_secret });
   } catch (e) {
     return res.status(502).json({ error: "Could not start checkout", detail: e.message });
   }

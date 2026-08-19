@@ -32,6 +32,17 @@ export default function App() {
   // and auto-detects the magic-link token in the URL), and listen for
   // Back/Forward.
   useEffect(() => {
+    // Embedded Stripe Checkout (see EmbeddedCheckoutModal.jsx) navigates
+    // its own iframe to return_url on completion — that's an entire fresh
+    // instance of this app booting inside a small embedded frame, not the
+    // real tab. Bounce the actual top-level tab to the same URL instead of
+    // running the whole app inside that iframe; this throwaway instance
+    // does nothing else.
+    if (window.self !== window.top) {
+      window.top.location.href = window.location.href;
+      return;
+    }
+
     initAnalytics();
     const { page, param } = parseLocation();
     window.history.replaceState({ page, param }, "");

@@ -5,6 +5,7 @@ import { trackEvent } from "../lib/analytics";
 import { exportMemorial } from "../lib/export";
 import { PRICING_PLANS } from "../lib/pricingPlans";
 import { ShareMemoryModal } from "./Memorial";
+import { EmbeddedCheckoutModal } from "../components/EmbeddedCheckoutModal";
 
 const BUILD = PRICING_PLANS.find((p) => p.tier === "build");
 
@@ -316,52 +317,14 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
       )}
 
       {showPagePaywall && (
-        <AdditionalPagePaywallModal onCancel={() => setShowPagePaywall(false)} showToast={showToast} />
+        <EmbeddedCheckoutModal
+          tier={BUILD.tier}
+          returnView="create"
+          title={`One more page — ${BUILD.price}`}
+          subtitle={`Your first page includes a free trial. Every page after that is ${BUILD.price}, one-time — same as the Pricing page, no separate free tier.`}
+          onCancel={() => setShowPagePaywall(false)}
+        />
       )}
-    </div>
-  );
-}
-
-// A first page is always free (five memories, upgrade optional). Any page
-// after that skips the free tier entirely — this collects payment before
-// the page exists at all, reusing the exact same pre-signup "pay now,
-// create after, attach once it exists" flow Pricing.jsx already uses (see
-// api/start-checkout.js's returnView and app.jsx's handleMemorialCreated).
-function AdditionalPagePaywallModal({ onCancel, showToast }) {
-  const [starting, setStarting] = useState(false);
-
-  const startCheckout = async () => {
-    setStarting(true);
-    try {
-      const res = await fetch("/api/start-checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tier: BUILD.tier, returnView: "create" }),
-      });
-      const data = await res.json();
-      if (data.url) { window.location.href = data.url; return; } // off to Stripe Checkout
-      showToast(data.error || "Couldn't start checkout. Please try again.", "error");
-    } catch {
-      showToast("Couldn't start checkout. Please try again.", "error");
-    } finally {
-      setStarting(false);
-    }
-  };
-
-  return (
-    <div className="crop-adjust-overlay fade-in" onClick={(e) => { if (e.target === e.currentTarget) onCancel(); }}>
-      <div className="crop-adjust-card" role="dialog" aria-label="Pay for another page">
-        <h3 className="crop-adjust-title">One more page — {BUILD.price}</h3>
-        <p className="crop-adjust-sub">
-          Your first page includes a free trial. Every page after that is {BUILD.price}, one-time — same as the Pricing page, no separate free tier. You'll pay first, then come straight back to set it up.
-        </p>
-        <div className="crop-adjust-actions">
-          <button type="button" className="btn btn-ghost" onClick={onCancel} disabled={starting}>Cancel</button>
-          <button type="button" className="btn btn-rust" onClick={startCheckout} disabled={starting}>
-            {starting ? <><span className="spinner" /> Starting...</> : "Continue to Stripe"}
-          </button>
-        </div>
-      </div>
     </div>
   );
 }

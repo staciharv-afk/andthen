@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { PRICING_PLANS } from "../lib/pricingPlans";
+import { EmbeddedCheckoutModal } from "../components/EmbeddedCheckoutModal";
 
 const BUILD = PRICING_PLANS.find((p) => p.tier === "build");
 
@@ -16,31 +17,8 @@ const UNLOCKS = [
   { label: "A page that keeps living", body: "Come back to it next year, or ten years from now. New memories can keep arriving, so everyone who visits — today or a decade from now — gets to know your loved one a little better." },
 ];
 
-export function PricingPage({ onNavigate, showToast }) {
-  const [loading, setLoading] = useState(false);
-
-  // Pre-signup checkout (api/start-checkout.js) — no memorial/account exists
-  // yet, so payment happens first and gets attached to the memorial once one
-  // is created via the normal magic-link onboarding flow (see app.jsx's
-  // finishSignIn + attachPendingPaymentIfAny).
-  const startCheckout = async () => {
-    if (loading) return;
-    setLoading(true);
-    try {
-      const res = await fetch("/api/start-checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tier: BUILD.tier }),
-      });
-      const data = await res.json();
-      if (data.url) { window.location.href = data.url; return; } // off to Stripe Checkout
-      showToast?.(data.error || "Couldn't start checkout. Please try again.", "error");
-    } catch {
-      showToast?.("Couldn't start checkout. Please try again.", "error");
-    } finally {
-      setLoading(false);
-    }
-  };
+export function PricingPage({ onNavigate }) {
+  const [showCheckout, setShowCheckout] = useState(false);
 
   return (
     <div className="pricing-page">
@@ -67,8 +45,7 @@ export function PricingPage({ onNavigate, showToast }) {
             <button
               type="button"
               className="pricing-path-card pricing-path-card-dark pricing-path-card-clickable"
-              onClick={startCheckout}
-              disabled={loading}
+              onClick={() => setShowCheckout(true)}
               aria-label="Pay Once — $49, no renewals ever. Continue to checkout."
             >
               <div className="pricing-path-label pricing-path-label-gold">{BUILD.label}</div>
@@ -111,6 +88,15 @@ export function PricingPage({ onNavigate, showToast }) {
         </div>
         <div className="footer-copy">© 2026 And Then</div>
       </footer>
+
+      {showCheckout && (
+        <EmbeddedCheckoutModal
+          tier={BUILD.tier}
+          returnView="onboarding"
+          title={`Pay Once — ${BUILD.price}`}
+          onCancel={() => setShowCheckout(false)}
+        />
+      )}
     </div>
   );
 }
