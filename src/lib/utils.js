@@ -1,5 +1,14 @@
 export const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 
+// Short, human-typeable access code for a private page or code-required
+// contribution — unlike uid(), this needs to be readable off a printed card
+// and retyped by hand, so it avoids visually ambiguous characters (0/O,
+// 1/I/L) and stays short (8 chars, ~41 bits — plenty for a secret that's
+// rate-limited by RLS, not brute-forceable over the network at any real rate).
+const ACCESS_CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+export const genAccessCode = () =>
+  Array.from({ length: 8 }, () => ACCESS_CODE_ALPHABET[Math.floor(Math.random() * ACCESS_CODE_ALPHABET.length)]).join("");
+
 // m:ss, for audio/video playback elapsed/duration displays.
 export const fmtTime = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 

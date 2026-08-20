@@ -15,6 +15,10 @@ const CARDS = [
     title: "A real person is always reachable.",
     body: "If you ever have a question — about a memory, a setting, or anything else — email us. A person will write back, not a bot.",
   },
+  {
+    title: "You decide who's part of it.",
+    body: "Every page can be as open or as closed as you need — public, invite-only, or fully private with an access code to view and to contribute. Turn on approval so nothing appears until you've seen it, share moderation with someone you trust when you need the help, and lock the page to new additions whenever you're ready. It's your call, and you can change it anytime.",
+  },
 ];
 
 export function OurPromisePage({ onNavigate }) {

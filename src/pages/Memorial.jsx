@@ -310,9 +310,31 @@ export function MemorialPage({ inviteCode, showToast, onNavigate, currentUser })
   // pending items against the server's own (unfiltered) RLS check.
   const [freeContributionCount, setFreeContributionCount] = useState(0);
 
+  // Whether the access code we last tried (from ?code=, or typed into the
+  // code-gate form below) matched — get_memorial_page() also reports true
+  // for a steward viewing their own page, so this one flag doubles as both
+  // "can view a private page" and "can skip typing a code to contribute".
+  const [codeVerified, setCodeVerified] = useState(false);
+  const [codeAttempt, setCodeAttempt] = useState("");
+  const [checkingCode, setCheckingCode] = useState(false);
+
   useEffect(() => {
-    loadMemorial();
+    const initialCode = new URLSearchParams(window.location.search).get("code");
+    loadMemorial(initialCode);
   }, [inviteCode]);
+
+  useEffect(() => {
+    // No sitemap exists on this site today, so "not indexed" is the whole
+    // job here — a noindex tag for anything that isn't fully Public.
+    let tag = document.querySelector('meta[name="robots"]');
+    if (!tag) {
+      tag = document.createElement("meta");
+      tag.setAttribute("name", "robots");
+      document.head.appendChild(tag);
+    }
+    tag.setAttribute("content", memorial && memorial.visibility !== "public" ? "noindex, nofollow" : "index, follow");
+    return () => tag?.setAttribute("content", "index, follow");
+  }, [memorial?.visibility]);
 
   useEffect(() => {
     if (!contributeToken || !memorial) return;
@@ -344,34 +366,29 @@ export function MemorialPage({ inviteCode, showToast, onNavigate, currentUser })
 
   const openContribute = () => setShowContribute(true);
 
-  const loadMemorial = async () => {
+  // The URL param may be the invite code (?memorial=<code>) or a custom
+  // vanity slug (myandthen.com/<slug>) — get_memorial_page() tries both
+  // server-side. It's also the only way in for a Private page: plain RLS
+  // can't gate "did this stateless request already prove a code", so a
+  // SECURITY DEFINER function does the identifier resolution AND the code
+  // check AND the contributions read in one call, returning the same
+  // null/[] shape whether the page doesn't exist or is private with a
+  // wrong/missing code — a guess can't be used to confirm which.
+  const loadMemorial = async (code) => {
     setLoading(true);
-    // The URL param may be the invite code (?memorial=<code>) or a custom
-    // vanity slug (myandthen.com/<slug>) — try both rather than building a
-    // filter string out of raw URL input. Both columns grant the same
-    // access once resolved (see canContribute below) — there's no longer a
-    // "which one matched" distinction to track.
-    let { data } = await supabase.from("memorials").select("*").eq("invite_code", inviteCode);
-    if (!data?.length) { ({ data } = await supabase.from("memorials").select("*").eq("slug", inviteCode)); }
-    if (data?.length) {
-      setMemorial(data[0]);
-      loadStories(data[0].id, data[0].require_approval);
-    }
+    const { data } = await supabase.rpc("get_memorial_page", { p_identifier: inviteCode, p_code: code || null });
+    setMemorial(data?.memorial || null);
+    setStories(data?.contributions || []);
+    setCodeVerified(!!data?.code_verified);
     setLoading(false);
   };
 
-  const loadStories = async (memorialId, requireApproval) => {
-    // anon only has column-scoped SELECT on this table (no contributor_email —
-    // see 20260705_protect_contributor_email.sql), so select("*") is denied
-    // outright for anonymous visitors. List the public columns explicitly.
-    let query = supabase
-      .from("contributions")
-      .select("id, memorial_id, contributor_name, contributor_relation, type, subtype, text, media_url, secondary_media_url, status, created_at, crop_x, crop_y, link_meta")
-      .eq("memorial_id", memorialId)
-      .order("created_at", { ascending: false });
-    if (requireApproval) query = query.eq("status", "approved");
-    const { data } = await query;
-    setStories(data || []);
+  const handleCodeSubmit = async (e) => {
+    e.preventDefault();
+    if (!codeAttempt.trim()) return;
+    setCheckingCode(true);
+    await loadMemorial(codeAttempt.trim());
+    setCheckingCode(false);
   };
 
   if (loading) return (
@@ -383,7 +400,21 @@ export function MemorialPage({ inviteCode, showToast, onNavigate, currentUser })
   if (!memorial) return (
     <div style={{ textAlign: "center", padding: "80px 24px" }}>
       <h2 style={{ fontFamily: "Lora, serif", marginBottom: 12 }}>Page not found</h2>
-      <p style={{ color: "var(--warm-light)" }}>This link may be invalid or the page may have been removed.</p>
+      <p style={{ color: "var(--warm-light)" }}>This link may be invalid, or the page may be private.</p>
+      {/* Deliberately shown either way — a private page and a nonexistent
+          one look identical here, so a wrong guess can't confirm which. */}
+      <form onSubmit={handleCodeSubmit} style={{ maxWidth: 280, margin: "24px auto 0", display: "flex", gap: 8 }}>
+        <input
+          className="form-input"
+          placeholder="Access code"
+          value={codeAttempt}
+          onChange={(e) => setCodeAttempt(e.target.value)}
+          style={{ textAlign: "center", letterSpacing: "0.06em" }}
+        />
+        <button type="submit" className="btn btn-rust" disabled={checkingCode} style={{ flexShrink: 0 }}>
+          {checkingCode ? <span className="spinner" /> : "View"}
+        </button>
+      </form>
     </div>
   );
 
@@ -400,37 +431,37 @@ export function MemorialPage({ inviteCode, showToast, onNavigate, currentUser })
   const filterTypes = FILTER_ORDER;
   const contributorCount = new Set(stories.map((s) => s.contributor_name)).size;
 
-  // Paid pages: anyone who can resolve this page at all — by the invite
-  // code or the vanity slug, doesn't matter which — can add a memory.
-  // The Share panel's "one link does it all" promise (Dashboard.jsx) is
-  // only true if this holds for both link shapes, not just the code one;
-  // access_mode's "Invite only" setting (Settings) no longer changes this
-  // for a paid page — practically, both link shapes are always something
-  // the steward chose to hand out, so there's no third "uninvited" arrival
-  // path left to distinguish.
-  // Free pages: unchanged — only the steward can contribute, and only up
-  // to FREE_MEMORY_LIMIT, enforced server-side too (see
-  // 20260812_free_tier_limit.sql). Viewing is never gated either way.
-  const canContribute = memorial.is_paid
-    ? true
-    : (isOwner && freeContributionCount < FREE_MEMORY_LIMIT);
+  // An otherwise-open page can still separately require a code just to
+  // contribute (contribution_access), without gating viewing at all — a
+  // private page's own view code covers that too (codeVerified), so this
+  // only matters for the "share" state; ShareMemoryModal asks for the code
+  // itself rather than blocking the CTA outright, so a visitor who doesn't
+  // have it yet still sees why, instead of the button just vanishing.
+  const codeRequiredToContribute = (memorial.visibility === "private" || memorial.contribution_access === "code_required") && !codeVerified;
+  const canContribute = !memorial.closed_to_submissions && (
+    memorial.is_paid || (isOwner && freeContributionCount < FREE_MEMORY_LIMIT)
+  );
 
   // Drives both CTA spots (hero + footer) from one place instead of
   // duplicating the same ladder twice.
-  //   share:       normal ShareMemoryModal flow
+  //   closed:      steward turned off new submissions — view-only
+  //   share:       normal ShareMemoryModal flow (may itself ask for a code)
   //   owner-limit: free tier, owner, hit the cap — nudge toward Pricing
   //   free-locked: free tier, not the owner — nothing to click at all
-  const contributeState = canContribute
-    ? "share"
-    : isOwner
-      ? "owner-limit"
-      : "free-locked";
+  const contributeState = memorial.closed_to_submissions
+    ? "closed"
+    : canContribute
+      ? "share"
+      : isOwner
+        ? "owner-limit"
+        : "free-locked";
 
   // Shared between the hero and footer CTA spots so the label/action ladder
   // only lives in one place. No entry for "free-locked" — that state has
   // nothing to click, by design.
   const ctaLabel = { share: "Add Your Memory", "owner-limit": "Upgrade to add more" }[contributeState];
   const ctaOnClick = { share: openContribute, "owner-limit": () => onNavigate?.("pricing") }[contributeState];
+  const closedNote = "This page isn't taking new memories right now — everything already here is still here to read.";
 
   const heroTitle = (
     <>
@@ -488,7 +519,7 @@ export function MemorialPage({ inviteCode, showToast, onNavigate, currentUser })
           {ctaLabel ? (
             <button type="button" className="hero-cta" onClick={ctaOnClick}>{ctaLabel}</button>
           ) : (
-            <p className="hero-cta-note">This page isn't open for contributions yet — check back soon.</p>
+            <p className="hero-cta-note">{contributeState === "closed" ? closedNote : "This page isn't open for contributions yet — check back soon."}</p>
           )}
         </div>
       </header>
@@ -534,16 +565,18 @@ export function MemorialPage({ inviteCode, showToast, onNavigate, currentUser })
         {ctaLabel ? (
           <button className="add-btn" onClick={ctaOnClick}>{ctaLabel}</button>
         ) : (
-          <p className="hero-cta-note">This page isn't open for contributions yet — check back soon.</p>
+          <p className="hero-cta-note">{contributeState === "closed" ? closedNote : "This page isn't open for contributions yet — check back soon."}</p>
         )}
         <p className="note">
-          {contributeState === "share" && !memorial.is_paid
-            ? <>This page is still on the free plan — only you can add memories to it right now (up to {FREE_MEMORY_LIMIT}). Upgrade anytime to invite others.</>
-            : contributeState === "share"
-              ? <>This page keeps growing &mdash; anyone who knew {memorial.name.split(" ")[0]} can add a photo, story, voice memo, or video, anytime.</>
-              : contributeState === "owner-limit"
-                  ? <>You've added the {FREE_MEMORY_LIMIT} memories included free. Upgrade to add more, and invite others to help gather memories too.</>
-                  : <>This page isn't open to contributions yet.</>}
+          {contributeState === "closed"
+            ? closedNote
+            : contributeState === "share" && !memorial.is_paid
+              ? <>This page is still on the free plan — only you can add memories to it right now (up to {FREE_MEMORY_LIMIT}). Upgrade anytime to invite others.</>
+              : contributeState === "share"
+                ? <>This page keeps growing &mdash; anyone who knew {memorial.name.split(" ")[0]} can add a photo, story, voice memo, or video, anytime.</>
+                : contributeState === "owner-limit"
+                    ? <>You've added the {FREE_MEMORY_LIMIT} memories included free. Upgrade to add more, and invite others to help gather memories too.</>
+                    : <>This page isn't open to contributions yet.</>}
         </p>
       </footer>
 
@@ -553,6 +586,8 @@ export function MemorialPage({ inviteCode, showToast, onNavigate, currentUser })
           showToast={showToast}
           onClose={() => setShowContribute(false)}
           contributeToken={tokenValid ? contributeToken : null}
+          requireCode={codeRequiredToContribute}
+          verifiedCode={codeVerified ? codeAttempt || new URLSearchParams(window.location.search).get("code") : null}
         />
       )}
 
@@ -719,7 +754,7 @@ const uploadFileWithProgress = async (bucket, path, file, contentType, onProgres
 // confirmation copy. Fully remounts each time it opens (see showContribute
 // in MemorialPage), which is what gives the orient screen its "shown every
 // fresh open" behavior for free.
-export function ShareMemoryModal({ memorial, showToast, onClose, contributeToken }) {
+export function ShareMemoryModal({ memorial, showToast, onClose, contributeToken, requireCode, verifiedCode }) {
   const subjectType = deriveSubjectType(memorial);
   const livingStatus = deriveLivingStatus(memorial);
   const moderationMode = deriveModerationMode(memorial);
@@ -736,6 +771,7 @@ export function ShareMemoryModal({ memorial, showToast, onClose, contributeToken
 
   const [contributorName, setContributorName] = useState("");
   const [contributorEmail, setContributorEmail] = useState("");
+  const [accessCodeInput, setAccessCodeInput] = useState("");
   const [answerText, setAnswerText] = useState("");
   const [answerMode, setAnswerMode] = useState("type"); // "type" | "record" — general/freeform questions only
   const [attachment, setAttachment] = useState(null); // { kind: 'photo'|'video'|'voice'|'link', ... } | null
@@ -920,6 +956,7 @@ export function ShareMemoryModal({ memorial, showToast, onClose, contributeToken
   const handleSubmit = async () => {
     if (!contributorName.trim()) { showToast("Please enter your name.", "error"); return; }
     if (contributorEmail.trim() && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(contributorEmail.trim())) { showToast("That email doesn't look right.", "error"); return; }
+    if (requireCode && !verifiedCode && !accessCodeInput.trim()) { showToast("Please enter the access code.", "error"); return; }
     if (!canSubmit) { showToast("Please write something, or attach a photo, audio, video, or link.", "error"); return; }
 
     setSubmitting(true);
@@ -1000,6 +1037,7 @@ export function ShareMemoryModal({ memorial, showToast, onClose, contributeToken
         crop_x: cropX,
         crop_y: cropY,
         link_meta: linkMeta,
+        submitted_code: verifiedCode || accessCodeInput.trim() || null,
       };
 
       if (memorial.require_approval) {
@@ -1199,6 +1237,12 @@ export function ShareMemoryModal({ memorial, showToast, onClose, contributeToken
                   <label htmlFor="share-signature-email">Email (optional)</label>
                   <input id="share-signature-email" className="share-signature-input" type="email" placeholder="So the family can say thank you" value={contributorEmail} onChange={(e) => setContributorEmail(e.target.value)} />
                 </div>
+                {requireCode && !verifiedCode && (
+                  <div className="share-signature-field">
+                    <label htmlFor="share-signature-code">Access code</label>
+                    <input id="share-signature-code" className="share-signature-input" placeholder="Ask the family if you don't have it" value={accessCodeInput} onChange={(e) => setAccessCodeInput(e.target.value)} />
+                  </div>
+                )}
               </div>
 
               <button className="btn btn-rust btn-lg share-submit-btn" onClick={handleSubmit} disabled={submitting || compressingVideo} style={{ justifyContent: "center" }}>

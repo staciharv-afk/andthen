@@ -80,6 +80,23 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
     showToast("Submission removed.");
   };
 
+  // Keys off whatever this submission actually captured — email if they
+  // left one, else the exact name they signed with (the only identity
+  // signal a contributor has, with no accounts/sessions in the picture).
+  const handleBlock = async (submission) => {
+    const email = submission.contributor_email?.trim().toLowerCase();
+    const name = submission.contributor_name?.trim().toLowerCase();
+    if (!email && !name) { showToast("Nothing to block this contributor by.", "error"); return; }
+    const { error } = await supabase.from("blocked_contributors").insert({
+      memorial_id: submission.memorial_id,
+      identifier: email || name,
+      identifier_type: email ? "email" : "name",
+      blocked_by: currentUser.id,
+    });
+    if (error) { showToast(error.code === "23505" ? "Already blocked." : "Couldn't block — please try again.", "error"); return; }
+    showToast(`${submission.contributor_name || "They"} won't be able to add another memory.`);
+  };
+
   // Prefer the steward's custom vanity URL (myandthen.com/<slug>) once set;
   // the invite-code link always works too, so it's the fallback. Either
   // shape grants the same access (see Memorial.jsx's canContribute) — this
@@ -273,7 +290,7 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
                   </p>
                 </div>
               ) : (
-                filtered.map((s) => <SubmissionCard key={s.id} submission={s} requireApproval={activeMemorial.require_approval} onApprove={handleApprove} onReject={handleReject} />)
+                filtered.map((s) => <SubmissionCard key={s.id} submission={s} requireApproval={activeMemorial.require_approval} onApprove={handleApprove} onReject={handleReject} onBlock={activeMemorial.is_paid ? handleBlock : null} />)
               )}
             </div>
           </>
@@ -359,7 +376,7 @@ function DeleteMemorialModal({ memorial, onCancel, onDeleted, showToast }) {
   );
 }
 
-function SubmissionCard({ submission: s, requireApproval, onApprove, onReject }) {
+function SubmissionCard({ submission: s, requireApproval, onApprove, onReject, onBlock }) {
   const typeLabel = { story: "Story", photo: "Photo", video: "Video", voice: "Voice memo" }[s.type] || "Story";
   const typeBadge = { story: "badge-story", photo: "badge-photo", video: "badge-video", voice: "badge-voice" }[s.type] || "badge-story";
 
@@ -390,11 +407,13 @@ function SubmissionCard({ submission: s, requireApproval, onApprove, onReject })
         <div className="submission-actions">
           <button className="btn btn-sm btn-rust" onClick={() => onApprove(s.id)}>Approve</button>
           <button className="btn btn-sm btn-ghost" onClick={() => onReject(s.id)}>Remove</button>
+          {onBlock && <button className="btn btn-sm btn-ghost" onClick={() => onBlock(s)}>Block</button>}
         </div>
       )}
       {(!requireApproval || s.status === "approved") && s.status !== "rejected" && (
         <div className="submission-actions">
           <button className="btn btn-sm btn-ghost" onClick={() => onReject(s.id)}>Remove</button>
+          {onBlock && <button className="btn btn-sm btn-ghost" onClick={() => onBlock(s)}>Block</button>}
         </div>
       )}
     </div>

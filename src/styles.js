@@ -349,6 +349,13 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .settings-warning { font-size: 12.5px; color: var(--warm-mid); background: var(--cream-dark); border: 1px solid var(--warm-faint); border-radius: 4px; padding: 12px 14px; margin-top: 10px; line-height: 1.5; }
 .settings-hint { font-size: 12px; color: var(--warm-light); margin-top: 14px; }
 
+.privacy-option { display: flex; align-items: flex-start; gap: 12px; border: 1px solid var(--warm-faint); border-radius: 6px; padding: 14px 16px; cursor: pointer; margin-bottom: 10px; transition: border-color 0.15s ease, background 0.15s ease; }
+.privacy-option:last-of-type { margin-bottom: 0; }
+.privacy-option.selected { border-color: var(--rust); background: rgba(184,92,44,0.04); }
+.privacy-option input { margin-top: 3px; accent-color: var(--rust); }
+.privacy-option-label { font-size: 14px; font-weight: 500; color: var(--bark); margin-bottom: 2px; }
+.privacy-option-sub { font-size: 12.5px; color: var(--warm-light); line-height: 1.45; }
+
 .access-req-list { display: flex; flex-direction: column; }
 .access-req-row { display: flex; align-items: flex-start; gap: 12px; padding: 16px 0; border-bottom: 1px solid var(--warm-faint); }
 .access-req-row:last-child { border-bottom: none; }
@@ -898,7 +905,7 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .story-closing-line { font-family: 'Lora', serif; font-style: italic; font-size: 22px; color: var(--bark); max-width: 30ch; margin: 0 auto 28px; }
 
 /* -- Our Promise page -- */
-.promise-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin: 48px 0 64px; }
+.promise-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; margin: 48px 0 64px; }
 @media (max-width: 720px) { .promise-cards { grid-template-columns: 1fr; } }
 .promise-card { background: var(--white); border: 1px solid var(--warm-faint); border-top: 3px solid var(--rust); border-radius: var(--radius); padding: 28px 26px; }
 .promise-card h3 { font-family: 'Lora', serif; font-weight: 500; font-size: 19px; color: var(--bark); margin: 0 0 10px; }
