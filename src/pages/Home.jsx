@@ -215,6 +215,7 @@ function ContentTypesShowcase() {
         ))}
       </div>
       <p className="type-pills-hint">If it brings them to life, it belongs here.</p>
+      <p className="type-pills-hint">The collecting is what makes it work.</p>
 
       <div className="wyg2-grid">
         {CONTENT_FEATURES.map(({ label, body }) => (
@@ -277,6 +278,9 @@ export function HomePage({ onNavigate }) {
             <h2 className="hero-wyg-headline">Not just a page — a way to collect.</h2>
             <p className="hero-wyg-body">
               <em>And Then</em> asks each person the right question for who they were to them — so four different people end up telling four completely different stories.
+            </p>
+            <p className="hero-wyg-body">
+              Whether you're holding onto someone you've lost, or gathering these while there's still time to add more — the collecting is the whole point.
             </p>
           </div>
           {/* 1px, not 0 — a zero-area target has inconsistently-defined
@@ -362,6 +366,9 @@ export function HomePage({ onNavigate }) {
             <p className="narrative-body">
               She wasn't just your mother — she was a coworker's mentor, a neighbor's confidant, a best friend's whole world. Each of those people holds a piece nobody else has. <em>And Then</em> exists to gather all of it, so she gets remembered as the whole person she was — not one version of her.
             </p>
+            <p className="narrative-body">
+              It's not one memory that keeps her with us. It's all of them, together — which is why every story matters, and why the page is never really finished.
+            </p>
 
             <button className="section-cta-link" onClick={() => onNavigate("story")}>
               The story behind <em>And Then</em> <span aria-hidden="true">→</span>
@@ -375,7 +382,7 @@ export function HomePage({ onNavigate }) {
         <div className="page-wrap">
           <div className="final-cta">
             <h2>Start their page today.</h2>
-            <p>The whole product, free for five memories. Upgrade when you're ready to share it and start collecting.</p>
+            <p>Start with what you remember. Everyone else fills in the rest.</p>
             <button className="btn btn-rust btn-lg" onClick={() => onNavigate("onboarding")}>Try it free</button>
           </div>
         </div>
