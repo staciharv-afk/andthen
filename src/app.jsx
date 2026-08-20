@@ -137,12 +137,18 @@ export default function App() {
     const token = readPendingStewardInvite();
     if (!token) return false;
     clearPendingStewardInvite();
-    const { error } = await supabase
+    // A failed RLS check on an UPDATE (wrong token, or signed in with a
+    // different email than the invite was sent to) isn't an error — it's
+    // just zero rows matched, and Supabase reports that as a plain success.
+    // Without asking for the row back and checking it actually came back,
+    // this would show "You're in" even when nothing changed.
+    const { data, error } = await supabase
       .from("memorial_stewards")
       .update({ status: "accepted", user_id: userId, accepted_at: new Date().toISOString() })
       .eq("invite_token", token)
-      .eq("status", "pending");
-    if (error) { showToast("That invite link isn't valid anymore.", "error"); return false; }
+      .eq("status", "pending")
+      .select();
+    if (error || !data?.length) { showToast("That invite link isn't valid anymore — ask them to send you a fresh one, and make sure you sign in with the exact email it was sent to.", "error"); return false; }
     showToast("You're in — you can now help steward this page.");
     return true;
   };
