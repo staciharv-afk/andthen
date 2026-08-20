@@ -17,29 +17,22 @@
 // Required env: SUPABASE_SERVICE_ROLE_KEY, ADMIN_EMAIL
 // Optional: SUPABASE_URL (falls back to VITE_SUPABASE_URL)
 import { createClient } from "@supabase/supabase-js";
+import { requireAdmin } from "./_lib/adminAuth.js";
 
 export default async function handler(req, res) {
   if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
 
-  const { SUPABASE_SERVICE_ROLE_KEY, ADMIN_EMAIL } = process.env;
+  const { SUPABASE_SERVICE_ROLE_KEY } = process.env;
   const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !ADMIN_EMAIL) {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
     return res.status(500).json({ error: "Admin view is not configured on the server." });
   }
-
-  const authHeader = req.headers.authorization || "";
-  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
-  if (!token) return res.status(401).json({ error: "Not signed in." });
 
   const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
-  const { data: userData, error: userErr } = await admin.auth.getUser(token);
-  if (userErr || !userData?.user) return res.status(401).json({ error: "Invalid session." });
-  if ((userData.user.email || "").toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
-    return res.status(403).json({ error: "Not authorized." });
-  }
+  if (!(await requireAdmin(req, res, admin))) return;
 
   const { data: memorials, error: memErr } = await admin
     .from("memorials")
