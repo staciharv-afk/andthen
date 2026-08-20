@@ -1,0 +1,21 @@
+-- And Then — fix a regression from 20260820_page_privacy.sql.
+--
+-- That migration gave `authenticated` a column-scoped SELECT grant on
+-- memorials that deliberately excluded stripe_customer_id/
+-- stripe_subscription_id (never read client-side, so it seemed safe to
+-- lock down alongside access_code). But several existing queries use
+-- `select("*")` or a bare `.select()` after an insert/update (Dashboard.jsx's
+-- "My pages" load, CreateMemorial.jsx's create/edit, PageSettings.jsx's
+-- saveVisibility) — Postgres requires SELECT on every column `*` expands to
+-- for the query to succeed at all, not just the columns actually used, so
+-- all of those started failing outright and a steward's own pages stopped
+-- loading.
+--
+-- The real goal was keeping these two columns out of the anon-facing API,
+-- not hiding a steward's own billing IDs from their own authenticated
+-- session (which was never protected before this whole feature anyway).
+-- Grant is additive, so this just adds back what authenticated needs.
+--
+-- Idempotent. Run in Supabase → SQL Editor.
+
+grant select (stripe_customer_id, stripe_subscription_id) on public.memorials to authenticated;

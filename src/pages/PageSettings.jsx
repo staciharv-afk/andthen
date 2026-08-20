@@ -115,7 +115,7 @@ export function PageSettingsPage({ currentUser, memorial: initialMemorial, onNav
     const patch = { visibility: value };
     if (value === "private" && !memorial.access_code) patch.access_code = genAccessCode();
     if (value === "private" && prev !== "private") patch.require_approval = true;
-    const { error } = await supabase.from("memorials").update(patch).eq("id", memorial.id).select().single();
+    const { error } = await supabase.from("memorials").update(patch).eq("id", memorial.id);
     setSavingVisibility(false);
     if (error) { showToast("Couldn't save — please try again.", "error"); return; }
     setMemorial((m) => ({ ...m, ...patch }));
