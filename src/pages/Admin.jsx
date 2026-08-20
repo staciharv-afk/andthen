@@ -11,8 +11,12 @@ function parseReport(report) {
   const mets = (report.metricHeaders || []).map((h) => h.name);
   return report.rows.map((row) => {
     const out = {};
-    row.dimensionValues.forEach((v, i) => { out[dims[i]] = v.value; });
-    row.metricValues.forEach((v, i) => { out[mets[i]] = Number(v.value); });
+    // A metrics-only report (no dimensions requested — see the overview
+    // report in admin-analytics.js) omits dimensionValues from each row
+    // entirely rather than sending an empty array, so this can't assume
+    // either array is always present.
+    (row.dimensionValues || []).forEach((v, i) => { out[dims[i]] = v.value; });
+    (row.metricValues || []).forEach((v, i) => { out[mets[i]] = Number(v.value); });
     return out;
   });
 }
