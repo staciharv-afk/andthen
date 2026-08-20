@@ -393,6 +393,7 @@ export function HomePage({ onNavigate }) {
         <div className="footer-logo"><em>And Then...</em></div>
         <div className="footer-links">
           <button className="footer-link" onClick={() => onNavigate("how-it-works")}>How it works</button>
+          <button className="footer-link" onClick={() => onNavigate("our-promise")}>Our Promise</button>
           <button className="footer-link">Privacy</button>
           <button className="footer-link">Contact</button>
         </div>

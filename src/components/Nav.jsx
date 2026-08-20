@@ -13,6 +13,7 @@ function NavLinks({ currentUser, onSignOut, onNavigate, currentRoute, linkClassN
       <button className={`${linkClassName}${currentRoute === "how-it-works" ? " active" : ""}`} onClick={() => go("how-it-works")}>How it works</button>
       <button className={linkClassName} onClick={() => go("pricing")}>Pricing</button>
       <button className={`${linkClassName}${currentRoute === "story" ? " active" : ""}`} onClick={() => go("story")}>Why <em>And Then</em></button>
+      <button className={`${linkClassName}${currentRoute === "our-promise" ? " active" : ""}`} onClick={() => go("our-promise")}>Our Promise</button>
       {currentUser ? (
         <>
           <button className={linkClassName} onClick={() => go("dashboard")}>My Pages</button>

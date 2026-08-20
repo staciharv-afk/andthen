@@ -276,6 +276,10 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
                     </div>
                   </div>
                 )}
+
+                <button type="button" className="promise-callout-link" onClick={() => onNavigate("our-promise")}>
+                  Wondering what happens to this page over time? Read our promise →
+                </button>
               </div>
             </div>
 

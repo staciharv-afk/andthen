@@ -69,6 +69,7 @@ export function HowItWorksPage({ onNavigate }) {
         <div className="footer-logo"><em>And Then...</em></div>
         <div className="footer-links">
           <button className="footer-link" onClick={() => onNavigate("home")}>Home</button>
+          <button className="footer-link" onClick={() => onNavigate("our-promise")}>Our Promise</button>
           <button className="footer-link">Privacy</button>
           <button className="footer-link">Contact</button>
         </div>
