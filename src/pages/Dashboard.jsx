@@ -19,7 +19,6 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
   const [submissionsLoading, setSubmissionsLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null); // memorial pending delete confirmation, or null
-  const [pendingAccessRequests, setPendingAccessRequests] = useState(0);
   const [upgrading, setUpgrading] = useState(false); // true while a checkout redirect is starting
   const [addingMemory, setAddingMemory] = useState(false);
   const [showPagePaywall, setShowPagePaywall] = useState(false);
@@ -58,7 +57,6 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
       setMemorials(data);
       setActiveMemorial(data[0]);
       loadSubmissions(data[0].id);
-      loadPendingAccessRequests(data[0].id);
     }
   };
 
@@ -67,17 +65,6 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
     const { data } = await supabase.from("contributions").select("*").eq("memorial_id", memorialId).order("created_at", { ascending: false });
     setSubmissionsLoading(false);
     setSubmissions(data || []);
-  };
-
-  // Just the count, for the Settings button's badge — the full list lives
-  // on the Settings screen itself.
-  const loadPendingAccessRequests = async (memorialId) => {
-    const { count } = await supabase
-      .from("access_requests")
-      .select("id", { count: "exact", head: true })
-      .eq("memorial_id", memorialId)
-      .eq("status", "pending");
-    setPendingAccessRequests(count || 0);
   };
 
   const handleApprove = async (submissionId) => {
@@ -94,17 +81,12 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
   };
 
   // Prefer the steward's custom vanity URL (myandthen.com/<slug>) once set;
-  // the invite-code link always works too, so it's the fallback. Used for
-  // viewing/sharing the page itself — NOT for inviting contributors, since
-  // invite_only mode only recognizes the code link (see inviteUrl below).
+  // the invite-code link always works too, so it's the fallback. Either
+  // shape grants the same access (see Memorial.jsx's canContribute) — this
+  // is the one link the app shows/hands out everywhere, including
+  // SharePagePanel.
   const memorialUrl = (memorial) =>
     memorial.slug ? `${window.location.origin}/${memorial.slug}` : `${window.location.origin}?memorial=${memorial.invite_code}`;
-
-  // The code link specifically — this is what counts as "a valid invite"
-  // once a page is invite-only, regardless of whether a vanity slug is also
-  // set, so it always grants both viewing and contributing (see
-  // SharePagePanel, which uses this as the one link it hands out).
-  const inviteUrl = (memorial) => `${window.location.origin}?memorial=${memorial.invite_code}`;
 
   const handleExport = async () => {
     setExporting(true);
@@ -191,7 +173,7 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
               <button
                 key={m.id}
                 className={`btn btn-sm ${activeMemorial?.id === m.id ? "btn-rust" : "btn-ghost"}`}
-                onClick={() => { setActiveMemorial(m); loadSubmissions(m.id); loadPendingAccessRequests(m.id); }}
+                onClick={() => { setActiveMemorial(m); loadSubmissions(m.id); }}
               >{m.name}</button>
             ))}
           </div>
@@ -227,9 +209,8 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
                     <button className="btn btn-sm btn-ghost" onClick={() => setShowShare(true)}>Share this page</button>
                     <button className="btn btn-sm btn-ghost" onClick={() => onNavigate("memorial", activeMemorial.invite_code)}>View page</button>
                     <button className="btn btn-sm btn-ghost" onClick={() => onNavigate("edit", activeMemorial)}>Edit</button>
-                    <button className="btn btn-sm btn-ghost settings-btn" onClick={() => onNavigate("page-settings", activeMemorial)}>
+                    <button className="btn btn-sm btn-ghost" onClick={() => onNavigate("page-settings", activeMemorial)}>
                       Settings
-                      {pendingAccessRequests > 0 && <span className="settings-btn-badge">{pendingAccessRequests}</span>}
                     </button>
                   </div>
                   <div className="dashboard-actions-divider" />
@@ -325,8 +306,7 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
       {showShare && activeMemorial && (
         <SharePagePanel
           memorial={activeMemorial}
-          memorialUrl={memorialUrl(activeMemorial)}
-          inviteUrl={inviteUrl(activeMemorial)}
+          link={memorialUrl(activeMemorial)}
           showToast={showToast}
           onClose={() => setShowShare(false)}
         />

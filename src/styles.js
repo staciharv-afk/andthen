@@ -349,23 +349,12 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .settings-warning { font-size: 12.5px; color: var(--warm-mid); background: var(--cream-dark); border: 1px solid var(--warm-faint); border-radius: 4px; padding: 12px 14px; margin-top: 10px; line-height: 1.5; }
 .settings-hint { font-size: 12px; color: var(--warm-light); margin-top: 14px; }
 
-.access-mode-option { display: flex; align-items: flex-start; gap: 12px; border: 1px solid var(--warm-faint); border-radius: 6px; padding: 14px 16px; cursor: pointer; margin-bottom: 10px; transition: border-color 0.15s ease, background 0.15s ease; }
-.access-mode-option:last-of-type { margin-bottom: 0; }
-.access-mode-option.selected { border-color: var(--rust); background: rgba(184,92,44,0.04); }
-.access-mode-option input { margin-top: 3px; accent-color: var(--rust); }
-.access-mode-label { font-size: 14px; font-weight: 500; color: var(--bark); margin-bottom: 2px; }
-.access-mode-sub { font-size: 12.5px; color: var(--warm-light); line-height: 1.45; }
-
-.access-req-bulkbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 12px; margin-bottom: 4px; border-bottom: 1px solid var(--warm-faint); flex-wrap: wrap; }
-.access-req-selectall { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--warm-mid); cursor: pointer; }
 .access-req-list { display: flex; flex-direction: column; }
 .access-req-row { display: flex; align-items: flex-start; gap: 12px; padding: 16px 0; border-bottom: 1px solid var(--warm-faint); }
 .access-req-row:last-child { border-bottom: none; }
-.access-req-row > input[type="checkbox"] { margin-top: 10px; }
 .access-req-info { flex: 1; min-width: 0; }
 .access-req-name { font-size: 14px; font-weight: 500; color: var(--bark); }
 .access-req-meta { font-size: 12px; color: var(--warm-light); margin-top: 2px; }
-.access-req-note { font-size: 13px; color: var(--warm-mid); font-style: italic; margin-top: 6px; line-height: 1.45; }
 .access-req-actions { display: flex; gap: 8px; flex-shrink: 0; }
 
 /* ── DASHBOARD ── */
@@ -665,8 +654,6 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .dashboard-actions-row { display: flex; align-items: center; gap: 10px; padding: 12px 0; flex-wrap: wrap; }
 .dashboard-actions-divider { border-top: 1px solid var(--warm-faint); }
 
-.settings-btn { position: relative; }
-.settings-btn-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 16px; height: 16px; padding: 0 4px; margin-left: 6px; background: var(--rust); color: white; font-size: 10px; font-weight: 600; border-radius: 100px; }
 
 @media (prefers-reduced-motion: reduce) {
   .crop-adjust-overlay.fade-in { animation: none; opacity: 1; }

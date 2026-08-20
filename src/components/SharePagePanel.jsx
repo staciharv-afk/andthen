@@ -8,24 +8,22 @@ import { trackEvent } from "../lib/analytics";
 // and had the server send each one its own personal contribute_token link
 // (see the now-removed InviteContributorsModal / api/notify-invite.js) —
 // real extra work for a steward who's often grieving: compiling a list,
-// typing addresses into our UI. Meanwhile "Share" already offered an
-// invite_code link (inviteUrl below) that grants both viewing AND
-// contributing to anyone who has it, completely independent of who they
-// are — arriving via that code is itself what "a valid invite" means under
-// invite-only mode (see Memorial.jsx's canContribute). There was never a
-// real reason to also collect names/emails just to hand out that same
-// permission one at a time.
+// typing addresses into our UI. Meanwhile "Share" already offered a link
+// that grants both viewing AND contributing to anyone who has it,
+// completely independent of who they are. There was never a real reason
+// to also collect names/emails just to hand out that same permission one
+// at a time.
 //
-// So this panel has exactly one shareable link (inviteUrl) at its center —
-// a pre-written message the steward can tap straight into their own Text
-// or Email app (their own contacts, not typed into ours), a plain copy-link
-// action, and a QR code. The plain view-only link (memorialUrl) is kept
-// as a de-emphasized secondary option underneath — a real, separate
-// permission level (view but not contribute) that's still worth preserving
-// for e.g. posting publicly without opening contributions to strangers.
-export function SharePagePanel({ memorial, memorialUrl, inviteUrl, showToast, onClose }) {
+// `link` is Dashboard.jsx's memorialUrl(memorial) — the steward's custom
+// URL when they've set one, falling back to the invite-code link
+// otherwise. Both shapes grant identical access (see Memorial.jsx's
+// canContribute) — this used to only be true for the invite-code link,
+// with the custom URL granting view-only under "Invite only" mode, but
+// that distinction was quietly working against the whole point of this
+// panel: a steward would copy the nice-looking custom link and it
+// wouldn't actually let anyone add a memory. There's now just one link.
+export function SharePagePanel({ memorial, link, showToast, onClose }) {
   const firstName = memorial.name.split(" ")[0];
-  const link = inviteUrl;
   const [message, setMessage] = useState(
     memorial.invite_message
       ? `${memorial.invite_message}\n\n${link}`
@@ -64,13 +62,8 @@ export function SharePagePanel({ memorial, memorialUrl, inviteUrl, showToast, on
   };
 
   const copyLink = () => {
-    trackEvent("share_clicked", { share_option: "copy_invite", page_label: memorial.name });
-    navigator.clipboard.writeText(link).then(() => showToast("Link copied! Anyone with it can view and add a memory."));
-  };
-
-  const copyViewOnlyLink = () => {
     trackEvent("share_clicked", { share_option: "copy_link", page_label: memorial.name });
-    navigator.clipboard.writeText(memorialUrl).then(() => showToast("View-only link copied."));
+    navigator.clipboard.writeText(link).then(() => showToast("Link copied! Anyone with it can view and add a memory."));
   };
 
   const downloadQrPng = () => {
@@ -190,9 +183,6 @@ export function SharePagePanel({ memorial, memorialUrl, inviteUrl, showToast, on
             <button type="button" className="btn btn-sm btn-ghost" onClick={copyLink} style={{ flexShrink: 0 }}>Copy</button>
           </div>
         </div>
-        <button type="button" className="promise-callout-link" onClick={copyViewOnlyLink} style={{ marginTop: 0, marginBottom: 6 }}>
-          Prefer to share a view-only link instead? Copy that link.
-        </button>
 
         <hr className="story-divider" style={{ margin: "20px 0" }} />
 
