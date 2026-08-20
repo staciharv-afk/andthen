@@ -136,39 +136,19 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .form-error { font-size: 12px; color: #c0392b; }
 .form-hint { font-size: 12px; color: var(--warm-light); }
 
-/* -- Invite Contributors modal: chip-tag email input + collapsible email preview -- */
+/* -- Share panel's copy-link row (reuses the chip-input box, just to
+   display one link + a Copy button rather than take tag input) -- */
 .chip-input {
   display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
   background: var(--white); border: 1.5px solid var(--warm-faint); border-radius: var(--radius);
   padding: 8px 10px; min-height: 44px; cursor: text;
 }
 .chip-input:focus-within { border-color: var(--rust); }
-.chip {
-  display: flex; align-items: center; gap: 6px;
-  background: var(--cream-dark); color: var(--bark-light);
-  font-size: 12.5px; font-weight: 500; padding: 4px 6px 4px 10px; border-radius: 100px;
-}
-.chip button { border: none; background: none; color: var(--warm-mid); cursor: pointer; font-size: 13px; padding: 0 2px; line-height: 1; }
 .chip-input input {
   border: none; outline: none; flex: 1; min-width: 140px; padding: 4px;
   font-family: 'DM Sans', sans-serif; font-size: 14px; color: var(--bark); background: transparent;
 }
 .chip-input input::placeholder { color: var(--warm-light); }
-
-.preview-toggle {
-  border: none; background: none; padding: 0; margin: -2px 0 4px;
-  font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; color: var(--rust); cursor: pointer;
-}
-.preview-toggle:hover { color: var(--rust-light); }
-
-.email-preview {
-  border: 1px dashed var(--warm-faint); border-radius: var(--radius);
-  background: var(--cream); padding: 16px 18px; margin-bottom: 4px;
-  font-size: 13px; line-height: 1.6; color: var(--bark-light);
-}
-.email-preview-subj { font-weight: 600; color: var(--bark); margin-bottom: 8px; }
-.email-preview p { margin: 0 0 8px; }
-.email-preview p:last-child { margin-bottom: 0; }
 
 /* ── AUTH PAGE ── */
 .auth-page { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--bark); padding: 40px 24px; }
@@ -684,15 +664,6 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .dashboard-actions { margin-top: 12px; }
 .dashboard-actions-row { display: flex; align-items: center; gap: 10px; padding: 12px 0; flex-wrap: wrap; }
 .dashboard-actions-divider { border-top: 1px solid var(--warm-faint); }
-
-.share-menu { position: relative; }
-.share-menu-dropdown { position: absolute; top: calc(100% + 6px); left: 0; z-index: 20; background: var(--white); border: 1px solid var(--warm-faint); border-radius: 6px; box-shadow: 0 12px 30px -10px rgba(0,0,0,0.25); padding: 6px; min-width: 240px; }
-.share-menu-item { display: block; width: 100%; text-align: left; background: none; border: none; border-radius: 4px; padding: 10px 12px; cursor: pointer; font-family: inherit; transition: background 0.15s ease; }
-.share-menu-item:hover { background: var(--cream-dark); }
-.share-menu-item:disabled { cursor: not-allowed; opacity: 0.55; }
-.share-menu-item:disabled:hover { background: none; }
-.share-menu-item-label { display: block; font-size: 14px; font-weight: 500; color: var(--bark); }
-.share-menu-item-sub { display: block; font-size: 12px; color: var(--warm-light); margin-top: 2px; }
 
 .settings-btn { position: relative; }
 .settings-btn-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 16px; height: 16px; padding: 0 4px; margin-left: 6px; background: var(--rust); color: white; font-size: 10px; font-weight: 600; border-radius: 100px; }

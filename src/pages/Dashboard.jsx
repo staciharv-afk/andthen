@@ -1,11 +1,12 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
-import { fmtDate, timeAgo, sendThankYou, uid, notifyInvite } from "../lib/utils";
+import { fmtDate, timeAgo, sendThankYou } from "../lib/utils";
 import { trackEvent } from "../lib/analytics";
 import { exportMemorial } from "../lib/export";
 import { PRICING_PLANS } from "../lib/pricingPlans";
 import { ShareMemoryModal } from "./Memorial";
 import { EmbeddedCheckoutModal } from "../components/EmbeddedCheckoutModal";
+import { SharePagePanel } from "../components/SharePagePanel";
 
 const BUILD = PRICING_PLANS.find((p) => p.tier === "build");
 
@@ -22,7 +23,7 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
   const [upgrading, setUpgrading] = useState(false); // true while a checkout redirect is starting
   const [addingMemory, setAddingMemory] = useState(false);
   const [showPagePaywall, setShowPagePaywall] = useState(false);
-  const [showInvite, setShowInvite] = useState(false);
+  const [showShare, setShowShare] = useState(false);
 
   useEffect(() => {
     loadMemorials();
@@ -101,19 +102,9 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
 
   // The code link specifically — this is what counts as "a valid invite"
   // once a page is invite-only, regardless of whether a vanity slug is also
-  // set, so the "Copy invite" button always hands out a link that works.
+  // set, so it always grants both viewing and contributing (see
+  // SharePagePanel, which uses this as the one link it hands out).
   const inviteUrl = (memorial) => `${window.location.origin}?memorial=${memorial.invite_code}`;
-
-  const copyInviteLink = (memorial) => {
-    trackEvent("share_clicked", { share_option: "copy_link", page_label: memorial.name });
-    navigator.clipboard.writeText(memorialUrl(memorial)).then(() => showToast("Link copied! Share it with family and friends."));
-  };
-
-  const copyInvite = (memorial) => {
-    trackEvent("share_clicked", { share_option: "copy_invite", page_label: memorial.name });
-    const msg = memorial.invite_message || `I'm gathering memories of ${memorial.name}. Would you share one?`;
-    navigator.clipboard.writeText(`${msg}\n\n${inviteUrl(memorial)}`).then(() => showToast("Invitation copied — message + link."));
-  };
 
   const handleExport = async () => {
     setExporting(true);
@@ -233,16 +224,8 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
                 <div className="dashboard-actions">
                   <div className="dashboard-actions-row">
                     <button className="btn btn-sm btn-rust" onClick={() => setAddingMemory(true)}>+ Add a memory</button>
-                    <button
-                      className="btn btn-sm btn-ghost"
-                      onClick={() => setShowInvite(true)}
-                      disabled={!activeMemorial.is_paid}
-                      title={!activeMemorial.is_paid ? "Upgrade to invite others to contribute" : undefined}
-                    >
-                      + Invite contributors
-                    </button>
-                    <ShareMenu onCopyLink={() => copyInviteLink(activeMemorial)} onCopyInvite={() => copyInvite(activeMemorial)} inviteDisabled={!activeMemorial.is_paid} />
-                    <button className="btn btn-sm btn-ghost" onClick={() => onNavigate("memorial", activeMemorial.invite_code)}>Preview</button>
+                    <button className="btn btn-sm btn-ghost" onClick={() => setShowShare(true)}>Share this page</button>
+                    <button className="btn btn-sm btn-ghost" onClick={() => onNavigate("memorial", activeMemorial.invite_code)}>View page</button>
                     <button className="btn btn-sm btn-ghost" onClick={() => onNavigate("edit", activeMemorial)}>Edit</button>
                     <button className="btn btn-sm btn-ghost settings-btn" onClick={() => onNavigate("page-settings", activeMemorial)}>
                       Settings
@@ -339,192 +322,14 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
         />
       )}
 
-      {showInvite && activeMemorial && (
-        <InviteContributorsModal memorial={activeMemorial} onClose={() => setShowInvite(false)} showToast={showToast} />
-      )}
-    </div>
-  );
-}
-
-// Reuses the access_requests table's approved-token shape (see PageSettings.jsx's
-// approveRequest) but the other direction — the steward creates an
-// already-approved row themselves instead of approving someone else's
-// pending one, for a person they're proactively inviting. Same RLS grants
-// cover both: the public insert policy lets any authenticated user (the
-// steward included) insert a fresh row, and the steward-scoped update
-// policy lets them immediately flip it to approved with a token.
-function InviteContributorsModal({ memorial, onClose, showToast }) {
-  const [emails, setEmails] = useState([]);
-  const [draft, setDraft] = useState("");
-  const [note, setNote] = useState("");
-  const [showPreview, setShowPreview] = useState(false);
-  const [sending, setSending] = useState(false);
-  const inputRef = useRef(null);
-
-  const isValidEmail = (s) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s);
-
-  const commitDraft = () => {
-    const val = draft.trim().replace(/,$/, "");
-    if (!val) return;
-    if (!isValidEmail(val)) { showToast("That doesn't look like a valid email.", "error"); return; }
-    if (!emails.some((e) => e.toLowerCase() === val.toLowerCase())) setEmails((e) => [...e, val]);
-    setDraft("");
-  };
-
-  const removeEmail = (email) => setEmails((e) => e.filter((x) => x !== email));
-
-  const handleKeyDown = (e) => {
-    if (e.key === "Enter" || e.key === "," || e.key === "Tab") {
-      if (draft.trim()) { e.preventDefault(); commitDraft(); }
-    } else if (e.key === "Backspace" && !draft && emails.length) {
-      setEmails((e2) => e2.slice(0, -1));
-    }
-  };
-
-  const handleSend = async () => {
-    let targets = emails;
-    if (draft.trim()) {
-      if (!isValidEmail(draft.trim())) { showToast("That doesn't look like a valid email.", "error"); return; }
-      targets = emails.includes(draft.trim()) ? emails : [...emails, draft.trim()];
-    }
-    if (!targets.length) { showToast("Add at least one email address.", "error"); return; }
-
-    setSending(true);
-    const results = await Promise.all(targets.map(async (email) => {
-      const { data: inserted, error: insertErr } = await supabase
-        .from("access_requests")
-        .insert({ memorial_id: memorial.id, requester_email: email, note: note.trim() || null })
-        .select("id")
-        .single();
-      if (insertErr || !inserted) return false;
-      const { error: updateErr } = await supabase
-        .from("access_requests")
-        .update({ status: "approved", contribute_token: uid() + uid(), approved_at: new Date().toISOString() })
-        .eq("id", inserted.id);
-      if (updateErr) return false;
-      notifyInvite(inserted.id); // server re-derives the token/email and sends it
-      return true;
-    }));
-    setSending(false);
-
-    const n = results.filter(Boolean).length;
-    if (n) {
-      showToast(`Invited ${n} ${n === 1 ? "person" : "people"} — they'll each get their own email.`);
-      onClose();
-    } else {
-      showToast("Couldn't send those invites. Please try again.", "error");
-    }
-  };
-
-  return (
-    <div className="crop-adjust-overlay fade-in" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="crop-adjust-card crop-adjust-card-wide" role="dialog" aria-label="Invite contributors">
-        <h3 className="crop-adjust-title">Ask someone to share a memory</h3>
-        <p className="crop-adjust-sub">They'll get an email invite with a link straight to {memorial.name}'s page.</p>
-
-        <div className="form-group" style={{ marginBottom: 16 }}>
-          <label className="form-label">To</label>
-          <div className="chip-input" onClick={() => inputRef.current?.focus()}>
-            {emails.map((email) => (
-              <span className="chip" key={email}>
-                {email}
-                <button type="button" onClick={() => removeEmail(email)} aria-label={`Remove ${email}`}>&times;</button>
-              </span>
-            ))}
-            <input
-              ref={inputRef}
-              type="text"
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={handleKeyDown}
-              onBlur={commitDraft}
-              placeholder={emails.length ? "" : "Add an email address…"}
-            />
-          </div>
-        </div>
-
-        <div className="form-group" style={{ marginBottom: 12 }}>
-          <label className="form-label">
-            Personal note <span style={{ fontWeight: 400, color: "var(--warm-light)" }}>(optional — appears above the invite)</span>
-          </label>
-          <textarea
-            className="form-input"
-            rows={2}
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            placeholder="Would mean a lot to have your memory of them too."
-          />
-        </div>
-
-        <button type="button" className="preview-toggle" onClick={() => setShowPreview((s) => !s)}>
-          {showPreview ? "Hide preview" : "Preview message"}
-        </button>
-
-        {showPreview && (
-          <div className="email-preview" style={{ marginTop: 10 }}>
-            <div className="email-preview-subj">Subject: Would you share a memory of {memorial.name}?</div>
-            <p>Hi,</p>
-            <p>I'm putting together a page on And Then to celebrate {memorial.name}, and I'd love for it to include your voice too.</p>
-            {note.trim() && <p><em>"{note.trim()}"</em></p>}
-            <p>If you're up for it, would you share a memory, story, or photo? It doesn't need to be long — even a few sentences means a lot.</p>
-            <p>— And Then</p>
-          </div>
-        )}
-
-        <div className="crop-adjust-actions" style={{ justifyContent: "space-between", marginTop: 16 }}>
-          <span className="form-hint">
-            {emails.length || draft.trim() ? `Sending to ${emails.length + (draft.trim() ? 1 : 0)} ${emails.length + (draft.trim() ? 1 : 0) === 1 ? "person" : "people"}` : "No one added yet"}
-          </span>
-          <div style={{ display: "flex", gap: 10 }}>
-            <button type="button" className="btn btn-ghost" onClick={onClose} disabled={sending}>Cancel</button>
-            <button type="button" className="btn btn-rust" onClick={handleSend} disabled={sending || (!emails.length && !draft.trim())}>
-              {sending ? <><span className="spinner" /> Sending...</> : "Send invite"}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Type-the-name-to-confirm pattern (same friction as GitHub/Vercel resource
-// deletion) — deliberately no "are you sure" single click, since this is
-// permanent and cascades to every memory shared on the page.
-// "Copy link" and "Copy invite" stay functionally distinct (different
-// clipboard payloads) — this only changes how they're presented, collapsing
-// two always-visible buttons into one "Share" trigger + dropdown.
-function ShareMenu({ onCopyLink, onCopyInvite, inviteDisabled }) {
-  const [open, setOpen] = useState(false);
-  const rootRef = useRef(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const onOutside = (e) => { if (rootRef.current && !rootRef.current.contains(e.target)) setOpen(false); };
-    document.addEventListener("mousedown", onOutside);
-    return () => document.removeEventListener("mousedown", onOutside);
-  }, [open]);
-
-  return (
-    <div className="share-menu" ref={rootRef}>
-      <button type="button" className="btn btn-sm btn-ghost" onClick={() => setOpen((o) => !o)}>
-        Share
-      </button>
-      {open && (
-        <div className="share-menu-dropdown">
-          <button type="button" className="share-menu-item" onClick={() => { onCopyLink(); setOpen(false); }}>
-            <span className="share-menu-item-label">Copy link</span>
-            <span className="share-menu-item-sub">The page itself, for anyone to view</span>
-          </button>
-          <button
-            type="button"
-            className="share-menu-item"
-            disabled={inviteDisabled}
-            onClick={() => { if (inviteDisabled) return; onCopyInvite(); setOpen(false); }}
-          >
-            <span className="share-menu-item-label">Copy invite</span>
-            <span className="share-menu-item-sub">{inviteDisabled ? "Upgrade to invite others to contribute" : "Ask someone to contribute a memory"}</span>
-          </button>
-        </div>
+      {showShare && activeMemorial && (
+        <SharePagePanel
+          memorial={activeMemorial}
+          memorialUrl={memorialUrl(activeMemorial)}
+          inviteUrl={inviteUrl(activeMemorial)}
+          showToast={showToast}
+          onClose={() => setShowShare(false)}
+        />
       )}
     </div>
   );
