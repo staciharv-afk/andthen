@@ -91,6 +91,18 @@ export const notifyAccessApproved = (requestId) => {
   }).catch(() => {});
 };
 
+// Fire-and-forget: ask the server to email a personal invite to add a
+// memory, for someone the steward is proactively inviting (as opposed to
+// notifyAccessApproved, for someone who asked first). No-ops locally.
+export const notifyInvite = (requestId) => {
+  if (!requestId) return;
+  fetch("/api/notify-invite", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ requestId }),
+  }).catch(() => {});
+};
+
 // Fire-and-forget: ask the server to email a newly-invited co-steward their
 // accept link. No-ops locally.
 export const notifyStewardInvite = (inviteId) => {
