@@ -1,5 +1,12 @@
 export const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 
+// "Five memories included, free" — the number of memories a free-tier
+// memorial can hold before its owner has to upgrade to add more or invite
+// anyone else. Mirrored server-side in the contributions INSERT policy
+// (20260812_free_tier_limit.sql / can_insert_contribution()) — keep both in
+// sync if this ever changes.
+export const FREE_MEMORY_LIMIT = 5;
+
 // Short, human-typeable access code for a private page or code-required
 // contribution — unlike uid(), this needs to be readable off a printed card
 // and retyped by hand, so it avoids visually ambiguous characters (0/O,

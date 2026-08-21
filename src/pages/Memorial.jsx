@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from "../lib/supabase";
-import { uid, fmtDate, timeAgo, fileToDataURL, fmtTime, sendThankYou, notifyCreator } from "../lib/utils";
+import { uid, fmtDate, timeAgo, fileToDataURL, fmtTime, sendThankYou, notifyCreator, FREE_MEMORY_LIMIT } from "../lib/utils";
 import { trackEvent } from "../lib/analytics";
 import { CropAdjuster, coverSize, detectCropPosition, clamp } from "../components/CropAdjuster";
+import { MemoryLimitModal } from "../components/MemoryLimitModal";
 
 // Content-type filters, and the label shown on a grid tile / in the reader's
 // type tag — one source of truth (contentTypeLabel) for both, since a filter
@@ -16,12 +17,6 @@ import { CropAdjuster, coverSize, detectCropPosition, clamp } from "../component
 // video/story/url have no subtype and map straight across.
 const FILTER_ORDER = ["all", "photo", "video", "voicemail", "spoken", "story", "recipe", "url"];
 const FILTER_LABEL = { all: "Everything", photo: "Photos", video: "Videos", voicemail: "Voicemails", spoken: "Spoken stories", story: "Written stories", recipe: "Recipes", url: "Links" };
-
-// "Five memories included, free" — the number of memories a free-tier
-// memorial can hold before its owner has to upgrade to add more or invite
-// anyone else. Mirrored server-side in the contributions INSERT policy
-// (20260812_free_tier_limit.sql) — keep both in sync if this ever changes.
-const FREE_MEMORY_LIMIT = 5;
 
 function contentTypeLabel(s) {
   if (s.type === "photo") return s.subtype === "recipe" ? "Recipe" : "Photo";
@@ -351,17 +346,26 @@ export function MemorialPage({ inviteCode, showToast, onNavigate, currentUser })
   }, [contributeToken, memorial?.id]);
 
   const isOwner = !!(currentUser && memorial?.steward_id === currentUser.id);
+  const [showMemoryLimit, setShowMemoryLimit] = useState(false);
 
-  useEffect(() => {
-    if (!memorial || memorial.is_paid || !isOwner) return;
-    // Covered by the "stewards see their memories" SELECT policy, so this
-    // sees pending items too, not just approved ones.
-    supabase
+  // Covered by the "stewards see their memories" SELECT policy, so this
+  // sees pending items too, not just approved ones. Named (not inline in
+  // the effect below) so the ShareMemoryModal close handler can also call
+  // it after a fresh submission, to know immediately whether that just
+  // used up the last free memory.
+  const refreshFreeContributionCount = async () => {
+    if (!memorial || memorial.is_paid || !isOwner) return 0;
+    const { count } = await supabase
       .from("contributions")
       .select("id", { count: "exact", head: true })
       .eq("memorial_id", memorial.id)
-      .neq("status", "rejected")
-      .then(({ count }) => setFreeContributionCount(count || 0));
+      .neq("status", "rejected");
+    setFreeContributionCount(count || 0);
+    return count || 0;
+  };
+
+  useEffect(() => {
+    refreshFreeContributionCount();
   }, [memorial?.id, memorial?.is_paid, isOwner]);
 
   const openContribute = () => setShowContribute(true);
@@ -460,7 +464,7 @@ export function MemorialPage({ inviteCode, showToast, onNavigate, currentUser })
   // only lives in one place. No entry for "free-locked" — that state has
   // nothing to click, by design.
   const ctaLabel = { share: "Add Your Memory", "owner-limit": "Upgrade to add more" }[contributeState];
-  const ctaOnClick = { share: openContribute, "owner-limit": () => onNavigate?.("pricing") }[contributeState];
+  const ctaOnClick = { share: openContribute, "owner-limit": () => setShowMemoryLimit(true) }[contributeState];
   const closedNote = "This page isn't taking new memories right now — everything already here is still here to read.";
 
   const heroTitle = (
@@ -584,11 +588,20 @@ export function MemorialPage({ inviteCode, showToast, onNavigate, currentUser })
         <ShareMemoryModal
           memorial={memorial}
           showToast={showToast}
-          onClose={() => setShowContribute(false)}
+          onClose={async () => {
+            setShowContribute(false);
+            // Just used their last free memory — surface the upgrade
+            // prompt now rather than waiting for their next add attempt.
+            if ((await refreshFreeContributionCount()) >= FREE_MEMORY_LIMIT) setShowMemoryLimit(true);
+          }}
           contributeToken={tokenValid ? contributeToken : null}
           requireCode={codeRequiredToContribute}
           verifiedCode={codeVerified ? codeAttempt || new URLSearchParams(window.location.search).get("code") : null}
         />
+      )}
+
+      {showMemoryLimit && (
+        <MemoryLimitModal memorial={memorial} onClose={() => setShowMemoryLimit(false)} />
       )}
 
       {openIndex !== null && (

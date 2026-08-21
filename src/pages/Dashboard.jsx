@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
-import { fmtDate, timeAgo, sendThankYou } from "../lib/utils";
+import { fmtDate, timeAgo, sendThankYou, FREE_MEMORY_LIMIT } from "../lib/utils";
 import { trackEvent } from "../lib/analytics";
 import { exportMemorial } from "../lib/export";
 import { PRICING_PLANS } from "../lib/pricingPlans";
 import { ShareMemoryModal } from "./Memorial";
 import { EmbeddedCheckoutModal } from "../components/EmbeddedCheckoutModal";
+import { MemoryLimitModal } from "../components/MemoryLimitModal";
 import { SharePagePanel } from "../components/SharePagePanel";
 
 const BUILD = PRICING_PLANS.find((p) => p.tier === "build");
@@ -21,6 +22,7 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
   const [deleteTarget, setDeleteTarget] = useState(null); // memorial pending delete confirmation, or null
   const [upgrading, setUpgrading] = useState(false); // true while a checkout redirect is starting
   const [addingMemory, setAddingMemory] = useState(false);
+  const [showMemoryLimit, setShowMemoryLimit] = useState(false);
   const [showPagePaywall, setShowPagePaywall] = useState(false);
   const [showShare, setShowShare] = useState(false);
 
@@ -65,6 +67,7 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
     const { data } = await supabase.from("contributions").select("*").eq("memorial_id", memorialId).order("created_at", { ascending: false });
     setSubmissionsLoading(false);
     setSubmissions(data || []);
+    return data || [];
   };
 
   const handleApprove = async (submissionId) => {
@@ -154,6 +157,11 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
     return true;
   });
 
+  // Mirrors can_insert_contribution()'s own count (status <> 'rejected') —
+  // submissions is already loaded unfiltered, so no extra query needed.
+  const atFreeLimit = !!activeMemorial && !activeMemorial.is_paid
+    && submissions.filter((s) => s.status !== "rejected").length >= FREE_MEMORY_LIMIT;
+
   if (loading) return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "60vh" }}>
       <span className="spinner spinner-dark" />
@@ -222,7 +230,7 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
 
                 <div className="dashboard-actions">
                   <div className="dashboard-actions-row">
-                    <button className="btn btn-sm btn-rust" onClick={() => setAddingMemory(true)}>+ Add a memory</button>
+                    <button className="btn btn-sm btn-rust" onClick={() => (atFreeLimit ? setShowMemoryLimit(true) : setAddingMemory(true))}>+ Add a memory</button>
                     <button className="btn btn-sm btn-ghost" onClick={() => setShowShare(true)}>Share this page</button>
                     <button className="btn btn-sm btn-ghost" onClick={() => onNavigate("memorial", activeMemorial.invite_code)}>View page</button>
                     <button className="btn btn-sm btn-ghost" onClick={() => onNavigate("edit", activeMemorial)}>Edit</button>
@@ -306,8 +314,20 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
           memorial={activeMemorial}
           showToast={showToast}
           contributeToken={null}
-          onClose={() => { setAddingMemory(false); loadSubmissions(activeMemorial.id); }}
+          onClose={async () => {
+            setAddingMemory(false);
+            const rows = await loadSubmissions(activeMemorial.id);
+            // Just used their last free memory — surface the upgrade
+            // prompt now rather than waiting for their next add attempt.
+            if (!activeMemorial.is_paid && rows.filter((s) => s.status !== "rejected").length >= FREE_MEMORY_LIMIT) {
+              setShowMemoryLimit(true);
+            }
+          }}
         />
+      )}
+
+      {showMemoryLimit && activeMemorial && (
+        <MemoryLimitModal memorial={activeMemorial} onClose={() => setShowMemoryLimit(false)} />
       )}
 
       {showPagePaywall && (
