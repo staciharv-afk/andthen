@@ -31,7 +31,13 @@ export const slugify = (text) =>
 
 export const fmtDate = (d) => {
   if (!d) return "";
-  const date = new Date(d);
+  // Date-only values (born/passed, "YYYY-MM-DD") have no timezone info, so
+  // `new Date(d)` parses them as UTC midnight — which `toLocaleDateString`
+  // then renders a day early in any timezone behind UTC. Parse the parts
+  // directly as a local date to sidestep that. Full timestamps (created_at)
+  // already carry an actual instant, so `new Date(d)` is correct for those.
+  const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(d);
+  const date = dateOnly ? new Date(...d.split("-").map((n, i) => i === 1 ? Number(n) - 1 : Number(n))) : new Date(d);
   return date.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
 };
 
