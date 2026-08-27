@@ -140,10 +140,7 @@ export function PricingPage({ onNavigate }) {
       )}
 
       {showGiftModal && (
-        <GiftModal
-          onClose={() => setShowGiftModal(false)}
-          onContinueForMe={() => { setShowGiftModal(false); setShowCheckout(true); }}
-        />
+        <GiftModal onClose={() => setShowGiftModal(false)} />
       )}
     </div>
   );

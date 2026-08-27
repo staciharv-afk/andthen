@@ -875,16 +875,6 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .gift-pill svg { flex-shrink: 0; }
 
 .gift-modal-card { max-width: 440px; }
-.gift-fork-options { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
-.gift-fork-option {
-  display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
-  text-align: left; width: 100%; background: var(--white);
-  border: 1.5px solid var(--warm-faint); border-radius: 6px; padding: 14px 16px;
-  cursor: pointer; font-family: inherit; transition: border-color 0.15s ease, background 0.15s ease;
-}
-.gift-fork-option:hover { border-color: var(--rust); background: rgba(184,92,44,0.05); }
-.gift-fork-option-label { font-family: 'Lora', serif; font-size: 15.5px; color: var(--bark); }
-.gift-fork-option-body { font-size: 13px; color: var(--warm-mid); line-height: 1.5; }
 .form-label-optional { font-weight: 400; color: var(--warm-light); text-transform: none; letter-spacing: 0; }
 
 .gift-claim-message { font-family: 'Lora', serif; font-style: italic; font-size: 16px; color: var(--bark-light); border-left: 2px solid var(--rust-light); padding-left: 16px; margin: 18px 0; line-height: 1.6; }
