@@ -43,6 +43,7 @@
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
 import { renderGiftConfirmationEmail } from "./_lib/giftConfirmationEmail.js";
+import { renderGiftClaimEmail } from "./_lib/giftClaimEmail.js";
 
 // Pass `html` to send multipart (Resend delivers HTML + text together when
 // both are present); omit it for a plain-text-only send, like every other
@@ -94,19 +95,14 @@ async function handleGiftCheckout(session, admin) {
     return { error: error.message };
   }
 
-  const gifter = gifterName || "Someone";
   const claimUrl = `https://www.myandthen.com/?view=claim-gift&session=${encodeURIComponent(session.id)}`;
-  const quoted = giftMessage ? `\n\n"${giftMessage}"\n` : "";
 
+  const claim = renderGiftClaimEmail({ recipientName, gifterName, giftMessage, claimUrl });
   await sendResendEmail({
     to: recipientEmail,
-    subject: `${gifter} sent you a gift`,
-    text:
-      `Hi ${recipientName.split(" ")[0]},\n\n` +
-      `${gifter} thought you might want a place to gather someone's stories — a page on And Then, ` +
-      `already paid for, waiting for you whenever you're ready.` +
-      quoted +
-      `\n\nSee it here:\n${claimUrl}\n\n— And Then`,
+    subject: claim.subject,
+    text: claim.text,
+    html: claim.html,
   });
 
   if (gifterEmail) {
