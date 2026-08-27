@@ -214,8 +214,7 @@ function ContentTypesShowcase() {
           <span className="type-pill" key={name}>{name}</span>
         ))}
       </div>
-      <p className="type-pills-hint">If it brings them to life, it belongs here.</p>
-      <p className="type-pills-hint">The collecting is what makes it work.</p>
+      <p className="type-pills-hint">If it brings them to life, it belongs here. The collecting is what makes it work.</p>
 
       <div className="wyg2-grid">
         {CONTENT_FEATURES.map(({ label, body }) => (
@@ -342,12 +341,22 @@ export function HomePage({ onNavigate }) {
               Nothing is charged until you move past the free five. Each page is priced on its own, so you're free to create one for every person you want to honor.
             </p>
 
-            <div className="pricing-teaser-cards">
-              <div className="pricing-teaser-card pricing-teaser-card-dark">
-                <div className="pricing-teaser-label">{BUILD.label}</div>
-                <p className="pricing-teaser-price">{BUILD.price}</p>
-                <p className="pricing-teaser-sub">{BUILD.sub}</p>
-              </div>
+            <div className="home-paths">
+              <button type="button" className="home-path" onClick={() => onNavigate("onboarding")}>
+                <span className="home-path-label">Start free</span>
+                <span className="home-path-detail">Five memories, every feature unlocked. No card needed.</span>
+                <span className="home-path-arrow" aria-hidden="true">→</span>
+              </button>
+              <button type="button" className="home-path" onClick={() => onNavigate("pricing")}>
+                <span className="home-path-label">Unlock the full page — {BUILD.price}</span>
+                <span className="home-path-detail">Unlimited memories and people. One payment, no renewals.</span>
+                <span className="home-path-arrow" aria-hidden="true">→</span>
+              </button>
+              <button type="button" className="home-path" onClick={() => onNavigate("pricing", "gift")}>
+                <span className="home-path-label">Give it as a gift — {BUILD.price}</span>
+                <span className="home-path-detail">For someone who isn't ready to start it themselves yet.</span>
+                <span className="home-path-arrow" aria-hidden="true">→</span>
+              </button>
             </div>
 
             <button className="section-cta-link" onClick={() => onNavigate("pricing")}>

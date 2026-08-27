@@ -277,7 +277,7 @@ export default function App() {
 
       {route === "home" && <HomePage onNavigate={navigate} />}
 
-      {route === "pricing" && <PricingPage onNavigate={navigate} showToast={showToast} />}
+      {route === "pricing" && <PricingPage onNavigate={navigate} showToast={showToast} intent={routeParam} />}
 
       {route === "story" && <OurStoryPage onNavigate={navigate} />}
 

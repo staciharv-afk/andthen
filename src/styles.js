@@ -269,7 +269,7 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 /* -- "every way a memory can live" content-type pills + feature grid -- */
 .type-pills { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 44px; }
 .type-pill { font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; color: var(--bark); background: var(--cream); border: 1px solid var(--warm-faint); border-radius: 999px; padding: 8px 18px; }
-.type-pills-hint { font-size: 14px; color: var(--warm-mid); line-height: 1.6; margin: 20px 0 0; }
+.type-pills-hint { font-size: 14px; color: var(--warm-mid); line-height: 1.65; margin: 22px 0 0; max-width: 520px; }
 
 .wyg2-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 40px 48px; margin-top: 56px; }
 @media (max-width: 700px) { .wyg2-grid { grid-template-columns: 1fr; gap: 32px; } }
@@ -278,7 +278,8 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 @media (max-width: 600px) {
   .type-pills { gap: 8px; margin-top: 32px; }
   .type-pill { font-size: 12px; padding: 7px 14px; }
-  .wyg2-grid { margin-top: 32px; }
+  .type-pills-hint { font-size: 13px; margin-top: 18px; }
+  .wyg2-grid { margin-top: 36px; }
   .wyg2-label { font-size: 17px; }
   .wyg2-body { font-size: 13.5px; }
 }
@@ -297,7 +298,12 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--warm-faint); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 500; color: var(--warm-mid); flex-shrink: 0; border: 1.5px solid var(--story-line); }
 
 /* ── NARRATIVE SECTIONS ── */
+/* Every homepage section after the first sets an inline paddingTop:0 (they
+   stack directly, separated only by the section above's padding-bottom), so
+   the vertical rhythm between sections is one padding-bottom value — keep
+   these in step when changing it. */
 .narrative { padding: 88px 0; }
+@media (max-width: 700px) { .narrative { padding: 60px 0; } }
 .section-label { font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--rust); margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
 .section-label::after { content: ''; flex: 1; height: 1px; background: var(--warm-faint); max-width: 40px; }
 .narrative-headline { font-family: 'Lora', serif; font-size: clamp(26px, 3vw, 36px); font-weight: 400; color: var(--bark); margin-bottom: 24px; max-width: 680px; line-height: 1.3; }
@@ -305,6 +311,7 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 
 /* ── FINAL CTA ── */
 .final-cta { padding: 96px 0; text-align: center; }
+@media (max-width: 700px) { .final-cta { padding: 64px 0; } }
 .final-cta h2 { font-family: 'Lora', serif; font-size: clamp(30px, 4vw, 50px); font-weight: 400; font-style: italic; color: var(--cream); margin-bottom: 16px; line-height: 1.2; }
 .final-cta p { font-size: 16px; font-weight: 300; color: var(--warm-light); margin-bottom: 40px; max-width: 400px; margin-left: auto; margin-right: auto; line-height: 1.7; }
 
@@ -836,22 +843,26 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .pricing-path-dot.filled { background: var(--rust); }
 .pricing-path-dots-caption { display: block; font-size: 12px; color: var(--warm-light); margin-bottom: 20px; }
 
-/* Homepage's condensed pricing teaser — label/price/sub only, no body copy
-   and not clickable (checkout only happens on the real Pricing page).
-   Same light/dark color treatment as .pricing-path-card above, lighter
-   touch since there's much less content per card. */
-.pricing-teaser-cards { display: flex; flex-direction: column; gap: 14px; margin-top: 40px; max-width: 360px; }
-.pricing-teaser-card { border-radius: 10px; padding: 20px 24px; }
-.pricing-teaser-card-light { background: var(--white); border: 1px solid var(--warm-faint); }
-.pricing-teaser-card-dark { background: var(--bark); }
-.pricing-teaser-label { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--rust); margin-bottom: 6px; }
-.pricing-teaser-card-dark .pricing-teaser-label { color: var(--rust-light); }
-.pricing-teaser-price { font-family: 'Lora', serif; font-weight: 500; font-size: 22px; margin: 0 0 3px; }
-.pricing-teaser-card-light .pricing-teaser-price { color: var(--bark); }
-.pricing-teaser-card-dark .pricing-teaser-price { color: var(--cream); }
-.pricing-teaser-sub { font-size: 13px; margin: 0; }
-.pricing-teaser-card-light .pricing-teaser-sub { color: var(--warm-mid); }
-.pricing-teaser-card-dark .pricing-teaser-sub { color: rgba(253,250,245,0.6); }
+/* Homepage pricing section — three clear entry points (free / buy / gift),
+   each a full-width clickable row that routes to onboarding or the Pricing
+   page. Label + one line of detail + a trailing arrow. */
+.home-paths { display: flex; flex-direction: column; gap: 12px; margin-top: 40px; max-width: 540px; }
+.home-path {
+  display: grid; grid-template-columns: 1fr auto; align-items: center; column-gap: 18px; row-gap: 3px;
+  width: 100%; text-align: left; cursor: pointer; font-family: inherit;
+  background: var(--white); border: 1px solid var(--warm-faint); border-radius: 10px; padding: 17px 22px;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.home-path:hover { border-color: var(--rust); background: rgba(184,92,44,0.04); }
+.home-path-label { grid-column: 1; font-family: 'Lora', serif; font-size: 16px; font-weight: 500; color: var(--bark); }
+.home-path-detail { grid-column: 1; font-size: 13px; font-weight: 300; line-height: 1.55; color: var(--warm-mid); }
+.home-path-arrow { grid-column: 2; grid-row: 1 / span 2; color: var(--rust); font-size: 15px; }
+@media (max-width: 600px) {
+  .home-paths { margin-top: 28px; gap: 10px; }
+  .home-path { padding: 14px 18px; }
+  .home-path-label { font-size: 15px; }
+  .home-path-detail { font-size: 12.5px; }
+}
 
 .pricing-path-ring { width: 34px; height: 34px; border-radius: 50%; border: 2px solid var(--rust-light); display: flex; align-items: center; justify-content: center; margin-bottom: 20px; }
 .pricing-path-ring-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--rust-light); }

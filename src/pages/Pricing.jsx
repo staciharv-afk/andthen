@@ -18,9 +18,11 @@ const UNLOCKS = [
   { label: "A page that keeps living", body: "Come back to it next year, or ten years from now. New memories can keep arriving, so everyone who visits — today or a decade from now — gets to know your loved one a little better." },
 ];
 
-export function PricingPage({ onNavigate }) {
+// `intent` is the nav param — "gift" (from the homepage "Give it as a gift"
+// row) opens the gift modal straight away.
+export function PricingPage({ onNavigate, intent }) {
   const [showCheckout, setShowCheckout] = useState(false);
-  const [showGiftModal, setShowGiftModal] = useState(false);
+  const [showGiftModal, setShowGiftModal] = useState(intent === "gift");
   // Set by create-gift-checkout.js's success_url after a gift is paid for.
   // Read once, then strip from the URL so a refresh or a later visit doesn't
   // resurface it (Stripe redirects the whole tab here, so there's no in-app
