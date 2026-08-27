@@ -53,8 +53,6 @@ export function renderGiftConfirmationEmail({ recipientName, gifterName, giftMes
     "",
     `There's no deadline on a story — ${recipient} can start whenever they're ready.`,
     "",
-    `Questions about ${recipient}'s gift? Just reply to this email — a person reads these.`,
-    "",
     "— And Then",
     "A living story for someone you love.",
     "© 2026 And Then. Sent because you gifted a page on myandthen.com.",
@@ -223,7 +221,6 @@ export function renderGiftConfirmationEmail({ recipientName, gifterName, giftMes
                 A living story for someone you love.
               </p>
               <p class="sans" style="margin: 18px 0 0 0; font-size: 12px; line-height: 1.7; color: #A08D79;">
-                Questions about ${R}'s gift? Just reply to this email &mdash; a person reads these.<br />
                 &copy; 2026 And Then. Sent because you gifted a page on myandthen.com.
               </p>
             </td>
