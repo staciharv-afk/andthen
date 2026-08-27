@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { PRICING_PLANS } from "../lib/pricingPlans";
 import { EmbeddedCheckoutModal } from "../components/EmbeddedCheckoutModal";
+import { GiftModal } from "../components/GiftModal";
 
 const BUILD = PRICING_PLANS.find((p) => p.tier === "build");
 
@@ -19,9 +20,38 @@ const UNLOCKS = [
 
 export function PricingPage({ onNavigate }) {
   const [showCheckout, setShowCheckout] = useState(false);
+  const [showGiftModal, setShowGiftModal] = useState(false);
+  // Set by create-gift-checkout.js's success_url after a gift is paid for.
+  // Read once, then strip from the URL so a refresh or a later visit doesn't
+  // resurface it (Stripe redirects the whole tab here, so there's no in-app
+  // state to carry the confirmation any other way).
+  const [giftSent, setGiftSent] = useState(
+    () => new URLSearchParams(window.location.search).get("gift_sent") === "1"
+  );
+
+  useEffect(() => {
+    if (!giftSent) return;
+    const url = new URL(window.location.href);
+    url.searchParams.delete("gift_sent");
+    window.history.replaceState({}, "", url);
+  }, [giftSent]);
 
   return (
     <div className="pricing-page">
+      {giftSent && (
+        <div className="gift-sent-banner fade-up" role="status">
+          <div className="gift-sent-banner-inner">
+            <h2 className="gift-sent-banner-title">Your gift is on its way.</h2>
+            <p className="gift-sent-banner-body">
+              We've emailed them a link to open it whenever they're ready — the page is paid for and waiting, with nothing for you to forward or track. If you added your email, there's a confirmation in your inbox too.
+            </p>
+            <button type="button" className="btn btn-ghost" onClick={() => setGiftSent(false)}>
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Hero */}
       <div style={{ background: "var(--cream)" }}>
         <div className="page-wrap">
@@ -53,6 +83,16 @@ export function PricingPage({ onNavigate }) {
               <div className="pricing-path-sub">{BUILD.sub}</div>
               <div className="pricing-path-ring"><span className="pricing-path-ring-dot" /></div>
               <p className="pricing-path-body">{CARD_BODY}</p>
+            </button>
+            <button type="button" className="gift-pill" onClick={() => setShowGiftModal(true)}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="8" width="18" height="4" rx="1" />
+                <path d="M12 8v13" />
+                <path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7" />
+                <path d="M7.5 8a2.5 2.5 0 0 1 0-5C11 3 12 8 12 8" />
+                <path d="M16.5 8a2.5 2.5 0 0 0 0-5C13 3 12 8 12 8" />
+              </svg>
+              Buying this for someone else? Send it as a gift
             </button>
           </div>
 
@@ -96,6 +136,13 @@ export function PricingPage({ onNavigate }) {
           returnView="onboarding"
           title={`Pay Once — ${BUILD.price}`}
           onCancel={() => setShowCheckout(false)}
+        />
+      )}
+
+      {showGiftModal && (
+        <GiftModal
+          onClose={() => setShowGiftModal(false)}
+          onContinueForMe={() => { setShowGiftModal(false); setShowCheckout(true); }}
         />
       )}
     </div>

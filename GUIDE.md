@@ -148,15 +148,38 @@ suspecting the code.**
 
 ---
 
-## 6. The emails (Resend)
+## 6. The emails
+
+**Sent by the app's own `api/*.js` functions, via the Resend API:**
 
 | Email | When | To whom |
 |---|---|---|
 | **Thank-you** (`api/thank-you.js`) | a memory is approved (or auto-approved) and the contributor left an email | the contributor |
 | **New-memory notice** (`api/notify-creator.js`) | a memory is submitted (max 5/day per memorial) | the creator |
 | **Anniversary** (`api/anniversary-cron.js`) | daily check; on a birth/passing anniversary (paid only) | the creator |
+| **Access request notice** (`api/notify-access-request.js`) | someone asks for access on an invite-only page | the creator |
+| **Access approved** (`api/notify-access-approved.js`) | the creator approves an access request | the requester |
+| **Gift claim link** (`api/stripe-webhook.js`) | a gift is paid for | the recipient |
+| **Gift confirmation** (`api/stripe-webhook.js`) | a gift is paid for, if the gifter left an email | the gifter |
 
-All send from `hello@myandthen.com` via Resend.
+All send from `hello@myandthen.com` via the Resend API. All are plain-text
+(only the Supabase Auth magic-link email below is branded HTML). The two
+gift emails are best-effort — a failed send never undoes the paid
+`gift_purchases` row.
+
+**Sent by Supabase Auth itself** (a separate pathway — Supabase's own SMTP
+relay, configured with Resend's SMTP credentials in the Supabase dashboard,
+not through any `api/*.js` file):
+
+| Email | When | To whom | Branded? |
+|---|---|---|---|
+| **Magic Link** | every sign-in (`supabase.auth.signInWithOtp`, `Auth.jsx`/`Onboarding.jsx`) | whoever's signing in | ✅ `supabase/email-templates/magic-link.html` |
+| Confirm Signup, Invite User, Reset Password, Change Email Address | never — this app has no password auth, and the invite/access-request flows above are custom-built, not `admin.auth.admin.inviteUserByEmail()` | — | Still on Supabase's plain default; harmless since nothing triggers them today |
+
+Configured in Supabase → Authentication → Emails (SMTP Settings + Email
+Templates) — not something the app's code or a migration can set; a
+dashboard-only, by-hand step, same category as running a migration in the
+SQL Editor.
 
 ---
 
@@ -175,9 +198,10 @@ flowchart LR
   H --> I[Photo/video/voice + export unlock]
 ```
 
-Live mode, wired to three real Stripe products via env vars (see §8) —
-`STRIPE_BUILD_FEE_PRODUCT_ID`, `STRIPE_KEEPER_FEE_PRODUCT_ID`,
-`STRIPE_FOREVER_PRODUCT_ID` — rather than any hardcoded price.
+Live mode, wired to a real saved Stripe Price via an env var (see §8) —
+`STRIPE_BUILD_FEE_PRICE_ID` — rather than any hardcoded price. Using a saved
+Price (not an ad-hoc `price_data` amount) is also what lets promotion codes
+work at checkout.
 
 **Why the $10/yr subscription is created separately, after the fact, rather
 than in the same Checkout Session as the $49:** Stripe Checkout Sessions
@@ -194,6 +218,43 @@ never gets a `stripe_subscription_id` at all (no subscription is ever
 created for it), so it's never touched by the $10/yr renewal-lapse pause
 logic below.
 
+### Buying a page as a gift
+
+Someone can pay the $49 for a person who hasn't signed up yet — and may not
+even know it's coming.
+
+```mermaid
+flowchart TD
+  A[Pricing page → gift pill → GiftModal] --> B[api/create-gift-checkout: hosted Stripe Checkout, no account needed]
+  B --> C[Stripe → api/stripe-webhook, metadata.is_gift = true]
+  C --> D[(gift_purchases row, status 'sent')]
+  D --> E[Resend: claim link to recipient + confirmation to gifter]
+  E --> F["Recipient opens /?view=claim-gift&session=… (ClaimGift.jsx)"]
+  F --> G{their choice}
+  G -- Get started --> H[stash session id in localStorage: pendingGiftClaim.js]
+  H --> I[normal magic-link creator flow: Onboarding or CreateMemorial]
+  I --> J[app.jsx finishSignIn → api/claim-gift once the memorial exists]
+  J --> K[(gift_purchases → 'claimed' + memorial_id; memorial is_paid = true)]
+  G -- Not right now --> L[(api/decline-gift → 'declined'; link stays live, re-openable)]
+```
+
+- **`gift_purchases`** (migration `20260826_gift_purchases.sql`) is fully
+  locked down — RLS on, **no** anon/authenticated grants at all. The Stripe
+  Checkout Session id from the claim email is the only credential anyone
+  has, so every read/write goes through a service-role `api/*.js` function
+  that checks that id itself: `get-gift` (look up), `claim-gift` (consume),
+  `decline-gift` (soft "no"). Same "narrow, secret-gated server function"
+  shape as `get_memorial_page()`, just in the API layer.
+- The claim never trusts the client that a gift is real — `claim-gift`
+  re-fetches the session from Stripe and checks `payment_status` +
+  `metadata.is_gift`, and only consumes a row still `sent` (a claimed or
+  declined gift can't be re-pointed at a different memorial).
+- Declining is a one-way, private signal — it never notifies the gifter,
+  and the link stays usable forever (the page just re-renders an "actually,
+  let's do this" button).
+- The gifter lands back on `/?view=pricing&gift_sent=1`, which shows a
+  one-time confirmation band (`Pricing.jsx` strips the param on read).
+
 ---
 
 ## 8. Where everything lives
@@ -207,7 +268,8 @@ src/
   pages/              Home · Auth · CreateMemorial (create+edit) · Dashboard · Memorial
 api/                 backend functions: thank-you, notify-creator,
                      start-checkout, create-checkout, stripe-webhook,
-                     attach-presignup-payment, anniversary-cron
+                     attach-presignup-payment, anniversary-cron,
+                     create-gift-checkout, get-gift, claim-gift, decline-gift
                      _lib/stripeTiers.js — shared pricing/session shape
 supabase/
   migrations/         database changes (run these by hand — see §9)
@@ -218,8 +280,7 @@ supabase/
 Vercel (Settings → Environment Variables):
 `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`,
 `RESEND_API_KEY`, `RESEND_FROM`, `STRIPE_SECRET_KEY`,
-`STRIPE_BUILD_FEE_PRODUCT_ID`, `STRIPE_KEEPER_FEE_PRODUCT_ID`,
-`STRIPE_FOREVER_PRODUCT_ID`, `CRON_SECRET`.
+`STRIPE_BUILD_FEE_PRICE_ID`, `CRON_SECRET`.
 
 ---
 

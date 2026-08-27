@@ -1,6 +1,6 @@
 // Vercel serverless function — Stripe webhook.
 //
-// Handles two things:
+// Handles three things:
 // 1. checkout.session.completed — unlocks a memorial (is_paid = true) for
 //    the EXISTING post-signup upgrade flow (create-checkout.js,
 //    metadata.memorial_id). The Checkout Session here is `mode: "payment"`
@@ -9,6 +9,9 @@
 //    have no memorial_id yet at this point — they're skipped here and
 //    unlocked instead by attach-presignup-payment.js once the memorial
 //    exists, right after magic-link signup completes.
+// 1b. checkout.session.completed with metadata.is_gift === "true"
+//    (create-gift-checkout.js) — records the gift in gift_purchases and
+//    emails the recipient their claim link. See below.
 // 2. customer.subscription.updated / customer.subscription.deleted — no
 //    purchase creates a subscription anymore (the $10/yr "keeper's fee" was
 //    retired; this is now a one-time-only tier), so this branch is inert
@@ -29,7 +32,9 @@
 // Required env vars:
 //   STRIPE_SECRET_KEY           = Stripe secret key (sk_test_… while testing)
 //   SUPABASE_SERVICE_ROLE_KEY   = Supabase service_role key (secret)
-// Optional: SUPABASE_URL (falls back to VITE_SUPABASE_URL)
+// Optional: SUPABASE_URL (falls back to VITE_SUPABASE_URL), RESEND_API_KEY,
+//   RESEND_FROM (gift emails are best-effort — a failed send doesn't undo
+//   the gift_purchases row, since the payment already succeeded)
 //
 // Point a Stripe webhook (Dashboard → Developers → Webhooks) at:
 //   https://www.myandthen.com/api/stripe-webhook
@@ -37,6 +42,82 @@
 // customer.subscription.deleted
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
+
+async function sendResendEmail({ to, subject, text }) {
+  const { RESEND_API_KEY } = process.env;
+  const FROM = process.env.RESEND_FROM || "And Then <onboarding@resend.dev>";
+  if (!RESEND_API_KEY) return;
+  try {
+    await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ from: FROM, to: [to], subject, text }),
+    });
+  } catch {
+    // Best-effort — the gift itself is already recorded; a failed send just
+    // means no email went out, not a broken purchase.
+  }
+}
+
+async function handleGiftCheckout(session, admin) {
+  const m = session.metadata || {};
+  const gifterEmail = (m.gifter_email || session.customer_details?.email || "").trim() || null;
+  const gifterName = (m.gifter_name || "").trim() || null;
+  const recipientName = (m.recipient_name || "").trim();
+  const recipientEmail = (m.recipient_email || "").trim();
+  const giftMessage = (m.gift_message || "").trim() || null;
+  if (!recipientName || !recipientEmail) return { skipped: "gift metadata missing" };
+
+  const { data: inserted, error } = await admin
+    .from("gift_purchases")
+    .insert({
+      stripe_session_id: session.id,
+      gifter_email: gifterEmail,
+      gifter_name: gifterName,
+      recipient_email: recipientEmail,
+      recipient_name: recipientName,
+      gift_message: giftMessage,
+      status: "sent",
+    })
+    .select()
+    .single();
+
+  if (error) {
+    // Unique violation on stripe_session_id = Stripe already retried this
+    // event and we've already recorded + emailed it once — skip silently
+    // rather than sending a duplicate claim email.
+    if (error.code === "23505") return { skipped: "already recorded" };
+    return { error: error.message };
+  }
+
+  const gifter = gifterName || "Someone";
+  const claimUrl = `https://www.myandthen.com/?view=claim-gift&session=${encodeURIComponent(session.id)}`;
+  const quoted = giftMessage ? `\n\n"${giftMessage}"\n` : "";
+
+  await sendResendEmail({
+    to: recipientEmail,
+    subject: `${gifter} sent you a gift`,
+    text:
+      `Hi ${recipientName.split(" ")[0]},\n\n` +
+      `${gifter} thought you might want a place to gather someone's stories — a page on And Then, ` +
+      `already paid for, waiting for you whenever you're ready.` +
+      quoted +
+      `\n\nSee it here:\n${claimUrl}\n\n— And Then`,
+  });
+
+  if (gifterEmail) {
+    await sendResendEmail({
+      to: gifterEmail,
+      subject: `Your gift is on its way`,
+      text:
+        `Hi${gifterName ? ` ${gifterName.split(" ")[0]}` : ""},\n\n` +
+        `Your gift for ${recipientName} is confirmed — we've sent them everything they need to get started, ` +
+        `whenever they're ready.\n\n— And Then`,
+    });
+  }
+
+  return { gift: inserted.id };
+}
 
 // Statuses Stripe uses once its own automatic retry schedule has been
 // exhausted (or the subscription was outright canceled) — anything before
@@ -63,6 +144,13 @@ export default async function handler(req, res) {
       // Re-fetch from Stripe — the source of truth. Never trust the POST body's contents.
       const session = await stripe.checkout.sessions.retrieve(event.data.object.id);
       if (session.payment_status !== "paid") return res.status(200).json({ skipped: "not paid" });
+
+      if (session.metadata?.is_gift === "true") {
+        const result = await handleGiftCheckout(session, admin);
+        if (result.error) return res.status(500).json(result);
+        return res.status(200).json(result);
+      }
+
       const memorialId = session.metadata?.memorial_id;
       if (!memorialId) return res.status(200).json({ skipped: "no memorial_id — likely a pre-signup checkout" });
 

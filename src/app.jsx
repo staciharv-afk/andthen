@@ -3,6 +3,7 @@ import { supabase, CONFIG_OK, ARRIVED_VIA_MAGIC_LINK } from "./lib/supabase";
 import { uid } from "./lib/utils";
 import { readDraft, clearDraft } from "./lib/onboardingDraft";
 import { savePendingPayment, readPendingPayment, clearPendingPayment } from "./lib/pendingPayment";
+import { readPendingGiftClaim, clearPendingGiftClaim } from "./lib/pendingGiftClaim";
 import { savePendingStewardInvite, readPendingStewardInvite, clearPendingStewardInvite } from "./lib/pendingStewardInvite";
 import { STYLES } from "./styles";
 import { parseLocation, routeToUrl } from "./lib/router";
@@ -21,6 +22,7 @@ import { PricingPage } from "./pages/Pricing";
 import { OurStoryPage } from "./pages/OurStory";
 import { OurPromisePage } from "./pages/OurPromise";
 import { HowItWorksPage } from "./pages/HowItWorks";
+import { ClaimGiftPage } from "./pages/ClaimGift";
 
 export default function App() {
   const [route, setRoute] = useState(() => parseLocation().page);
@@ -176,7 +178,7 @@ export default function App() {
         invite_code: uid(),
       }).select();
       if (!error && data?.[0]) {
-        await attachPendingPaymentIfAny(data[0].id);
+        await attachPendingUnlockIfAny(data[0].id);
         showToast("You're signed in — your page is ready to finish.");
         navigate("edit", data[0]);
         return;
@@ -215,6 +217,33 @@ export default function App() {
     }
   };
 
+  // Same handoff as attachPendingPaymentIfAny, for a memorial being created
+  // to claim a gift instead (see ClaimGift.jsx's "Get started" and
+  // pendingGiftClaim.js) — mutually exclusive with a pending payment, so
+  // this is checked first and pending payment only checked if there's no
+  // gift to claim.
+  const attachPendingUnlockIfAny = async (memorialId) => {
+    const pendingGift = readPendingGiftClaim();
+    if (pendingGift) {
+      clearPendingGiftClaim();
+      try {
+        const res = await fetch("/api/claim-gift", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ memorialId, sessionId: pendingGift.sessionId }),
+        });
+        const data = await res.json();
+        if (!res.ok || data?.skipped) {
+          showToast("We couldn't confirm the gift automatically — contact us and we'll sort it out.", "error");
+        }
+      } catch {
+        showToast("We couldn't confirm the gift automatically — contact us and we'll sort it out.", "error");
+      }
+      return;
+    }
+    await attachPendingPaymentIfAny(memorialId);
+  };
+
   const handleSignOut = async () => {
     if (supabase) await supabase.auth.signOut();
     setCurrentUser(null);
@@ -228,7 +257,7 @@ export default function App() {
   // finishSignIn — it attaches that payment to the memorial that was just
   // created for it.
   const handleMemorialCreated = async (memorial) => {
-    await attachPendingPaymentIfAny(memorial.id);
+    await attachPendingUnlockIfAny(memorial.id);
     navigate("dashboard");
   };
 
@@ -242,7 +271,7 @@ export default function App() {
         </div>
       )}
 
-      {route !== "login" && route !== "memorial" && route !== "onboarding" && (
+      {route !== "login" && route !== "memorial" && route !== "onboarding" && route !== "claim-gift" && (
         <Nav currentUser={currentUser} onSignOut={handleSignOut} onNavigate={navigate} currentRoute={route} />
       )}
 
@@ -313,6 +342,10 @@ export default function App() {
 
       {route === "memorial" && (
         <MemorialPage inviteCode={routeParam} showToast={showToast} onNavigate={navigate} currentUser={currentUser} />
+      )}
+
+      {route === "claim-gift" && (
+        <ClaimGiftPage currentUser={currentUser} onNavigate={navigate} showToast={showToast} />
       )}
 
       {route === "admin" && currentUser && (

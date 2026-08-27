@@ -12,7 +12,7 @@
 // Required env vars (Vercel → Settings → Environment Variables):
 //   STRIPE_SECRET_KEY           = Stripe secret key (must be sk_live_… in production)
 //   SUPABASE_SERVICE_ROLE_KEY   = Supabase service_role key (secret)
-//   See api/_lib/stripeTiers.js for the three STRIPE_*_PRODUCT_ID vars.
+//   See api/_lib/stripeTiers.js for STRIPE_BUILD_FEE_PRICE_ID.
 // Optional:
 //   SUPABASE_URL                = falls back to VITE_SUPABASE_URL
 import Stripe from "stripe";

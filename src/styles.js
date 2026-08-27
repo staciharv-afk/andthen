@@ -860,6 +860,42 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .pricing-path-card-light .pricing-path-body { color: var(--warm-mid); }
 .pricing-path-card-dark .pricing-path-body { color: rgba(253,250,245,0.75); }
 
+/* Gift pill, sitting right under the $49 card — a quiet continuation of it,
+   not a promotional banner, so it borrows the card's own rust token rather
+   than introducing a new color. */
+.gift-pill {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: fit-content; margin: 18px auto 0;
+  font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500;
+  color: var(--rust); background: rgba(184,92,44,0.08);
+  border: 1.5px solid var(--rust); border-radius: 999px; padding: 11px 22px;
+  cursor: pointer; transition: background 0.2s ease, color 0.2s ease;
+}
+.gift-pill:hover { background: var(--rust); color: #fff; }
+.gift-pill svg { flex-shrink: 0; }
+
+.gift-modal-card { max-width: 440px; }
+.gift-fork-options { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+.gift-fork-option {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
+  text-align: left; width: 100%; background: var(--white);
+  border: 1.5px solid var(--warm-faint); border-radius: 6px; padding: 14px 16px;
+  cursor: pointer; font-family: inherit; transition: border-color 0.15s ease, background 0.15s ease;
+}
+.gift-fork-option:hover { border-color: var(--rust); background: rgba(184,92,44,0.05); }
+.gift-fork-option-label { font-family: 'Lora', serif; font-size: 15.5px; color: var(--bark); }
+.gift-fork-option-body { font-size: 13px; color: var(--warm-mid); line-height: 1.5; }
+.form-label-optional { font-weight: 400; color: var(--warm-light); text-transform: none; letter-spacing: 0; }
+
+.gift-claim-message { font-family: 'Lora', serif; font-style: italic; font-size: 16px; color: var(--bark-light); border-left: 2px solid var(--rust-light); padding-left: 16px; margin: 18px 0; line-height: 1.6; }
+
+/* Confirmation the gifter lands back on after paying (Pricing.jsx, ?gift_sent=1) —
+   a calm full-width band above the hero, borrowing the same rust wash as the pill. */
+.gift-sent-banner { background: rgba(184,92,44,0.08); border-bottom: 1px solid var(--warm-faint); }
+.gift-sent-banner-inner { max-width: 620px; margin: 0 auto; padding: 28px 24px; text-align: center; }
+.gift-sent-banner-title { font-family: 'Lora', serif; font-size: 20px; color: var(--bark); margin: 0 0 8px; }
+.gift-sent-banner-body { font-size: 14.5px; color: var(--warm-mid); line-height: 1.6; margin: 0 0 16px; }
+
 .pricing-closing { padding: 56px 0 100px; border-top: 1px solid var(--warm-faint); text-align: center; }
 .pricing-closing-line { font-size: 16px; font-weight: 300; color: var(--warm-mid); max-width: 40ch; margin: 0 auto 32px; line-height: 1.6; }
 .pricing-cta-note { display: block; margin-top: 14px; font-size: 13px; color: var(--warm-light); }
