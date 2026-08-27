@@ -42,8 +42,12 @@
 // customer.subscription.deleted
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
+import { renderGiftConfirmationEmail } from "./_lib/giftConfirmationEmail.js";
 
-async function sendResendEmail({ to, subject, text }) {
+// Pass `html` to send multipart (Resend delivers HTML + text together when
+// both are present); omit it for a plain-text-only send, like every other
+// email in this app.
+async function sendResendEmail({ to, subject, text, html }) {
   const { RESEND_API_KEY } = process.env;
   const FROM = process.env.RESEND_FROM || "And Then <onboarding@resend.dev>";
   if (!RESEND_API_KEY) return;
@@ -51,7 +55,7 @@ async function sendResendEmail({ to, subject, text }) {
     await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ from: FROM, to: [to], subject, text }),
+      body: JSON.stringify({ from: FROM, to: [to], subject, text, ...(html ? { html } : {}) }),
     });
   } catch {
     // Best-effort — the gift itself is already recorded; a failed send just
@@ -106,13 +110,12 @@ async function handleGiftCheckout(session, admin) {
   });
 
   if (gifterEmail) {
+    const confirmation = renderGiftConfirmationEmail({ recipientName, gifterName, giftMessage });
     await sendResendEmail({
       to: gifterEmail,
-      subject: `Your gift is on its way`,
-      text:
-        `Hi${gifterName ? ` ${gifterName.split(" ")[0]}` : ""},\n\n` +
-        `Your gift for ${recipientName} is confirmed — we've sent them everything they need to get started, ` +
-        `whenever they're ready.\n\n— And Then`,
+      subject: confirmation.subject,
+      text: confirmation.text,
+      html: confirmation.html,
     });
   }
 
