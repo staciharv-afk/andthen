@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { PRICING_PLANS } from "../lib/pricingPlans";
 import { FREE_MEMORY_LIMIT } from "../lib/utils";
+import { useScrollLock } from "../lib/useScrollLock";
 
 const BUILD = PRICING_PLANS.find((p) => p.tier === "build");
 
@@ -16,6 +17,7 @@ const BUILD = PRICING_PLANS.find((p) => p.tier === "build");
 // doesn't exist yet; this is always an existing, already-identified page,
 // same as the Dashboard's own inline "Upgrade" button (api/create-checkout.js).
 export function MemoryLimitModal({ memorial, onClose }) {
+  useScrollLock();
   const [upgrading, setUpgrading] = useState(false);
   const [error, setError] = useState("");
 

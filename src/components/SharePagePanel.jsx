@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import QRCode from "qrcode";
 import { trackEvent } from "../lib/analytics";
+import { useScrollLock } from "../lib/useScrollLock";
 
 // Replaces the old two-button "Invite contributors" + "Share" split.
 //
@@ -30,6 +31,7 @@ import { trackEvent } from "../lib/analytics";
 // code-free link (more revocable — resetting the code doesn't touch the
 // link itself, just whatever channel the code was shared through).
 export function SharePagePanel({ memorial, link, showToast, onClose }) {
+  useScrollLock();
   const needsCode = memorial.visibility === "private" || memorial.contribution_access === "code_required";
   const [codeInLink, setCodeInLink] = useState(true);
   const effectiveLink = needsCode && codeInLink && memorial.access_code

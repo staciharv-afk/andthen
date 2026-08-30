@@ -4,6 +4,7 @@ import { uid, fmtDate, timeAgo, fileToDataURL, fmtTime, sendThankYou, notifyCrea
 import { trackEvent } from "../lib/analytics";
 import { CropAdjuster, coverSize, detectCropPosition, clamp } from "../components/CropAdjuster";
 import { MemoryLimitModal } from "../components/MemoryLimitModal";
+import { useScrollLock } from "../lib/useScrollLock";
 
 // Content-type filters, and the label shown on a grid tile / in the reader's
 // type tag — one source of truth (contentTypeLabel) for both, since a filter
@@ -768,6 +769,7 @@ const uploadFileWithProgress = async (bucket, path, file, contentType, onProgres
 // in MemorialPage), which is what gives the orient screen its "shown every
 // fresh open" behavior for free.
 export function ShareMemoryModal({ memorial, showToast, onClose, contributeToken, requireCode, verifiedCode }) {
+  useScrollLock();
   const subjectType = deriveSubjectType(memorial);
   const livingStatus = deriveLivingStatus(memorial);
   const moderationMode = deriveModerationMode(memorial);
@@ -1697,6 +1699,7 @@ function TileUrl({ story: s }) {
 // tiles, per spec — "Memory X of Y" and prev/next always count against
 // every memory on the page.
 function MemoryReader({ stories, index, onNavigate, onClose }) {
+  useScrollLock();
   const story = stories[index];
   const canPrev = index > 0;
   const canNext = index < stories.length - 1;

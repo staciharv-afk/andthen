@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useScrollLock } from "../lib/useScrollLock";
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
@@ -13,6 +14,7 @@ export function GiftModal({ onClose }) {
   const [gifterName, setGifterName] = useState("");
   const [gifterEmail, setGifterEmail] = useState("");
   const [giftMessage, setGiftMessage] = useState("");
+  useScrollLock();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 

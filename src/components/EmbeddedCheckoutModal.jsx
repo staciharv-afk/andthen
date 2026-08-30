@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { stripePromise } from "../lib/stripe";
+import { useScrollLock } from "../lib/useScrollLock";
 
 // Stripe won't let its hosted checkout.stripe.com page be embedded in a
 // plain iframe — this uses Stripe's own "Embedded Checkout" instead, which
@@ -16,6 +17,7 @@ import { stripePromise } from "../lib/stripe";
 // top-level tab to the same URL, so the actual app takes over full-page
 // from there, same as any other return from checkout.
 export function EmbeddedCheckoutModal({ tier, returnView, title, subtitle, onCancel }) {
+  useScrollLock();
   const [status, setStatus] = useState("loading"); // "loading" | "ready" | "error"
   const [error, setError] = useState("");
   const containerRef = useRef(null);

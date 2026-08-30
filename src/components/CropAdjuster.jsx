@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useScrollLock } from "../lib/useScrollLock";
 
 export const clamp = (n, lo, hi) => Math.min(hi, Math.max(lo, n));
 
@@ -67,6 +68,7 @@ export function CropAdjuster({
   onCancel,
   onConfirm,
 }) {
+  useScrollLock();
   const [pos, setPos] = useState(initialPos);
   const [naturalSize, setNaturalSize] = useState(null);
   const [dragging, setDragging] = useState(false);

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useScrollLock } from "../lib/useScrollLock";
 
 // Mobile drawer's link list — the exact same destinations .nav-right
 // renders, just stacked instead of horizontal, so there's only one place
@@ -28,6 +29,7 @@ function NavLinks({ currentUser, onSignOut, onNavigate, currentRoute, linkClassN
 
 export function Nav({ currentUser, onSignOut, onNavigate, currentRoute }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
+  useScrollLock(drawerOpen);
 
   return (
     <>

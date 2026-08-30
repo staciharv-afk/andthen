@@ -572,8 +572,8 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
    memory's own content. max-height + overflow-y keeps a long story
    scrollable within the card on short viewports instead of pushing the
    card off-screen. */
-.reader-overlay { position: fixed; inset: 0; z-index: 500; background: rgba(15,13,10,0.82); display: flex; align-items: center; justify-content: center; padding: 24px; }
-.reader-card { position: relative; width: 100%; max-width: 640px; max-height: 86vh; overflow-y: auto; background: var(--mem-ink); border-radius: 8px; padding: 44px 36px 32px; box-shadow: var(--mem-shadow); }
+.reader-overlay { position: fixed; inset: 0; z-index: 500; background: rgba(15,13,10,0.82); display: flex; align-items: center; justify-content: center; padding: 24px; overflow-y: auto; }
+.reader-card { position: relative; width: 100%; max-width: 640px; margin: auto; max-height: 86vh; max-height: 86dvh; overflow-y: auto; background: var(--mem-ink); border-radius: 8px; padding: 44px 36px 32px; box-shadow: var(--mem-shadow); }
 .reader-close { position: absolute; top: 14px; right: 14px; width: 32px; height: 32px; border-radius: 50%; border: none; background: rgba(255,255,255,0.08); color: var(--mem-paper); font-size: 20px; line-height: 1; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.15s ease; }
 .reader-close:hover { background: rgba(255,255,255,0.16); }
 .reader-count { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--mem-gold-soft); margin-bottom: 22px; text-align: center; }
@@ -618,9 +618,12 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 
 @media (max-width: 700px) {
   .reader-card { padding: 40px 20px 28px; }
-  .reader-nav { width: 40px; height: 40px; font-size: 20px; }
-  .reader-nav.prev { left: max(8px, env(safe-area-inset-left)); }
-  .reader-nav.next { right: max(8px, env(safe-area-inset-right)); }
+  /* At phone width the card fills nearly the whole viewport, so side-mounted
+     arrows sat on top of the card's own content. Drop them to a centred pair
+     below the card instead — in the thumb zone, clear of the memory. */
+  .reader-nav { top: auto; bottom: max(16px, env(safe-area-inset-bottom)); transform: none; width: 44px; height: 44px; font-size: 22px; }
+  .reader-nav.prev { left: calc(50% - 52px); right: auto; }
+  .reader-nav.next { right: calc(50% - 52px); left: auto; }
 }
 
 /* -- contribute form: video attachment poster/thumbnail picker -- */
@@ -634,8 +637,11 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .crop-adjust-btn { position: absolute; right: 10px; bottom: 10px; background: rgba(45,33,24,0.72); color: var(--cream); border: none; border-radius: 100px; padding: 6px 14px; font-size: 12px; font-weight: 500; font-family: inherit; cursor: pointer; transition: background 0.15s ease; }
 .crop-adjust-btn:hover { background: rgba(45,33,24,0.9); }
 
-.crop-adjust-overlay { position: fixed; inset: 0; z-index: 500; background: rgba(26,14,8,0.6); display: flex; align-items: center; justify-content: center; padding: 24px; }
-.crop-adjust-card { background: var(--cream); border-radius: 6px; padding: 28px; max-width: 380px; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 24px 60px -20px rgba(0,0,0,0.4); }
+.crop-adjust-overlay { position: fixed; inset: 0; z-index: 500; background: rgba(26,14,8,0.6); display: flex; align-items: center; justify-content: center; padding: 24px; overflow-y: auto; }
+/* max-height in both vh and dvh: dvh tracks mobile Safari's shrinking
+   viewport (address bar showing) so a tall form's submit button never ends
+   up under the toolbar. The overlay's own overflow-y is the final backstop. */
+.crop-adjust-card { background: var(--cream); border-radius: 6px; padding: 28px; max-width: 380px; width: 100%; margin: auto; max-height: 90vh; max-height: 90dvh; overflow-y: auto; box-shadow: 0 24px 60px -20px rgba(0,0,0,0.4); }
 .crop-adjust-title { font-family: 'Lora', serif; font-size: 18px; color: var(--bark); margin-bottom: 4px; }
 .crop-adjust-sub { font-size: 13px; color: var(--warm-light); margin-bottom: 16px; }
 .crop-adjust-window { position: relative; width: 100%; aspect-ratio: 1; border-radius: 4px; overflow: hidden; cursor: grab; touch-action: none; background: var(--warm-faint); }
@@ -713,8 +719,9 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 /* Overlay sits below .crop-adjust-overlay's z-index (500) so the crop
    adjuster — opened from a photo attached inside this modal — stacks on
    top of it rather than behind it. */
-.share-modal-overlay { position: fixed; inset: 0; z-index: 480; background: rgba(26,14,8,0.6); display: flex; align-items: center; justify-content: center; padding: 20px; }
-.share-modal { background: var(--mem-card); border-radius: 12px; max-width: 480px; width: 100%; max-height: calc(100vh - 40px); overflow-y: auto; padding: 36px 34px; position: relative; box-shadow: 0 20px 50px -12px rgba(44,36,32,0.35); }
+.share-modal-overlay { position: fixed; inset: 0; z-index: 480; background: rgba(26,14,8,0.6); display: flex; align-items: center; justify-content: center; padding: 20px; overflow-y: auto; }
+.share-modal { background: var(--mem-card); border-radius: 12px; max-width: 480px; width: 100%; margin: auto; max-height: calc(100vh - 40px); max-height: calc(100dvh - 40px); overflow-y: auto; padding: 36px 34px; position: relative; box-shadow: 0 20px 50px -12px rgba(44,36,32,0.35); }
+@media (max-width: 600px) { .share-modal { padding: 30px 22px; } }
 .share-modal-close { position: absolute; top: 18px; right: 18px; background: none; border: none; font-size: 22px; line-height: 1; color: var(--mem-ink-soft); cursor: pointer; }
 .share-modal-eyebrow { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--mem-rose); margin-bottom: 10px; }
 .share-modal h2 { font-family: 'Fraunces', serif; font-weight: 500; font-size: 24px; line-height: 1.3; margin: 0 0 22px; color: var(--mem-ink); }
@@ -777,6 +784,12 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .share-signature-input { flex: 1; min-width: 0; border: none; border-bottom: 1px solid rgba(44,36,32,0.18); border-radius: 0; background: none; padding: 4px 0; font-size: 13px; font-family: 'DM Sans', sans-serif; color: var(--mem-ink); outline: none; transition: border-color 0.15s ease; }
 .share-signature-input:focus { border-bottom-color: var(--mem-rose); }
 .share-signature-input::placeholder { color: var(--mem-ink-soft); opacity: 0.65; }
+/* Side-by-side label + input leaves the field ~150px on a phone, which
+   truncates its own placeholder mid-word. Stack them below the breakpoint. */
+@media (max-width: 480px) {
+  .share-signature-field { flex-direction: column; align-items: stretch; gap: 4px; }
+  .share-signature-field label { width: auto; }
+}
 
 .share-thanks-icon { width: 44px; height: 44px; border-radius: 50%; background: var(--mem-rose); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 20px; margin: 0 auto 18px; }
 .share-thanks-text { text-align: center; font-size: 15px; color: var(--mem-ink-soft); margin-bottom: 24px; }

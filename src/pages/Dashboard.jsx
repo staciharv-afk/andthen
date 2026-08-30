@@ -8,6 +8,7 @@ import { ShareMemoryModal } from "./Memorial";
 import { EmbeddedCheckoutModal } from "../components/EmbeddedCheckoutModal";
 import { MemoryLimitModal } from "../components/MemoryLimitModal";
 import { SharePagePanel } from "../components/SharePagePanel";
+import { useScrollLock } from "../lib/useScrollLock";
 
 const BUILD = PRICING_PLANS.find((p) => p.tier === "build");
 
@@ -353,6 +354,7 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
 }
 
 function DeleteMemorialModal({ memorial, onCancel, onDeleted, showToast }) {
+  useScrollLock();
   const [confirmText, setConfirmText] = useState("");
   const [deleting, setDeleting] = useState(false);
   const canDelete = confirmText.trim() === memorial.name;

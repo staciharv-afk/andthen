@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { timeAgo, uid, genAccessCode, notifyStewardInvite } from "../lib/utils";
+import { useScrollLock } from "../lib/useScrollLock";
 
 // Per-page settings — reached from the dashboard's "Settings" button, not
 // nested inside the Share dropdown (Share distributes the page, this
@@ -23,6 +24,7 @@ export function PageSettingsPage({ currentUser, memorial: initialMemorial, onNav
   const [savingClosed, setSavingClosed] = useState(false);
   const [resettingCode, setResettingCode] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  useScrollLock(showResetConfirm);
 
   const [blocked, setBlocked] = useState([]);
   const [loadingBlocked, setLoadingBlocked] = useState(true);
