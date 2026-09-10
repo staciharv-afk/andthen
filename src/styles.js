@@ -167,8 +167,12 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 @media (max-width: 900px) { .hero { grid-template-columns: 1fr; gap: 48px; } }
 .hero-tag { display: inline-flex; align-items: center; gap: 10px; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--rust); margin-bottom: 28px; }
 .hero-tag::before { content: ''; display: block; width: 28px; height: 1px; background: var(--rust); }
-.hero-headline { font-family: 'Lora', serif; font-size: clamp(38px, 4.5vw, 64px); font-weight: 400; line-height: 1.1; color: var(--bark); margin-bottom: 28px; letter-spacing: -0.01em; }
+.hero-headline { font-family: 'Lora', serif; font-size: clamp(38px, 4.5vw, 64px); font-weight: 400; line-height: 1.1; color: var(--bark); margin-bottom: 14px; letter-spacing: -0.01em; }
 .hero-headline em { font-style: italic; color: var(--rust); }
+/* Secondary headline line — same family as the H1, ~half its size, italic.
+   Accent phrase in rust, the remainder in body ink. */
+.hero-headline-sub { font-family: 'Lora', serif; font-weight: 400; font-style: italic; font-size: clamp(19px, 2.25vw, 32px); line-height: 1.3; color: var(--bark); margin-bottom: 28px; letter-spacing: -0.01em; }
+.hero-headline-sub .accent { color: var(--rust); }
 .hero-body { font-size: 17px; font-weight: 300; line-height: 1.75; color: var(--warm-mid); max-width: 500px; margin-bottom: 44px; }
 .hero-body strong { font-weight: 400; color: var(--bark-light); }
 .hero-cta-group { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
@@ -227,6 +231,10 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .hero-tile-bar { height: 18%; min-height: 26px; flex-shrink: 0; background: #141210; display: flex; align-items: center; gap: 4px; padding: 0 8px; }
 .hero-tile-type { text-transform: uppercase; letter-spacing: 0.03em; font-size: 8.5px; color: rgba(245,239,225,0.55); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hero-tile-meta { margin-left: auto; font-size: 8.5px; color: rgba(245,239,225,0.45); white-space: nowrap; flex-shrink: 0; }
+/* Contributor credit — bold white name with a colored initial chip, high
+   contrast against the near-black tile bar. */
+.hero-tile-cred { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; font-size: 9px; font-weight: 700; color: #fff; white-space: nowrap; flex-shrink: 0; }
+.hero-tile-avatar { width: 22px; height: 22px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #fff; text-transform: uppercase; flex-shrink: 0; }
 
 /* Hover reveals the caption on pointer devices; .revealed does the same
    thing on tap for touch devices, where :hover never fires — toggled in
@@ -248,6 +256,8 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .hero-wyg-headline { font-family: 'Lora', serif; font-weight: 500; font-size: 20px; color: var(--bark); margin: 0 0 10px; line-height: 1.3; }
 .hero-wyg-body { font-size: 14px; font-weight: 300; line-height: 1.6; color: var(--warm-mid); margin: 0; }
 @media (max-width: 600px) {
+  .hero-headline-sub { font-size: 18px; margin-bottom: 22px; }
+  .hero-tag-right { margin-bottom: 20px; }
   .hero-scope-note { font-size: 13px; margin-top: -16px; }
   .hero-wyg-card { padding: 18px 20px; }
   .hero-wyg-headline { font-size: 18px; }

@@ -54,6 +54,7 @@ const HERO_COLLAGE_TILES = [
     kind: "video",
     typeLabel: "Video + story",
     name: "Staci",
+    avatarColor: "#B85C2C",
     video: "/home/hero-video.mp4",
     poster: "/home/hero-video-poster.jpg",
     caption: "Mom and Dad still held hands on every walk, forty-some years in.",
@@ -63,6 +64,7 @@ const HERO_COLLAGE_TILES = [
     kind: "voicemail",
     typeLabel: "Voicemail",
     name: "Meredith",
+    avatarColor: "#8A5A34",
     audio: "/home/mom-voicemail.m4a",
     caption: "“Mom always said ‘hey kiddo’ — I’m so glad I kept this voicemail.”",
   },
@@ -71,6 +73,7 @@ const HERO_COLLAGE_TILES = [
     kind: "recipe",
     typeLabel: "Recipe + story",
     name: "Cheri",
+    avatarColor: "#C97040",
     image: "/home/hero-deb-recipe.jpg",
     caption: "Her first “Best Blueberry Cake” came out gray — she hadn’t thawed the blueberries.",
   },
@@ -79,6 +82,7 @@ const HERO_COLLAGE_TILES = [
     kind: "photo",
     typeLabel: "Photo + story",
     name: "Staci",
+    avatarColor: "#9C6B3F",
     image: "/home/hero-deb-christmas.jpg",
     caption: "Mom made sure the money she spent on us at Christmas was always exactly equal.",
   },
@@ -185,7 +189,12 @@ function HeroCollage() {
           <HeroTileBody tile={tile} revealed={revealedId === tile.id} />
           <div className="hero-tile-bar">
             <span className="hero-tile-type">{tile.typeLabel}</span>
-            <span className="hero-tile-meta">{tile.name}</span>
+            <span className="hero-tile-cred">
+              <span className="hero-tile-avatar" style={{ background: tile.avatarColor }} aria-hidden="true">
+                {tile.name.charAt(0)}
+              </span>
+              {tile.name}
+            </span>
           </div>
           <div className="hero-tile-caption"><p>{tile.caption}</p></div>
         </button>
@@ -239,9 +248,10 @@ export function HomePage({ onNavigate }) {
           <div className="hero">
             <div>
               <div className="hero-tag fade-up"><em>And Then...</em></div>
-              <h1 className="hero-headline fade-up-2">
-                A living story <em>for someone you love</em>, told by everyone who loved them.
-              </h1>
+              <h1 className="hero-headline fade-up-2">Every life deserves to be well told.</h1>
+              <p className="hero-headline-sub fade-up-2">
+                <span className="accent">For someone you love</span>, told by everyone who loves them.
+              </p>
               <p className="hero-body fade-up-3">
                 Everyone who loved them remembers something different. <em>And Then</em> brings it all together — into one page that keeps growing.
               </p>
@@ -258,6 +268,7 @@ export function HomePage({ onNavigate }) {
             </div>
 
             <div className="fade-up-3">
+              <div className="hero-tag hero-tag-right">Shared by</div>
               <HeroCollage />
 
               <button className="hero-media-cta" onClick={() => onNavigate("memorial", "x58e5wvtmravmszf")}>
