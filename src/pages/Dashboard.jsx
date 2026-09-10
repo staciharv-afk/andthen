@@ -4,7 +4,7 @@ import { fmtDate, timeAgo, sendThankYou, FREE_MEMORY_LIMIT } from "../lib/utils"
 import { trackEvent } from "../lib/analytics";
 import { exportMemorial } from "../lib/export";
 import { PRICING_PLANS } from "../lib/pricingPlans";
-import { ShareMemoryModal } from "./Memorial";
+import { ShareMemoryModal, CONTENT_TAGS } from "./Memorial";
 import { EmbeddedCheckoutModal } from "../components/EmbeddedCheckoutModal";
 import { MemoryLimitModal } from "../components/MemoryLimitModal";
 import { SharePagePanel } from "../components/SharePagePanel";
@@ -76,6 +76,17 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
     setSubmissions((s) => s.map((x) => x.id === submissionId ? { ...x, status: "approved" } : x));
     sendThankYou(submissionId); // emails the contributor if they left an address
     showToast("Story approved and now visible on the page.");
+  };
+
+  // Descriptive tags are independent of a submission's type and can be
+  // changed any time — during moderation or later from the Approved tab.
+  const handleSetTags = async (submissionId, tags) => {
+    setSubmissions((s) => s.map((x) => x.id === submissionId ? { ...x, tags } : x));
+    const { error } = await supabase.from("contributions").update({ tags }).eq("id", submissionId);
+    if (error) {
+      showToast("Couldn't update tags — please try again.", "error");
+      loadSubmissions(activeMemorial.id);
+    }
   };
 
   const handleReject = async (submissionId) => {
@@ -299,7 +310,7 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
                   </p>
                 </div>
               ) : (
-                filtered.map((s) => <SubmissionCard key={s.id} submission={s} requireApproval={activeMemorial.require_approval} onApprove={handleApprove} onReject={handleReject} onBlock={activeMemorial.is_paid ? handleBlock : null} />)
+                filtered.map((s) => <SubmissionCard key={s.id} submission={s} requireApproval={activeMemorial.require_approval} onApprove={handleApprove} onReject={handleReject} onSetTags={handleSetTags} onBlock={activeMemorial.is_paid ? handleBlock : null} />)
               )}
             </div>
           </>
@@ -398,16 +409,50 @@ function DeleteMemorialModal({ memorial, onCancel, onDeleted, showToast }) {
   );
 }
 
-function SubmissionCard({ submission: s, requireApproval, onApprove, onReject, onBlock }) {
+function SubmissionCard({ submission: s, requireApproval, onApprove, onReject, onSetTags, onBlock }) {
   const typeLabel = { story: "Story", photo: "Photo", video: "Video", voice: "Voice memo" }[s.type] || "Story";
   const typeBadge = { story: "badge-story", photo: "badge-photo", video: "badge-video", voice: "badge-voice" }[s.type] || "badge-story";
+  const tags = Array.isArray(s.tags) ? s.tags : [];
+  const [tagPickerOpen, setTagPickerOpen] = useState(false);
+
+  const toggleTag = (tag) => {
+    const next = tags.includes(tag) ? tags.filter((t) => t !== tag) : [...tags, tag];
+    onSetTags(s.id, next);
+  };
 
   return (
     <div className="submission-card">
       <div className="submission-header">
         <div className="avatar">{(s.contributor_name || "?")[0].toUpperCase()}</div>
         <div className="submission-name">{s.contributor_name || "Anonymous"}</div>
-        <span className={`submission-type-badge ${typeBadge}`}>{typeLabel}</span>
+        <span className="submission-tag-wrap">
+          <button
+            type="button"
+            className={`submission-type-badge ${typeBadge} submission-type-badge-btn`}
+            onClick={() => setTagPickerOpen((o) => !o)}
+            aria-expanded={tagPickerOpen}
+            title="Add or remove tags"
+          >
+            {typeLabel} <span aria-hidden="true">▾</span>
+          </button>
+          {tagPickerOpen && (
+            <>
+              <div className="submission-tag-scrim" onClick={() => setTagPickerOpen(false)} />
+              <div className="submission-tag-picker" role="menu">
+                <div className="submission-tag-picker-label">Tags</div>
+                {CONTENT_TAGS.map((tag) => (
+                  <label key={tag} className="submission-tag-option">
+                    <input type="checkbox" checked={tags.includes(tag)} onChange={() => toggleTag(tag)} />
+                    {tag}
+                  </label>
+                ))}
+              </div>
+            </>
+          )}
+        </span>
+        {tags.map((tag) => (
+          <span key={tag} className="submission-type-badge badge-tag">{tag}</span>
+        ))}
         {requireApproval && (
           <span className={`submission-type-badge ${s.status === "approved" ? "badge-approved" : s.status === "rejected" ? "" : "badge-pending"}`}>
             {s.status === "approved" ? "Approved" : s.status === "rejected" ? "Removed" : "Pending"}

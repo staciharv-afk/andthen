@@ -398,6 +398,14 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .badge-voice { background: rgba(184,92,44,0.08); color: var(--rust-light); }
 .badge-approved { background: rgba(39,174,96,0.1); color: #27ae60; }
 .badge-pending { background: rgba(243,156,18,0.1); color: #e67e22; }
+.badge-tag { background: rgba(184,134,59,0.14); color: var(--bark); }
+.submission-tag-wrap { position: relative; display: inline-flex; }
+.submission-type-badge-btn { border: none; cursor: pointer; font: inherit; display: inline-flex; align-items: center; gap: 4px; }
+.submission-tag-scrim { position: fixed; inset: 0; z-index: 20; }
+.submission-tag-picker { position: absolute; top: calc(100% + 6px); left: 0; z-index: 21; background: var(--white); border: 1px solid var(--warm-faint); border-radius: 6px; box-shadow: 0 6px 24px rgba(45,33,24,0.14); padding: 10px 12px; min-width: 150px; }
+.submission-tag-picker-label { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--warm-mid); margin-bottom: 6px; }
+.submission-tag-option { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--bark); padding: 4px 0; cursor: pointer; user-select: none; }
+.submission-tag-option input { margin: 0; }
 .submission-name { font-size: 13px; font-weight: 500; color: var(--bark); }
 .submission-time { font-size: 11px; color: var(--warm-light); margin-left: auto; }
 .submission-text { font-family: 'Lora', serif; font-size: 14px; line-height: 1.65; color: var(--bark); margin-bottom: 12px; }

@@ -6,21 +6,31 @@ import { CropAdjuster, coverSize, detectCropPosition, clamp } from "../component
 import { MemoryLimitModal } from "../components/MemoryLimitModal";
 import { useScrollLock } from "../lib/useScrollLock";
 
-// Content-type filters, and the label shown on a grid tile / in the reader's
-// type tag — one source of truth (contentTypeLabel) for both, since a filter
-// bucket and a tile's own label need to agree on what something "is".
+// An entry's `type` is the single format it was submitted as (photo/video/
+// voice/url/story), auto-derived from what was attached. Independently, an
+// entry can carry zero or more descriptive `tags` from a small fixed
+// taxonomy (CONTENT_TAGS, currently just "Recipe") — set by the contributor
+// at share time or by the creator from the moderation screen. A single
+// entry can be type="photo" with tags=["Recipe"].
 //
-// photo/voice both carry an optional second-level `subtype` (see the
-// contribution_subtype migration) that splits them further:
-//   photo: subtype 'recipe' -> Recipe, else -> Photo
-//   voice: subtype 'recording' -> Spoken story, else (incl. untagged
-//     pre-migration rows) -> Voicemail
-// video/story/url have no subtype and map straight across.
+// type and tags filter independently: a type=photo, tags=[Recipe] entry
+// matches BOTH the Photos pill and the Recipes pill.
+//
+// voice still carries a `subtype` ("recording" -> Spoken story, else ->
+// Voicemail, incl. untagged pre-migration rows). That's a real format
+// split, not a tag. video/story/url have no subtype.
+export const CONTENT_TAGS = ["Recipe"];
+export const entryHasTag = (s, tag) => Array.isArray(s.tags) && s.tags.includes(tag);
+
 const FILTER_ORDER = ["all", "photo", "video", "voicemail", "spoken", "story", "recipe", "url"];
 const FILTER_LABEL = { all: "Everything", photo: "Photos", video: "Videos", voicemail: "Voicemails", spoken: "Spoken stories", story: "Written stories", recipe: "Recipes", url: "Links" };
 
+// The badge shown on a grid tile / in the reader's type tag. A tag is more
+// specific to the viewer than the raw format, so prefer it in that slot
+// (display only — the underlying `type` is unchanged).
 function contentTypeLabel(s) {
-  if (s.type === "photo") return s.subtype === "recipe" ? "Recipe" : "Photo";
+  if (entryHasTag(s, "Recipe")) return "Recipe";
+  if (s.type === "photo") return "Photo";
   if (s.type === "video") return "Video";
   if (s.type === "voice") return s.subtype === "recording" ? "Spoken story" : "Voicemail";
   if (s.type === "url") return "Link";
@@ -31,17 +41,15 @@ function contentTypeLabel(s) {
   return "Written story";
 }
 
-// activeFilter is one of FILTER_ORDER's keys; a story matches it based on
-// type + subtype together, not a raw type === activeFilter check (that
-// alone can't tell a photo from a recipe, or a voicemail from a spoken
-// story).
+// activeFilter is one of FILTER_ORDER's keys. "recipe" keys off tags;
+// every other pill keys off type (+ subtype for the voice split) — so an
+// entry can match a type pill and the recipe pill at the same time.
 function matchesFilter(s, filter) {
   if (filter === "all") return true;
-  if (filter === "photo") return s.type === "photo" && s.subtype !== "recipe";
-  if (filter === "recipe") return s.type === "photo" && s.subtype === "recipe";
+  if (filter === "recipe") return entryHasTag(s, "Recipe");
   if (filter === "voicemail") return s.type === "voice" && s.subtype !== "recording";
   if (filter === "spoken") return s.type === "voice" && s.subtype === "recording";
-  return s.type === filter; // video, story, url
+  return s.type === filter; // photo, video, story, url
 }
 
 // Deterministic per-story offset so multiple waveform cards on the same
@@ -790,7 +798,7 @@ export function ShareMemoryModal({ memorial, showToast, onClose, contributeToken
   const [answerText, setAnswerText] = useState("");
   const [answerMode, setAnswerMode] = useState("type"); // "type" | "record" — general/freeform questions only
   const [attachment, setAttachment] = useState(null); // { kind: 'photo'|'video'|'voice'|'link', ... } | null
-  const [isRecipe, setIsRecipe] = useState(false); // photo attachment only — feeds subtype: 'recipe'
+  const [isRecipe, setIsRecipe] = useState(false); // optional "recipe or document" flag — feeds tags: ['Recipe'] (photo attachment or a typed written story)
   const [avRecording, setAvRecording] = useState(false); // showing the inline recorder within the "type it out" attach row
   const [recordPhoto, setRecordPhoto] = useState(null); // { file, preview, cropPos } | null — "record it" mode's "Add a photo too"
   const [showCropAdjuster, setShowCropAdjuster] = useState(false);
@@ -1034,9 +1042,12 @@ export function ShareMemoryModal({ memorial, showToast, onClose, contributeToken
       }
 
       const relLabel = relationships.find((r) => r.id === relationship)?.label || null;
-      const subtype = attachment?.kind === "voice" ? attachment.subtype || null
-        : attachment?.kind === "photo" && isRecipe ? "recipe"
-        : null;
+      const subtype = attachment?.kind === "voice" ? attachment.subtype || null : null;
+      // The "recipe or document" checkbox only shows for a photo attachment
+      // or a plain typed story — gate the tag to those cases so a stale
+      // check from a since-changed attachment can't leak through.
+      const tags = isRecipe && (attachment?.kind === "photo" || (!attachment && type === "story"))
+        ? ["Recipe"] : [];
 
       const row = {
         memorial_id: memorial.id,
@@ -1045,6 +1056,7 @@ export function ShareMemoryModal({ memorial, showToast, onClose, contributeToken
         contributor_email: contributorEmail.trim() || null,
         type,
         subtype,
+        tags,
         text: answerText.trim() || null,
         media_url: mediaUrl,
         secondary_media_url: secondaryMediaUrl,
@@ -1234,6 +1246,16 @@ export function ShareMemoryModal({ memorial, showToast, onClose, contributeToken
                       videoPreviewRef={videoPreviewRef}
                       onUseFrameAsPoster={useCurrentFrameAsPoster}
                     />
+                  )}
+
+                  {/* Typed-out written story: the same optional recipe/document
+                      flag the photo attachment offers, shown once there's text
+                      and no attachment to carry it instead. */}
+                  {!attachment && answerText.trim() && (
+                    <label className="share-recipe-check" style={{ marginTop: 10 }}>
+                      <input type="checkbox" checked={isRecipe} onChange={(e) => setIsRecipe(e.target.checked)} />
+                      This is a recipe or document
+                    </label>
                   )}
                   <input ref={photoInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => handlePhotoSelect(e.target.files[0])} />
                   <input ref={videoInputRef} type="file" accept="video/*" style={{ display: "none" }} onChange={(e) => handleVideoSelect(e.target.files[0])} />
@@ -1479,7 +1501,7 @@ function QuestionAttachOptions({
         </div>
         <label className="share-recipe-check">
           <input type="checkbox" checked={isRecipe} onChange={(e) => onToggleRecipe(e.target.checked)} />
-          This is a recipe
+          This is a recipe or document
         </label>
         <button type="button" className="btn btn-sm btn-ghost" style={{ marginTop: 8 }} onClick={onRemove}>Remove photo</button>
       </div>
@@ -1813,7 +1835,7 @@ function ReaderMedia({ story: s }) {
   }
   if (s.media_url) {
     // Photo (incl. a recipe scan) or a story-type row with an attached photo.
-    const isRecipe = s.type === "photo" && s.subtype === "recipe";
+    const isRecipe = entryHasTag(s, "Recipe");
     const objectPosition = `${s.crop_x ?? 50}% ${s.crop_y ?? 50}%`;
     return (
       <div className={`reader-media ${isRecipe ? "recipe" : "photo"}`}>
