@@ -240,7 +240,7 @@ export function HomePage({ onNavigate }) {
             <div>
               <div className="hero-tag fade-up"><em>And Then...</em></div>
               <h1 className="hero-headline fade-up-2">
-                A living story <em>for<br />someone you love</em>.
+                A living story <em>for someone you love</em>, told by everyone who loved them.
               </h1>
               <p className="hero-body fade-up-3">
                 Everyone who loved them remembers something different. <em>And Then</em> brings it all together — into one page that keeps growing.
