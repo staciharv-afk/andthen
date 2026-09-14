@@ -87,6 +87,14 @@ export const notifyCreator = (memorialId) => {
   }).catch(() => {});
 };
 
+// The public link for a memorial page — prefers the steward's custom vanity
+// URL (myandthen.com/<slug>) once set, falling back to the invite-code link.
+// Either shape grants the same access (see Memorial.jsx's canContribute), so
+// it's the one link the app shows/hands out everywhere: SharePagePanel and
+// the contributor-facing "share the page" nudge in Memorial.jsx.
+export const memorialUrl = (memorial) =>
+  memorial.slug ? `${window.location.origin}/${memorial.slug}` : `${window.location.origin}?memorial=${memorial.invite_code}`;
+
 // Fire-and-forget: ask the server to email a newly-invited co-steward their
 // accept link. No-ops locally.
 export const notifyStewardInvite = (inviteId) => {

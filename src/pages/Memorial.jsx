@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from "../lib/supabase";
-import { uid, fmtDate, timeAgo, fileToDataURL, fmtTime, sendThankYou, notifyCreator, FREE_MEMORY_LIMIT } from "../lib/utils";
+import { uid, fmtDate, timeAgo, fileToDataURL, fmtTime, sendThankYou, notifyCreator, FREE_MEMORY_LIMIT, memorialUrl } from "../lib/utils";
 import { trackEvent } from "../lib/analytics";
 import { CropAdjuster, coverSize, detectCropPosition, clamp } from "../components/CropAdjuster";
 import { MemoryLimitModal } from "../components/MemoryLimitModal";
@@ -771,11 +771,14 @@ const uploadFileWithProgress = async (bucket, path, file, contentType, onProgres
   return supabase.storage.from(bucket).getPublicUrl(path).data?.publicUrl;
 };
 
-// "Share a memory" modal — orient-first choice, relationship-tailored and
-// tense-aware questions (SHARE_QUESTION_BANK), and moderation-aware
-// confirmation copy. Fully remounts each time it opens (see showContribute
-// in MemorialPage), which is what gives the orient screen its "shown every
-// fresh open" behavior for free.
+// "Share a memory" modal — one screen, progressive reveal. Opens straight
+// to the compose screen: a relationship-tailored, tense-aware prompt
+// (SHARE_QUESTION_BANK) sits above an always-focusable textarea, and the
+// attach row / type-record toggle / signature fields / submit button stay
+// visually collapsed until the contributor actually starts typing, so
+// nothing but the writing itself is a precondition to writing. Fully
+// remounts each time it opens (see showContribute in MemorialPage), which
+// is what gives a fresh open its collapsed-reveal state for free.
 export function ShareMemoryModal({ memorial, showToast, onClose, contributeToken, requireCode, verifiedCode }) {
   useScrollLock();
   const subjectType = deriveSubjectType(memorial);
@@ -787,16 +790,17 @@ export function ShareMemoryModal({ memorial, showToast, onClose, contributeToken
   const universalTexts = universal.map((u) => u.text);
   const universalKindMap = Object.fromEntries(universal.map((u) => [u.text, u.kind]));
 
-  const [screen, setScreen] = useState("orient"); // orient | fork | relationship | questionList | question | thanks
-  const [relationship, setRelationship] = useState(null);
-  const [freeform, setFreeform] = useState(false);
-  const [question, setQuestion] = useState(null);
+  const [screen, setScreen] = useState("compose"); // compose | thanks
+  // Prefilled from a prior visit exactly like the old "ready to share" path
+  // did — null (no chip shown selected) if nothing was stored yet.
+  const [relationship, setRelationship] = useState(() => loadStoredRelationship(memorial.id, subjectType, relationships));
+  const [questionIndex, setQuestionIndex] = useState(0);
 
   const [contributorName, setContributorName] = useState("");
   const [contributorEmail, setContributorEmail] = useState("");
   const [accessCodeInput, setAccessCodeInput] = useState("");
   const [answerText, setAnswerText] = useState("");
-  const [answerMode, setAnswerMode] = useState("type"); // "type" | "record" — general/freeform questions only
+  const [answerMode, setAnswerMode] = useState("type"); // "type" | "record" — general questions only
   const [attachment, setAttachment] = useState(null); // { kind: 'photo'|'video'|'voice'|'link', ... } | null
   const [isRecipe, setIsRecipe] = useState(false); // optional "recipe or document" flag — feeds tags: ['Recipe'] (photo attachment or a typed written story)
   const [avRecording, setAvRecording] = useState(false); // showing the inline recorder within the "type it out" attach row
@@ -813,17 +817,25 @@ export function ShareMemoryModal({ memorial, showToast, onClose, contributeToken
   const recordPhotoInputRef = useRef();
   const videoPreviewRef = useRef(); // the <video> shown in the attach row, so "use this frame" can read its scrub position
 
+  // No chip picked yet still needs a prompt to show — falls back to the
+  // relationship list's last ("Someone else") entry for that, same
+  // fallback the old skip-to-freewrite/add-another paths used, without
+  // marking any chip as selected until the contributor actually picks one.
+  const effectiveRelationship = relationship || relationships[relationships.length - 1].id;
+  const questionList = (SHARE_QUESTION_BANK[subjectType].banks[livingStatus][effectiveRelationship] || []).concat(universalTexts);
+  const question = questionList[questionIndex % questionList.length];
+
   // A question showing one of the three universal media prompts ("do you
   // have a photo/voicemail/video...") narrows the attach row to just that
-  // one option; any other question (relationship-tailored or freeform) gets
-  // the full type/record toggle and the general attach set. See the DO NOT
-  // list in the build spec — the toggle must not appear on these three.
-  const questionMediaKind = !freeform && question ? (universalKindMap[question] || null) : null;
+  // one option; any other question gets the full type/record toggle and the
+  // general attach set. See the DO NOT list in the build spec — the toggle
+  // must not appear on these three.
+  const questionMediaKind = universalKindMap[question] || null;
 
-  // Question changes (shuffle, a fresh relationship pick, freeform, "add
-  // another") always reset the answer area — otherwise a leftover
-  // photo/voice attachment from a different question's media kind could
-  // stick around mismatched with the new question's single-option gating.
+  // A fresh relationship pick or "add another" always resets the answer
+  // area — otherwise a leftover photo/voice attachment from a different
+  // question's media kind could stick around mismatched with the new
+  // question's single-option gating.
   const resetAnswerArea = () => {
     setAnswerText("");
     setAnswerMode("type");
@@ -833,55 +845,21 @@ export function ShareMemoryModal({ memorial, showToast, onClose, contributeToken
     setRecordPhoto(null);
   };
 
-  // Replaces the old random shuffle entirely — the list itself is derived
-  // at render time (see screen === "questionList" below) from `relationship`
-  // + subjectType/livingStatus, so there's nothing to compute or store here.
-  const goToQuestionListScreen = () => {
-    setFreeform(false);
-    setScreen("questionList");
-  };
-
-  const chooseQuestion = (q) => {
-    setQuestion(q);
-    resetAnswerArea();
-    setScreen("question");
-  };
-
-  const proceedToShare = () => {
-    const stored = loadStoredRelationship(memorial.id, subjectType, relationships);
-    if (stored) {
-      setRelationship(stored);
-      goToQuestionListScreen();
-    } else {
-      setScreen("fork");
-    }
-  };
-
-  const lookAround = () => {
-    onClose();
-    document.getElementById("archive")?.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
-
-  const chooseRelationship = (relId) => {
+  const selectRelationship = (relId) => {
     setRelationship(relId);
     storeRelationship(memorial.id, subjectType, relId);
-    goToQuestionListScreen();
+    setQuestionIndex(0);
   };
 
-  const skipToFreewrite = () => {
-    const relId = relationship || relationships[relationships.length - 1].id;
-    setRelationship(relId);
-    setFreeform(true);
-    resetAnswerArea();
-    setScreen("question");
-  };
+  const cycleQuestion = () => setQuestionIndex((i) => (i + 1) % questionList.length);
 
-  // From the thanks screen's "Add another" — lands on the question list
-  // rather than auto-picking, same reasoning as goToQuestionListScreen:
-  // there's no more "random question" concept to jump to.
+  // From the thanks screen's "Add another" — keeps whatever relationship
+  // was already picked, starts back at that relationship's first question,
+  // and collapses the reveal group by clearing the answer area.
   const addAnother = () => {
-    setRelationship((r) => r || relationships[relationships.length - 1].id);
-    goToQuestionListScreen();
+    setQuestionIndex(0);
+    resetAnswerArea();
+    setScreen("compose");
   };
 
   const clearAttachment = () => { setAttachment(null); setIsRecipe(false); setAvRecording(false); setCompressingVideo(false); };
@@ -975,9 +953,12 @@ export function ShareMemoryModal({ memorial, showToast, onClose, contributeToken
 
   const hasValidAttachment = attachment && (attachment.kind !== "link" || attachment.url.trim());
   const canSubmit = answerText.trim() || hasValidAttachment;
+  // Drives the progressive reveal: the attach row, mode toggle, signature
+  // fields, and submit button all stay collapsed until there's something
+  // typed — see .share-reveal-group in the compose screen below.
+  const revealed = answerText.trim().length > 0;
 
   const handleSubmit = async () => {
-    if (!contributorName.trim()) { showToast("Please enter your name.", "error"); return; }
     if (contributorEmail.trim() && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(contributorEmail.trim())) { showToast("That email doesn't look right.", "error"); return; }
     if (requireCode && !verifiedCode && !accessCodeInput.trim()) { showToast("Please enter the access code.", "error"); return; }
     if (!canSubmit) { showToast("Please write something, or attach a photo, audio, video, or link.", "error"); return; }
@@ -1051,7 +1032,10 @@ export function ShareMemoryModal({ memorial, showToast, onClose, contributeToken
 
       const row = {
         memorial_id: memorial.id,
-        contributor_name: contributorName.trim(),
+        // The name field is optional in the UI, but the insert RLS policy
+        // still requires a non-empty contributor_name — "Someone" is the
+        // same fallback MemoryTile already displays for a blank name.
+        contributor_name: contributorName.trim() || "Someone",
         contributor_relation: relLabel,
         contributor_email: contributorEmail.trim() || null,
         type,
@@ -1098,196 +1082,151 @@ export function ShareMemoryModal({ memorial, showToast, onClose, contributeToken
         <div className="share-modal" role="dialog" aria-label={`Share a memory of ${memorial.name}`}>
           <button type="button" className="share-modal-close" aria-label="Close" onClick={onClose}>&times;</button>
 
-          {screen === "orient" && (
+          {screen === "compose" && (
             <div>
               <div className="share-modal-eyebrow">SHARE A MEMORY OF {memorial.name.toUpperCase()}</div>
-              <h2>Want to look around first?</h2>
-              <div className="share-orient-actions">
-                <button type="button" className="share-orient-btn" onClick={lookAround}>
-                  <span className="title">Look around first</span>
-                  <span className="sub">See what's already been shared before you add your own.</span>
-                </button>
-                <button type="button" className="share-orient-btn primary" onClick={proceedToShare}>
-                  <span className="title">I'm ready to share</span>
-                  <span className="sub">Jump straight into adding a memory.</span>
-                </button>
-              </div>
-            </div>
-          )}
 
-          {screen === "fork" && (
-            <div>
-              <div className="share-modal-eyebrow">SHARE A MEMORY OF {memorial.name.toUpperCase()}</div>
-              <h2>How would you like to share?</h2>
-              <div className="share-orient-actions">
-                <button type="button" className="share-orient-btn" onClick={() => setScreen("relationship")}>
-                  <span className="title">Answer a question</span>
-                  <span className="sub">We'll ask something specific to help a memory come back to you.</span>
-                </button>
-                <button type="button" className="share-orient-btn" onClick={skipToFreewrite}>
-                  <span className="title">I know what I want to share</span>
-                  <span className="sub">Skip the questions — go straight to writing or recording it.</span>
-                </button>
-              </div>
-            </div>
-          )}
-
-          {screen === "relationship" && (
-            <div>
-              <div className="share-modal-eyebrow">SHARE A MEMORY OF {memorial.name.toUpperCase()}</div>
-              <h2>{livingStatus === "living" ? `How do you know ${firstName}?` : `How did you know ${firstName}?`}</h2>
-              <div className="share-rel-grid">
+              {/* Relationship, inline as chips instead of its own screen.
+                  No chip reads as selected until the contributor picks one
+                  (or one was prefilled from a prior visit) — the prompt
+                  below still has something to show either way, via
+                  effectiveRelationship's "Someone else" fallback. */}
+              <div className="share-rel-row">
                 {relationships.map((r) => (
-                  <button key={r.id} type="button" className="share-rel-chip" onClick={() => chooseRelationship(r.id)}>
+                  <button
+                    key={r.id}
+                    type="button"
+                    className={`share-rel-pill${relationship === r.id ? " active" : ""}`}
+                    onClick={() => selectRelationship(r.id)}
+                  >
                     {r.label}
                   </button>
                 ))}
               </div>
-              <span className="share-back-link" onClick={() => setScreen("fork")}>&larr; Back</span>
-            </div>
-          )}
 
-          {screen === "questionList" && (
-            <div>
-              <div className="share-modal-eyebrow">
-                SHARE A MEMORY OF {memorial.name.toUpperCase()}
-                {relationship && ` · AS ${relationships.find((r) => r.id === relationship)?.label.toUpperCase()}`}
+              <div className="share-question-box">
+                <p className="share-question-text">{question}</p>
+                <span className="share-shuffle-link" onClick={cycleQuestion}>a different question</span>
               </div>
-              <h2>Pick whichever sparks something.</h2>
-              <div className="share-question-list">
-                {(SHARE_QUESTION_BANK[subjectType].banks[livingStatus][relationship] || [])
-                  .concat(universalTexts)
-                  .map((q) => (
-                    <button key={q} type="button" className="share-question-card" onClick={() => chooseQuestion(q)}>
-                      &ldquo;{q}&rdquo;
-                    </button>
-                  ))}
-              </div>
-              <span className="share-freewrite-link" onClick={skipToFreewrite}>Or, share whatever you'd like — skip the questions</span>
-              <span className="share-back-link" onClick={() => setScreen("relationship")}>&larr; Choose a different relationship</span>
-            </div>
-          )}
-
-          {screen === "question" && (
-            <div>
-              <div className="share-modal-eyebrow">
-                SHARE A MEMORY OF {memorial.name.toUpperCase()}
-                {!freeform && relationship && ` · AS ${relationships.find((r) => r.id === relationship)?.label.toUpperCase()}`}
-              </div>
-
-              {freeform ? (
-                <p className="share-question-text" style={{ marginBottom: 16 }}>Share whatever you'd like — no prompt needed.</p>
-              ) : (
-                <div className="share-question-box">
-                  <p className="share-question-text">{question}</p>
-                  <span className="share-shuffle-link" onClick={() => setScreen("questionList")}>Choose a different question</span>
-                </div>
-              )}
-
-              {/* Type/record toggle — general and freeform questions only,
-                  never on the three media-specific universal prompts. Free
-                  memorials collect written memories only (same gate as the
-                  attach row below), so recording isn't offered there either. */}
-              {questionMediaKind === null && memorial.is_paid && (
-                <div className="share-mode-toggle">
-                  <button type="button" className={answerMode === "type" ? "active" : ""} onClick={() => setAnswerMode("type")}>Type it out</button>
-                  <button type="button" className={answerMode === "record" ? "active" : ""} onClick={() => setAnswerMode("record")}>Record it in your own voice</button>
-                </div>
-              )}
 
               {questionMediaKind === null && memorial.is_paid && answerMode === "record" ? (
                 <>
                   <VoiceRecorder value={attachment} onChange={setAttachment} showToast={showToast} />
-                  {memorial.is_paid && (
-                    recordPhoto ? (
-                      <div className="form-group">
-                        <div className="photo-preview-crop">
-                          <img src={recordPhoto.preview} alt="" style={{ objectPosition: `${recordPhoto.cropPos.x}% ${recordPhoto.cropPos.y}%` }} />
-                        </div>
-                        <button type="button" className="btn btn-sm btn-ghost" style={{ marginTop: 8 }} onClick={() => setRecordPhoto(null)}>Remove photo</button>
+                  {recordPhoto ? (
+                    <div className="form-group">
+                      <div className="photo-preview-crop">
+                        <img src={recordPhoto.preview} alt="" style={{ objectPosition: `${recordPhoto.cropPos.x}% ${recordPhoto.cropPos.y}%` }} />
                       </div>
-                    ) : (
-                      <div className="share-attach-row">
-                        <button type="button" className="share-attach-btn" onClick={() => recordPhotoInputRef.current?.click()}>+ Add a photo too</button>
-                      </div>
-                    )
+                      <button type="button" className="btn btn-sm btn-ghost" style={{ marginTop: 8 }} onClick={() => setRecordPhoto(null)}>Remove photo</button>
+                    </div>
+                  ) : (
+                    <div className="share-attach-row">
+                      <button type="button" className="share-attach-btn" onClick={() => recordPhotoInputRef.current?.click()}>+ Add a photo too</button>
+                    </div>
                   )}
                   <input ref={recordPhotoInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => handleRecordPhotoSelect(e.target.files[0])} />
                 </>
               ) : (
                 <>
                   <textarea
+                    autoFocus
                     className="form-input share-answer-textarea"
-                    placeholder={freeform ? "Type the memory here..." : (questionMediaKind ? "Add the file below, or describe it here..." : "Type the memory here...")}
+                    placeholder={questionMediaKind ? "Add the file below, or describe it here..." : "Type the memory here..."}
                     value={answerText}
                     onChange={(e) => setAnswerText(e.target.value)}
                   />
-
-                  {memorial.is_paid && (
-                    <QuestionAttachOptions
-                      kind={questionMediaKind}
-                      attachment={attachment}
-                      isRecipe={isRecipe}
-                      onToggleRecipe={setIsRecipe}
-                      avRecording={avRecording}
-                      setAvRecording={setAvRecording}
-                      showToast={showToast}
-                      onAttachmentChange={setAttachment}
-                      onPhotoClick={() => photoInputRef.current?.click()}
-                      onVideoClick={() => videoInputRef.current?.click()}
-                      onAudioClick={() => audioInputRef.current?.click()}
-                      onAvClick={() => avInputRef.current?.click()}
-                      onLinkClick={openLinkInput}
-                      onLinkUrlChange={(url) => setAttachment((a) => ({ ...a, url, preview: null, error: "" }))}
-                      onLinkBlur={fetchLinkPreview}
-                      onAdjustCrop={() => setShowCropAdjuster(true)}
-                      onRemove={clearAttachment}
-                      compressingVideo={compressingVideo}
-                      videoPreviewRef={videoPreviewRef}
-                      onUseFrameAsPoster={useCurrentFrameAsPoster}
-                    />
-                  )}
-
-                  {/* Typed-out written story: the same optional recipe/document
-                      flag the photo attachment offers, shown once there's text
-                      and no attachment to carry it instead. */}
-                  {!attachment && answerText.trim() && (
-                    <label className="share-recipe-check" style={{ marginTop: 10 }}>
-                      <input type="checkbox" checked={isRecipe} onChange={(e) => setIsRecipe(e.target.checked)} />
-                      This is a recipe or document
-                    </label>
-                  )}
-                  <input ref={photoInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => handlePhotoSelect(e.target.files[0])} />
-                  <input ref={videoInputRef} type="file" accept="video/*" style={{ display: "none" }} onChange={(e) => handleVideoSelect(e.target.files[0])} />
-                  <input ref={audioInputRef} type="file" accept="audio/*" style={{ display: "none" }} onChange={(e) => handleAudioFileSelect(e.target.files[0])} />
-                  <input ref={avInputRef} type="file" accept="audio/*,video/*" style={{ display: "none" }} onChange={(e) => handleAvSelect(e.target.files[0])} />
+                  {/* Collapses the moment there's anything to reveal instead
+                      of — see .share-reveal-group below, which is what
+                      actually shows next. */}
+                  {!revealed && <p className="share-reveal-hint">Start writing, a photo, your name, and Share will show up right below.</p>}
                 </>
               )}
 
-              <div className="share-signature-divider" />
-              <div className="share-signature">
-                <div className="share-signature-field">
-                  <label htmlFor="share-signature-name">Your name</label>
-                  <input id="share-signature-name" className="share-signature-input" placeholder="How you were known to them" value={contributorName} onChange={(e) => setContributorName(e.target.value)} />
-                </div>
-                <div className="share-signature-field">
-                  <label htmlFor="share-signature-email">Email (optional)</label>
-                  <input id="share-signature-email" className="share-signature-input" type="email" placeholder="So the family can say thank you" value={contributorEmail} onChange={(e) => setContributorEmail(e.target.value)} />
-                </div>
-                {requireCode && !verifiedCode && (
-                  <div className="share-signature-field">
-                    <label htmlFor="share-signature-code">Access code</label>
-                    <input id="share-signature-code" className="share-signature-input" placeholder="Ask the family if you don't have it" value={accessCodeInput} onChange={(e) => setAccessCodeInput(e.target.value)} />
+              {/* Everything past this point stays visually collapsed until
+                  the textarea has non-whitespace content — see the reveal
+                  hint above. The Type/Record toggle only makes sense once
+                  revealed (switching to Record only happens after someone's
+                  already started typing), so it lives in here too. */}
+              <div className={`share-reveal-group${revealed ? " revealed" : ""}`}>
+                {/* Type/record toggle — general questions only, never on
+                    the three media-specific universal prompts. Free
+                    memorials collect written memories only (same gate as
+                    the attach row below), so recording isn't offered there
+                    either. */}
+                {questionMediaKind === null && memorial.is_paid && (
+                  <div className="share-mode-toggle">
+                    <button type="button" className={answerMode === "type" ? "active" : ""} onClick={() => setAnswerMode("type")}>Type it out</button>
+                    <button type="button" className={answerMode === "record" ? "active" : ""} onClick={() => setAnswerMode("record")}>Record it in your own voice</button>
                   </div>
                 )}
-              </div>
 
-              <button className="btn btn-rust btn-lg share-submit-btn" onClick={handleSubmit} disabled={submitting || compressingVideo} style={{ justifyContent: "center" }}>
-                {submitting
-                  ? <><span className="spinner" /> {uploadProgress != null ? `Uploading... ${Math.round(uploadProgress * 100)}%` : "Sharing..."}</>
-                  : "Share this memory"}
-              </button>
-              <span className="share-back-link" onClick={() => setScreen("relationship")}>&larr; choose a different relationship</span>
+                {!(questionMediaKind === null && memorial.is_paid && answerMode === "record") && (
+                  <>
+                    {memorial.is_paid && (
+                      <QuestionAttachOptions
+                        kind={questionMediaKind}
+                        attachment={attachment}
+                        isRecipe={isRecipe}
+                        onToggleRecipe={setIsRecipe}
+                        avRecording={avRecording}
+                        setAvRecording={setAvRecording}
+                        showToast={showToast}
+                        onAttachmentChange={setAttachment}
+                        onPhotoClick={() => photoInputRef.current?.click()}
+                        onVideoClick={() => videoInputRef.current?.click()}
+                        onAudioClick={() => audioInputRef.current?.click()}
+                        onAvClick={() => avInputRef.current?.click()}
+                        onLinkClick={openLinkInput}
+                        onLinkUrlChange={(url) => setAttachment((a) => ({ ...a, url, preview: null, error: "" }))}
+                        onLinkBlur={fetchLinkPreview}
+                        onAdjustCrop={() => setShowCropAdjuster(true)}
+                        onRemove={clearAttachment}
+                        compressingVideo={compressingVideo}
+                        videoPreviewRef={videoPreviewRef}
+                        onUseFrameAsPoster={useCurrentFrameAsPoster}
+                      />
+                    )}
+
+                    {/* Typed-out written story: the same optional recipe/document
+                        flag the photo attachment offers, shown once there's text
+                        and no attachment to carry it instead. */}
+                    {!attachment && answerText.trim() && (
+                      <label className="share-recipe-check" style={{ marginTop: 10 }}>
+                        <input type="checkbox" checked={isRecipe} onChange={(e) => setIsRecipe(e.target.checked)} />
+                        This is a recipe or document
+                      </label>
+                    )}
+                    <input ref={photoInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => handlePhotoSelect(e.target.files[0])} />
+                    <input ref={videoInputRef} type="file" accept="video/*" style={{ display: "none" }} onChange={(e) => handleVideoSelect(e.target.files[0])} />
+                    <input ref={audioInputRef} type="file" accept="audio/*" style={{ display: "none" }} onChange={(e) => handleAudioFileSelect(e.target.files[0])} />
+                    <input ref={avInputRef} type="file" accept="audio/*,video/*" style={{ display: "none" }} onChange={(e) => handleAvSelect(e.target.files[0])} />
+                  </>
+                )}
+
+                <div className="share-signature-divider" />
+                <div className="share-signature">
+                  <div className="share-signature-field">
+                    <label htmlFor="share-signature-name">Your name (optional)</label>
+                    <input id="share-signature-name" className="share-signature-input" placeholder="How you were known to them" value={contributorName} onChange={(e) => setContributorName(e.target.value)} />
+                  </div>
+                  <div className="share-signature-field">
+                    <label htmlFor="share-signature-email">Email (optional)</label>
+                    <input id="share-signature-email" className="share-signature-input" type="email" placeholder="So the family can say thank you" value={contributorEmail} onChange={(e) => setContributorEmail(e.target.value)} />
+                  </div>
+                  {requireCode && !verifiedCode && (
+                    <div className="share-signature-field">
+                      <label htmlFor="share-signature-code">Access code</label>
+                      <input id="share-signature-code" className="share-signature-input" placeholder="Ask the family if you don't have it" value={accessCodeInput} onChange={(e) => setAccessCodeInput(e.target.value)} />
+                    </div>
+                  )}
+                </div>
+
+                <button className="btn btn-rust btn-lg share-submit-btn" onClick={handleSubmit} disabled={submitting || compressingVideo} style={{ justifyContent: "center" }}>
+                  {submitting
+                    ? <><span className="spinner" /> {uploadProgress != null ? `Uploading... ${Math.round(uploadProgress * 100)}%` : "Sharing..."}</>
+                    : "Share this memory"}
+                </button>
+              </div>
             </div>
           )}
 
@@ -1305,6 +1244,7 @@ export function ShareMemoryModal({ memorial, showToast, onClose, contributeToken
                 <button type="button" className="btn btn-ghost" onClick={onClose}>Done for now</button>
                 <button type="button" className="btn btn-rust" onClick={addAnother}>Add another</button>
               </div>
+              <ShareNudge memorial={memorial} showToast={showToast} />
             </div>
           )}
         </div>
@@ -1324,6 +1264,51 @@ export function ShareMemoryModal({ memorial, showToast, onClose, contributeToken
         />
       )}
     </>
+  );
+}
+
+// The confirmation screen's quiet third option — reuses the message shape
+// and Text/Email/Copy-link actions from the creator's SharePagePanel
+// invite flow (../components/SharePagePanel), minus the QR code and
+// printable card, which are a steward-side tool for programs and guest
+// books and don't apply to a contributor tapping through from their phone
+// right after adding a memory.
+function ShareNudge({ memorial, showToast }) {
+  const [open, setOpen] = useState(false);
+  const firstName = memorial.name.split(" ")[0];
+  const link = memorialUrl(memorial);
+  const message = `I just added a memory of ${firstName}, I bet you have one too: ${link}`;
+
+  const openText = () => {
+    trackEvent("share_clicked", { share_option: "text", page_label: memorial.name, source: "contributor_nudge" });
+    window.location.href = `sms:&body=${encodeURIComponent(message)}`;
+  };
+  const openEmail = () => {
+    trackEvent("share_clicked", { share_option: "email", page_label: memorial.name, source: "contributor_nudge" });
+    window.location.href = `mailto:?subject=${encodeURIComponent(`Would you share a memory of ${memorial.name}?`)}&body=${encodeURIComponent(message)}`;
+  };
+  const copyLink = () => {
+    trackEvent("share_clicked", { share_option: "copy_link", page_label: memorial.name, source: "contributor_nudge" });
+    navigator.clipboard.writeText(link).then(() => showToast("Link copied!"));
+  };
+
+  return (
+    <div className="share-nudge">
+      <p className="share-nudge-prompt">Know someone else who has a memory of {firstName}?</p>
+      <span className="share-nudge-toggle" onClick={() => setOpen((o) => !o)}>
+        {open ? "Hide" : "Share the page →"}
+      </span>
+      {open && (
+        <div className="share-nudge-panel fade-in">
+          <p className="share-nudge-message">{message}</p>
+          <div className="share-nudge-actions">
+            <button type="button" className="btn btn-sm btn-ghost" onClick={openText}>Text</button>
+            <button type="button" className="btn btn-sm btn-ghost" onClick={openEmail}>Email</button>
+            <button type="button" className="btn btn-sm btn-ghost" onClick={copyLink}>Copy link</button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -1465,7 +1450,7 @@ function LiveWaveform({ analyser }) {
 
 // The attach row shown below the answer textarea in "type it out" mode.
 // What it offers depends on `kind` (the current question's derived media
-// kind, or null for a general/freeform question) — a media-specific
+// kind, or null for a general question) — a media-specific
 // question narrows this to its one matching upload option; a general
 // question gets the full set. Once something's attached, its preview (and
 // a way to remove it) replaces the option buttons regardless of kind.
