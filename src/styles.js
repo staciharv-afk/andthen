@@ -468,11 +468,14 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .hero-below { position: relative; z-index: 2; text-align: center; }
 .memorial-hero-desc { font-size: 15px; color: var(--mem-ink-soft); max-width: 560px; margin: 16px auto 0; line-height: 1.75; }
 .stat-line { font-size: 0.92rem; color: var(--mem-ink-soft); margin-top: 18px; }
-.hero-cta { font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 0.85rem; background: transparent; color: var(--mem-ink-soft); border: 1.5px solid rgba(44,36,32,0.18); padding: 10px 22px; border-radius: 999px; cursor: pointer; margin-top: 20px; transition: border-color 0.15s ease, color 0.15s ease; }
+/* Solid-fill, not outline — this is the most important action on the page
+   (adding a memory), so it should read at that weight, not sit at the same
+   visual weight as the content-type filter pills below it. */
+.hero-cta { font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 0.85rem; background: var(--mem-rose); color: #fff; border: 1.5px solid var(--mem-rose); padding: 10px 22px; border-radius: 999px; cursor: pointer; margin-top: 20px; transition: background 0.15s ease, transform 0.15s ease; }
 /* Same slot as .hero-cta/.add-btn, for the free-locked state — nothing to
    click, so plain text rather than a dead-end button. */
 .hero-cta-note { font-family: 'DM Sans', sans-serif; font-size: 0.85rem; font-style: italic; color: var(--mem-ink-soft); margin-top: 20px; }
-.hero-cta:hover { border-color: var(--mem-rose); color: var(--mem-ink); }
+.hero-cta:hover { background: #a8434b; border-color: #a8434b; transform: translateY(-1px); }
 
 /* -- filters -- */
 .filter-bar { position: sticky; top: 0; z-index: 200; background: rgba(245,239,225,0.9); backdrop-filter: blur(8px); border-bottom: 1px solid rgba(44,36,32,0.1); padding: 14px 20px; margin-top: 40px; }
@@ -744,28 +747,17 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .share-modal-eyebrow { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--mem-rose); margin-bottom: 10px; }
 .share-modal h2 { font-family: 'Fraunces', serif; font-weight: 500; font-size: 24px; line-height: 1.3; margin: 0 0 22px; color: var(--mem-ink); }
 
-.share-orient-actions { display: flex; flex-direction: column; gap: 10px; }
-.share-orient-btn { text-align: left; padding: 16px 18px; border-radius: 8px; border: 1px solid rgba(44,36,32,0.14); background: var(--mem-paper); cursor: pointer; font-family: 'DM Sans', sans-serif; transition: border-color 0.15s ease; }
-.share-orient-btn:hover { border-color: var(--mem-rose); }
-.share-orient-btn .title { font-size: 15px; font-weight: 600; color: var(--mem-ink); display: block; margin-bottom: 3px; }
-.share-orient-btn .sub { font-size: 12.5px; color: var(--mem-ink-soft); }
-.share-orient-btn.primary { background: var(--mem-rose); border-color: var(--mem-rose); }
-.share-orient-btn.primary .title { color: #fff; }
-.share-orient-btn.primary .sub { color: rgba(255,255,255,0.85); }
-
-.share-rel-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 22px; }
-.share-rel-chip { font-family: 'DM Sans', sans-serif; font-size: 14px; padding: 12px 14px; border-radius: 8px; border: 1px solid rgba(44,36,32,0.14); background: var(--mem-paper); color: var(--mem-ink); cursor: pointer; text-align: left; transition: border-color 0.15s ease; }
-.share-rel-chip:hover { border-color: var(--mem-rose); }
-.share-rel-chip.active { border-color: var(--mem-rose); background: rgba(193,81,90,0.06); }
-.share-freewrite-link { display: block; text-align: center; font-size: 13px; color: var(--mem-ink-soft); text-decoration: underline; cursor: pointer; }
+/* Relationship chips, inline above the compose box — a row instead of the
+   old full-screen grid, since there's no longer a dedicated screen for
+   this. Small enough to sit comfortably above the prompt on a phone. */
+.share-rel-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+.share-rel-pill { font-family: 'DM Sans', sans-serif; font-size: 12.5px; font-weight: 500; padding: 7px 13px; border-radius: 999px; border: 1px solid rgba(44,36,32,0.14); background: var(--mem-paper); color: var(--mem-ink-soft); cursor: pointer; transition: all 0.15s ease; }
+.share-rel-pill:hover { border-color: var(--mem-rose); color: var(--mem-ink); }
+.share-rel-pill.active { border-color: var(--mem-rose); background: var(--mem-rose); color: #fff; }
 
 .share-question-box { background: var(--mem-paper); border-radius: 8px; padding: 20px; margin-bottom: 16px; }
 .share-question-text { font-family: 'Fraunces', serif; font-style: italic; font-size: 19px; line-height: 1.45; margin: 0; color: var(--mem-ink); }
 .share-shuffle-link { display: inline-block; font-size: 12px; color: var(--mem-rose); text-decoration: underline; cursor: pointer; margin-top: 12px; }
-
-.share-question-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
-.share-question-card { font-family: 'Fraunces', serif; font-style: italic; font-size: 15px; line-height: 1.45; text-align: left; padding: 16px 18px; border-radius: 8px; border: 1px solid rgba(44,36,32,0.14); background: var(--mem-paper); color: var(--mem-ink); cursor: pointer; transition: border-color 0.15s ease, background 0.15s ease; }
-.share-question-card:hover { border-color: var(--mem-rose); background: var(--mem-card); }
 
 .share-attach-row { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
 .share-attach-btn { font-size: 12px; color: var(--mem-ink-soft); border: 1px solid rgba(44,36,32,0.14); background: transparent; padding: 8px 12px; border-radius: 16px; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.15s ease; }
@@ -778,7 +770,20 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 
 /* Full-width, taller than the app's default textarea — this is the
    primary content of the screen, not a secondary form field. */
-.share-answer-textarea { width: 100%; box-sizing: border-box; min-height: 170px; margin-bottom: 16px; }
+.share-answer-textarea { width: 100%; box-sizing: border-box; min-height: 170px; margin-bottom: 4px; }
+
+.share-reveal-hint { font-family: 'Fraunces', serif; font-style: italic; font-size: 13px; color: var(--mem-ink-soft); margin: 0 0 4px; }
+
+/* Collapsed by default (0 height, invisible, not tabbable-looking) until
+   there's something typed in the textarea above — then eases open. A
+   generous max-height rather than "auto" is what makes the height side of
+   this transition animate at all; it just needs to comfortably clear the
+   tallest real content (a video preview + signature block + button). */
+.share-reveal-group { max-height: 0; opacity: 0; overflow: hidden; transition: max-height 0.35s ease, opacity 0.25s ease; }
+.share-reveal-group.revealed { max-height: 1400px; opacity: 1; margin-top: 4px; }
+@media (prefers-reduced-motion: reduce) {
+  .share-reveal-group { transition: none; }
+}
 
 .share-mode-toggle { display: flex; gap: 8px; margin: 4px 0 16px; }
 .share-mode-toggle button { flex: 1; font-size: 13px; font-family: 'DM Sans', sans-serif; padding: 9px 12px; border-radius: 6px; border: 1px solid rgba(44,36,32,0.14); background: var(--mem-paper); color: var(--mem-ink-soft); cursor: pointer; transition: all 0.15s ease; }
@@ -813,6 +818,15 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .share-thanks-text { text-align: center; font-size: 15px; color: var(--mem-ink-soft); margin-bottom: 24px; }
 .share-thanks-actions { display: flex; gap: 10px; }
 .share-thanks-actions .btn { flex: 1; justify-content: center; }
+
+/* Visually secondary to the two buttons above — an offer, not a required
+   step — so it's plain text/underline rather than another button. */
+.share-nudge { margin-top: 26px; padding-top: 20px; border-top: 1px solid rgba(44,36,32,0.1); text-align: center; }
+.share-nudge-prompt { font-size: 13px; color: var(--mem-ink-soft); margin: 0 0 6px; }
+.share-nudge-toggle { display: inline-block; font-size: 13px; font-weight: 500; color: var(--mem-rose); text-decoration: underline; cursor: pointer; }
+.share-nudge-panel { margin-top: 14px; text-align: left; background: var(--mem-paper); border-radius: 8px; padding: 16px; }
+.share-nudge-message { font-family: 'Fraunces', serif; font-style: italic; font-size: 13.5px; line-height: 1.5; color: var(--mem-ink); margin: 0 0 12px; }
+.share-nudge-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
 @media (prefers-reduced-motion: reduce) {
   .share-modal-overlay.fade-in { animation: none; opacity: 1; }

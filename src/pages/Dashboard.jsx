@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
-import { fmtDate, timeAgo, sendThankYou, FREE_MEMORY_LIMIT } from "../lib/utils";
+import { fmtDate, timeAgo, sendThankYou, FREE_MEMORY_LIMIT, memorialUrl } from "../lib/utils";
 import { trackEvent } from "../lib/analytics";
 import { exportMemorial } from "../lib/export";
 import { PRICING_PLANS } from "../lib/pricingPlans";
@@ -111,14 +111,6 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
     if (error) { showToast(error.code === "23505" ? "Already blocked." : "Couldn't block — please try again.", "error"); return; }
     showToast(`${submission.contributor_name || "They"} won't be able to add another memory.`);
   };
-
-  // Prefer the steward's custom vanity URL (myandthen.com/<slug>) once set;
-  // the invite-code link always works too, so it's the fallback. Either
-  // shape grants the same access (see Memorial.jsx's canContribute) — this
-  // is the one link the app shows/hands out everywhere, including
-  // SharePagePanel.
-  const memorialUrl = (memorial) =>
-    memorial.slug ? `${window.location.origin}/${memorial.slug}` : `${window.location.origin}?memorial=${memorial.invite_code}`;
 
   const handleExport = async () => {
     setExporting(true);
