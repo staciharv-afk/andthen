@@ -28,8 +28,9 @@ function NavLinks({ currentUser, onSignOut, onNavigate, currentRoute, linkClassN
 }
 
 // The brand-refreshed wordmark: line first, italic "And Then", clay-deep
-// ellipsis last — used only when `brand` is set (currently just the
-// homepage), so every other route keeps the original "And Then..." logo.
+// ellipsis last. Rendered everywhere Nav appears (marketing pages and the
+// signed-in app alike) — it's just the logo mark, not the rest of the
+// brand-refreshed palette, which `brand` still gates separately below.
 function Wordmark({ onNavigate }) {
   return (
     <button type="button" className="mkt-wordmark" onClick={() => onNavigate("home")}>
@@ -50,13 +51,7 @@ export function Nav({ currentUser, onSignOut, onNavigate, currentRoute, brand = 
   return (
     <>
       <nav className={`nav${brand ? " nav-brand" : ""}`}>
-        {brand ? (
-          <Wordmark onNavigate={onNavigate} />
-        ) : (
-          <span className="nav-logo" onClick={() => onNavigate("home")}>
-            <em>And Then...</em>
-          </span>
-        )}
+        <Wordmark onNavigate={onNavigate} />
         <div className="nav-right">
           <NavLinks currentUser={currentUser} onSignOut={onSignOut} onNavigate={onNavigate} currentRoute={currentRoute} linkClassName="nav-link" />
         </div>

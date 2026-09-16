@@ -1087,7 +1087,7 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
    MARKETING HOMEPAGE — brand refresh (2026)
    All classes below are prefixed "mkt-" (or "nav-brand"/"footer-brand")
    and used only by Home.jsx and Nav.jsx's brand variant. Deliberately not
-   sharing hero-*/narrative-*/footer-*/section-label/wyg2- with the other
+   sharing hero-, narrative-, footer-, section-label, wyg2- with the other
    marketing pages (Pricing, HowItWorks, OurStory, OurPromise), which still
    use the old cream/bark/rust system — restyling those shared classes
    would have redesigned those pages too, which wasn't asked for.
@@ -1269,15 +1269,15 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 /* ══════════════════════════════════════════════════════════════════
    MARKETING PAGES — brand refresh, extended from the homepage
    Pricing, How It Works, Our Story, Our Promise, Auth. Same "own
-   mkt-* classes, don't touch the shared hero-*/story-*/promise-*/
-   pricing-*/hiw-*/footer-*/form-*/btn-* classes" rule as Home.jsx,
+   mkt-* classes, don't touch the shared hero-, story-, promise-,
+   pricing-, hiw-, footer-, form-, btn- classes" rule as Home.jsx,
    since those shared ones are still used by Memorial.jsx, Dashboard,
    CreateMemorial, Onboarding, ClaimGift, SharePagePanel and the
    CropAdjuster-based modals (GiftModal, EmbeddedCheckoutModal) — all
    out of scope for this pass.
    ══════════════════════════════════════════════════════════════════ */
 
-.mkt-page-hero { padding: 72px 0 8px; }
+.mkt-page-hero { padding-top: 96px; padding-bottom: 8px; }
 .mkt-page-hero .mkt-h1 { font-family: 'Playfair Display', serif; font-weight: 600; font-size: clamp(32px, 4.2vw, 52px); line-height: 1.15; color: var(--charcoal); margin-bottom: 18px; letter-spacing: -0.01em; }
 .mkt-page-hero .mkt-h1 em { font-style: italic; color: var(--sage-deep); }
 .mkt-page-hero-sub { font-size: 16.5px; line-height: 1.65; color: var(--charcoal-muted); max-width: 640px; }
