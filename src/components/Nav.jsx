@@ -27,16 +27,36 @@ function NavLinks({ currentUser, onSignOut, onNavigate, currentRoute, linkClassN
   );
 }
 
-export function Nav({ currentUser, onSignOut, onNavigate, currentRoute }) {
+// The brand-refreshed wordmark: line first, italic "And Then", clay-deep
+// ellipsis last — used only when `brand` is set (currently just the
+// homepage), so every other route keeps the original "And Then..." logo.
+function Wordmark({ onNavigate }) {
+  return (
+    <button type="button" className="mkt-wordmark" onClick={() => onNavigate("home")}>
+      <span className="mkt-wordmark-line" aria-hidden="true" />
+      <span className="mkt-wordmark-text">And Then</span>
+      <span className="mkt-wordmark-dots" aria-hidden="true">…</span>
+    </button>
+  );
+}
+
+// `brand` switches Nav to the redesigned marketing look (new wordmark,
+// sage/clay palette) — only passed true for the homepage. Every other
+// route renders the original nav untouched.
+export function Nav({ currentUser, onSignOut, onNavigate, currentRoute, brand = false }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   useScrollLock(drawerOpen);
 
   return (
     <>
-      <nav className="nav">
-        <span className="nav-logo" onClick={() => onNavigate("home")}>
-          <em>And Then...</em>
-        </span>
+      <nav className={`nav${brand ? " nav-brand" : ""}`}>
+        {brand ? (
+          <Wordmark onNavigate={onNavigate} />
+        ) : (
+          <span className="nav-logo" onClick={() => onNavigate("home")}>
+            <em>And Then...</em>
+          </span>
+        )}
         <div className="nav-right">
           <NavLinks currentUser={currentUser} onSignOut={onSignOut} onNavigate={onNavigate} currentRoute={currentRoute} linkClassName="nav-link" />
         </div>
@@ -53,7 +73,7 @@ export function Nav({ currentUser, onSignOut, onNavigate, currentRoute }) {
           viewport. Same class of bug as the CropAdjuster/share-modal
           overlays elsewhere in this app, same fix. */}
       <div className={`nav-drawer-overlay${drawerOpen ? " open" : ""}`} onClick={() => setDrawerOpen(false)} />
-      <div className={`nav-drawer${drawerOpen ? " open" : ""}`}>
+      <div className={`nav-drawer${drawerOpen ? " open" : ""}${brand ? " nav-drawer-brand" : ""}`}>
         <button type="button" className="nav-drawer-close" aria-label="Close menu" onClick={() => setDrawerOpen(false)}>&times;</button>
         <NavLinks
           currentUser={currentUser}

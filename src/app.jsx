@@ -272,7 +272,7 @@ export default function App() {
       )}
 
       {route !== "login" && route !== "memorial" && route !== "onboarding" && route !== "claim-gift" && (
-        <Nav currentUser={currentUser} onSignOut={handleSignOut} onNavigate={navigate} currentRoute={route} />
+        <Nav currentUser={currentUser} onSignOut={handleSignOut} onNavigate={navigate} currentRoute={route} brand={route === "home"} />
       )}
 
       {route === "home" && <HomePage onNavigate={navigate} />}
