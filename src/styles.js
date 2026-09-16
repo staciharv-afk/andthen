@@ -459,56 +459,70 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
   --mem-rose: #C1515A; --mem-rose-soft: #E8C6C4;
   --mem-gold: #B8863B; --mem-gold-soft: #EAD9AE;
   --mem-sage: #6E7F5C; --mem-sage-soft: #D6DEC7;
-  --mem-shadow: 0 10px 30px -12px rgba(44,36,32,0.25);
-  position: relative; min-height: 100vh; background: var(--mem-paper); color: var(--mem-ink); font-family: 'DM Sans', sans-serif;
+  --mem-shadow: 0 10px 30px -12px rgba(46,46,46,0.16);
+  /* --mem-* above is left as-is (values unchanged) — the share-a-memory
+     modal (.share-*, .record-btn-idle, .btn-rust override, form-input
+     focus) still reads these directly and that form isn't part of this
+     brand pass. Everything else on the page below uses the global brand
+     tokens (--stone/--sand/--clay/--sage/--sage-deep/--charcoal) instead. */
+  position: relative; min-height: 100vh; background: var(--stone); color: var(--charcoal); font-family: 'Inter', sans-serif;
 }
-.memorial-page::before { content: ''; position: absolute; inset: 0; background-image: radial-gradient(rgba(44,36,32,0.035) 1px, transparent 1px); background-size: 3px 3px; pointer-events: none; opacity: 0.6; }
-.memorial-page h1, .memorial-page h2, .memorial-page h3 { font-family: 'Fraunces', serif; margin: 0; }
+.memorial-page h1, .memorial-page h2, .memorial-page h3 { font-family: 'Playfair Display', serif; font-style: italic; margin: 0; }
 
 /* -- hero -- */
 .scrapbook-hero { position: relative; padding: 0 24px 28px; overflow: hidden; }
 /* Same bar treatment as the site-wide .nav, just the logo (no nav-right
    links) — sits above the hero photo instead of floating over it, so the
-   "And Then..." mark reads identically wherever it appears. */
-.memorial-topbar { position: sticky; top: 0; z-index: 50; display: flex; align-items: center; padding: 0 56px; height: 64px; background: rgba(253,250,245,0.93); backdrop-filter: blur(12px); border-bottom: 1px solid var(--warm-faint); }
-.memorial-topbar-logo { font-family: 'Lora', serif; font-size: 20px; color: var(--bark); background: none; border: none; padding: 0; cursor: pointer; }
-.memorial-topbar-logo em { font-style: italic; color: var(--rust); }
+   "And Then…" mark reads identically wherever it appears. */
+.memorial-topbar { position: sticky; top: 0; z-index: 50; display: flex; align-items: center; padding: 0 56px; height: 64px; background: rgba(247,245,239,0.88); backdrop-filter: blur(8px); border-bottom: 1px solid rgba(46,46,46,0.14); }
+.memorial-topbar-logo { display: inline-flex; align-items: center; gap: 10px; font-family: 'Playfair Display', serif; font-size: 20px; color: var(--charcoal); background: none; border: none; padding: 0; cursor: pointer; }
+.mem-wordmark-line { width: 22px; height: 1px; background: var(--charcoal); display: inline-block; flex-shrink: 0; }
+.mem-wordmark-text { font-style: italic; }
+.mem-wordmark-dots { display: inline-flex; align-items: center; gap: 5px; }
+.mem-wordmark-dots i { width: 5px; height: 5px; border-radius: 50%; display: inline-block; font-style: normal; }
+.mem-wordmark-dots i:nth-child(1) { background: var(--sage); }
+.mem-wordmark-dots i:nth-child(2) { background: var(--clay); }
+.mem-wordmark-dots i:nth-child(3) { background: var(--charcoal); }
 .hero-blob { position: absolute; border-radius: 42% 58% 63% 37% / 41% 44% 56% 59%; filter: blur(38px); opacity: 0.5; z-index: 0; }
-.hero-blob.b1 { width: 380px; height: 380px; background: var(--mem-rose-soft); top: -14%; left: 2%; }
-.hero-blob.b2 { width: 320px; height: 320px; background: var(--mem-gold-soft); bottom: -6%; right: 2%; }
-.hero-blob.b3 { width: 240px; height: 240px; background: var(--mem-sage-soft); top: 30%; right: 26%; }
+.hero-blob.b1 { width: 380px; height: 380px; background: rgba(104,122,94,0.32); top: -14%; left: 2%; }
+.hero-blob.b2 { width: 320px; height: 320px; background: rgba(201,169,139,0.4); bottom: -6%; right: 2%; }
+.hero-blob.b3 { width: 240px; height: 240px; background: rgba(46,46,46,0.1); top: 30%; right: 26%; }
 .hero-label { position: relative; z-index: 2; text-align: center; padding-top: 88px; }
-.eyebrow-script { font-family: 'Caveat', cursive; font-size: 1.6rem; color: var(--mem-rose); transform: rotate(-2deg); margin-bottom: 4px; display: inline-block; }
-.memorial-hero-name { font-size: clamp(2.6rem, 7vw, 4.6rem); font-weight: 600; line-height: 1; letter-spacing: -0.01em; }
-.memorial-hero-dates { font-family: 'Fraunces', serif; font-style: italic; font-weight: 400; font-size: clamp(1rem, 2vw, 1.25rem); color: var(--mem-ink-soft); margin-top: 10px; }
+.memorial-hero-name { font-size: clamp(2.6rem, 7vw, 4.6rem); font-weight: 600; font-style: italic; line-height: 1; letter-spacing: -0.01em; color: var(--charcoal); }
+.memorial-hero-dates { font-family: 'Inter', sans-serif; font-style: normal; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; font-size: clamp(0.72rem, 1.3vw, 0.82rem); color: rgba(46,46,46,0.6); margin-top: 12px; }
 
 /* -- header photo banner (creator-uploaded cover photo, 16:7 from the create form) -- */
 .hero-banner { position: relative; margin: 0 -24px 28px; overflow: hidden; }
 .hero-banner img { width: 100%; height: clamp(220px, 34vw, 420px); object-fit: cover; display: block; }
-.hero-banner-scrim { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(44,36,32,0) 35%, rgba(44,36,32,0.78) 100%); }
+.hero-banner-scrim { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(46,46,46,0) 30%, rgba(46,46,46,0.85) 96%), linear-gradient(90deg, rgba(46,46,46,0.4) 0%, rgba(46,46,46,0) 46%); }
 .hero-banner-label { position: absolute; left: 0; right: 0; bottom: 0; padding: 24px 24px 28px; text-align: center; }
-.hero-banner-label .memorial-hero-name { color: var(--mem-paper); }
-.hero-banner-label .memorial-hero-dates { color: rgba(245,239,225,0.85); }
-.hero-banner-label .eyebrow-script { color: var(--mem-rose-soft); }
+.hero-banner-label .memorial-hero-name { color: var(--stone); }
+.hero-banner-label .memorial-hero-dates { color: rgba(247,245,239,0.82); }
 
 .hero-below { position: relative; z-index: 2; text-align: center; }
-.memorial-hero-desc { font-size: 15px; color: var(--mem-ink-soft); max-width: 560px; margin: 16px auto 0; line-height: 1.75; }
-.stat-line { font-size: 0.92rem; color: var(--mem-ink-soft); margin-top: 18px; }
+/* Bio eyebrow row — thin rule / uppercase Sage label / thin rule — sits
+   above the description paragraph, replacing the old cursive tagline that
+   used to run above the name in the hero. */
+.mem-bio-eyebrow { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 20px auto 0; }
+.mem-bio-eyebrow .line { height: 1px; width: 32px; background: rgba(46,46,46,0.16); }
+.mem-bio-eyebrow .label { font-family: 'Inter', sans-serif; font-size: 11.5px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--sage-deep); }
+.memorial-hero-desc { font-size: 15px; color: rgba(46,46,46,0.72); max-width: 560px; margin: 14px auto 0; line-height: 1.75; }
+.stat-line { font-size: 0.92rem; color: rgba(46,46,46,0.72); margin-top: 18px; }
 /* Solid-fill, not outline — this is the most important action on the page
    (adding a memory), so it should read at that weight, not sit at the same
    visual weight as the content-type filter pills below it. */
-.hero-cta { font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 0.85rem; background: var(--mem-rose); color: #fff; border: 1.5px solid var(--mem-rose); padding: 10px 22px; border-radius: 999px; cursor: pointer; margin-top: 20px; transition: background 0.15s ease, transform 0.15s ease; }
+.hero-cta { font-family: 'Inter', sans-serif; font-weight: 600; font-size: 0.85rem; background: var(--sage); color: var(--stone); border: 1.5px solid var(--sage); padding: 10px 22px; border-radius: 999px; cursor: pointer; margin-top: 20px; transition: background 0.15s ease, transform 0.15s ease; }
 /* Same slot as .hero-cta/.add-btn, for the free-locked state — nothing to
    click, so plain text rather than a dead-end button. */
-.hero-cta-note { font-family: 'DM Sans', sans-serif; font-size: 0.85rem; font-style: italic; color: var(--mem-ink-soft); margin-top: 20px; }
-.hero-cta:hover { background: #a8434b; border-color: #a8434b; transform: translateY(-1px); }
+.hero-cta-note { font-family: 'Inter', sans-serif; font-size: 0.85rem; font-style: italic; color: rgba(46,46,46,0.72); margin-top: 20px; }
+.hero-cta:hover { background: var(--sage-deep); border-color: var(--sage-deep); transform: translateY(-1px); }
 
 /* -- filters -- */
-.filter-bar { position: sticky; top: 0; z-index: 200; background: rgba(245,239,225,0.9); backdrop-filter: blur(8px); border-bottom: 1px solid rgba(44,36,32,0.1); padding: 14px 20px; margin-top: 40px; }
+.filter-bar { position: sticky; top: 0; z-index: 200; background: rgba(247,245,239,0.9); backdrop-filter: blur(8px); border-bottom: 1px solid rgba(46,46,46,0.1); padding: 14px 20px; margin-top: 40px; }
 .filter-inner { max-width: 1100px; margin: 0 auto; display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
-.chip { font-family: 'DM Sans', sans-serif; font-size: 0.85rem; font-weight: 600; padding: 8px 16px; border-radius: 999px; background: var(--mem-card); border: 1.5px solid rgba(44,36,32,0.14); color: var(--mem-ink-soft); cursor: pointer; transition: all 0.18s ease; }
-.chip:hover { border-color: var(--mem-rose); color: var(--mem-ink); }
-.chip.active { background: var(--mem-ink); border-color: var(--mem-ink); color: var(--mem-paper); }
+.chip { font-family: 'Inter', sans-serif; font-size: 0.85rem; font-weight: 500; padding: 9px 18px; border-radius: 999px; background: var(--stone); border: 1px solid rgba(46,46,46,0.16); color: var(--charcoal); cursor: pointer; transition: all 0.18s ease; }
+.chip:hover { border-color: var(--sage); color: var(--sage); }
+.chip.active { background: var(--charcoal); border-color: var(--charcoal); color: var(--stone); }
 
 /* -- uniform memory-tile archive --
    Every entry — photo, video, voicemail, written story, link — renders as
@@ -531,9 +545,9 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .mem-tile:hover {
   position: relative;
   z-index: 5;
-  outline: 3px solid var(--mem-gold);
+  outline: 3px solid var(--clay);
   outline-offset: 2px;
-  box-shadow: 0 18px 40px -8px rgba(20,18,15,0.4);
+  box-shadow: 0 18px 40px -8px rgba(46,46,46,0.35);
   animation: memTileWiggle 0.35s ease-out forwards;
 }
 @keyframes memTileWiggle {
@@ -547,27 +561,29 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 }
 .mem-tile.hidden-card { display: none !important; }
 
-.mem-tile-body { flex: 1; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; background: var(--mem-paper-deep); }
+.mem-tile-body { flex: 1; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; background: var(--sand); }
 .mem-tile-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.mem-tile-video, .mem-tile-voice, .mem-tile-url { cursor: pointer; background: var(--mem-ink); }
+.mem-tile-video, .mem-tile-voice { cursor: pointer; background: var(--charcoal); }
+.mem-tile-url { cursor: pointer; background: var(--sand); }
 .mem-tile-video video, .mem-tile-url img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.mem-tile-url-fallback { font-size: 1.6rem; opacity: 0.5; color: var(--mem-paper); }
+.mem-tile-url-fallback { font-size: 1.6rem; opacity: 0.6; color: var(--charcoal); }
 .mem-tile-url-embed { flex: 1; background: #000; }
 .mem-tile-url-embed iframe { width: 100%; height: 100%; border: none; display: block; }
-.mem-tile-yt-badge { position: absolute; top: 10px; left: 10px; z-index: 1; background: #E13B33; color: #fff; font-size: 9px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; padding: 3px 7px; border-radius: 3px; }
+/* Translucent charcoal, never the YouTube brand red, per the brand refresh. */
+.mem-tile-yt-badge { position: absolute; top: 10px; left: 10px; z-index: 1; background: rgba(46,46,46,0.72); backdrop-filter: blur(3px); color: var(--stone); font-size: 9px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; padding: 3px 7px; border-radius: 3px; }
 
 .mem-tile-play { position: absolute; inset: 0; margin: auto; width: 44px; height: 44px; border-radius: 50%; background: rgba(255,255,255,0.9); display: flex; align-items: center; justify-content: center; }
-.mem-tile-play::after { content: ''; border-left: 14px solid #1D2523; border-top: 9px solid transparent; border-bottom: 9px solid transparent; margin-left: 4px; }
+.mem-tile-play::after { content: ''; border-left: 14px solid var(--charcoal); border-top: 9px solid transparent; border-bottom: 9px solid transparent; margin-left: 4px; }
 
 /* Voicemail's own play button — same shape/size as .mem-tile-play, but
-   rust-filled with a white triangle rather than white-filled with a dark
+   clay-filled with a white triangle rather than white-filled with a dark
    one, and laid out inline (not absolutely centered) since it's the top
    item in a vertical stack with the waveform and duration below it,
    not floating alone over a media element. */
 .mem-tile-voice-inner { display: flex; flex-direction: column; align-items: center; gap: 8px; }
-.mem-tile-play-voice { position: static; margin: 0; background: var(--rust); }
-.mem-tile-play-voice::after { border-left-color: #fff; }
-.mem-tile-duration { font-size: 11px; color: rgba(245,239,225,0.55); font-variant-numeric: tabular-nums; }
+.mem-tile-play-voice { position: static; margin: 0; background: var(--clay); }
+.mem-tile-play-voice::after { border-left-color: var(--charcoal); }
+.mem-tile-duration { font-size: 11px; color: rgba(247,245,239,0.55); font-variant-numeric: tabular-nums; }
 @media (max-width: 600px) {
   /* At 2-column mobile width the tile body has little vertical room to
      spare — shrink the play button and waveform so the stack (button +
@@ -578,18 +594,20 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
   .mem-tile-voice-inner { gap: 6px; }
 }
 
-/* Reuses the homepage's cream-on-dark waveform coloring as-is — this
-   tile's background is already dark, the exact context that pattern was
-   built for. */
+/* Clay waveform on the tile's charcoal background, per the brand refresh. */
 .mem-tile-wave { display: flex; align-items: center; gap: 2px; height: 44px; }
-.mem-tile-wave span { width: 3px; background: rgba(253,250,245,0.3); border-radius: 2px; }
-.mem-tile-wave span.played { background: var(--mem-gold); }
-.mem-tile-voice-photo { position: absolute; bottom: 8px; right: 8px; width: 40px; height: 40px; border-radius: 4px; object-fit: cover; border: 2px solid rgba(253,250,245,0.5); box-shadow: 0 4px 10px -2px rgba(0,0,0,0.35); }
+.mem-tile-wave span { width: 3px; background: rgba(247,245,239,0.28); border-radius: 2px; }
+.mem-tile-wave span.played { background: var(--clay); }
+.mem-tile-voice-photo { position: absolute; bottom: 8px; right: 8px; width: 40px; height: 40px; border-radius: 4px; object-fit: cover; border: 2px solid rgba(247,245,239,0.5); box-shadow: 0 4px 10px -2px rgba(0,0,0,0.35); }
 
 /* Overrides .mem-tile-body's align-items: center — a long story should crop
-   off the bottom, not show whatever falls in the vertical middle. */
-.mem-tile-story { background: var(--mem-card); padding: 18px; align-items: flex-start; }
-.mem-tile-story blockquote { margin: 0; font-family: 'Fraunces', serif; font-style: italic; font-size: 0.85rem; line-height: 1.5; color: var(--mem-ink); text-align: left; }
+   off the bottom, not show whatever falls in the vertical middle. A real
+   card now: Sand fill, Clay left border, a large italic Playfair opening
+   quote mark, and the signature (contributor name) in the tile's bottom
+   bar rendered in Caveat — see .mem-tile-card below. */
+.mem-tile-story { background: var(--sand); padding: 20px 18px 16px; align-items: flex-start; border-left: 3px solid var(--clay); }
+.mem-tile-quote-mark { font-family: 'Playfair Display', serif; font-style: italic; color: var(--clay); font-size: 2.4rem; line-height: 0.6; margin-bottom: 8px; display: block; }
+.mem-tile-story blockquote { margin: 0; font-family: 'Playfair Display', serif; font-style: italic; font-size: 0.85rem; line-height: 1.5; color: var(--charcoal); text-align: left; }
 
 /* Caption reveal for a media entry with attached text — visible on
    :hover (desktop) or via the .revealed class MemoryTile toggles on
@@ -597,39 +615,48 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
    visible, so a second tap/click passes through to the tile body
    underneath rather than hitting the overlay — "tap the media once
    revealed" from the spec. */
-.mem-tile-caption { position: absolute; inset: 0; background: linear-gradient(to top, rgba(15,13,10,0.88) 0%, rgba(15,13,10,0.55) 45%, transparent 75%); display: flex; align-items: flex-end; padding: 16px; opacity: 0; transition: opacity 0.18s ease; pointer-events: none; }
+.mem-tile-caption { position: absolute; inset: 0; background: linear-gradient(to top, rgba(46,46,46,0.88) 0%, rgba(46,46,46,0.55) 45%, transparent 75%); display: flex; align-items: flex-end; padding: 16px; opacity: 0; transition: opacity 0.18s ease; pointer-events: none; }
 .mem-tile:hover .mem-tile-caption { opacity: 1; }
-.mem-tile-caption p { margin: 0; font-family: 'Fraunces', serif; font-style: italic; font-size: 0.8rem; line-height: 1.45; color: var(--mem-paper); text-align: left; }
+.mem-tile-caption p { margin: 0; font-family: 'Playfair Display', serif; font-style: italic; font-size: 0.8rem; line-height: 1.45; color: var(--stone); text-align: left; }
 
-.mem-tile-bar { height: 17%; min-height: 32px; flex-shrink: 0; background: var(--mem-ink); display: flex; align-items: center; gap: 8px; padding: 0 12px; }
-.mem-tile-type { text-transform: uppercase; font-size: 9px; letter-spacing: 0.08em; color: rgba(245,239,225,0.55); white-space: nowrap; }
-.mem-tile-flag { display: inline-flex; align-items: center; justify-content: center; color: var(--mem-gold); font-family: 'Fraunces', serif; font-style: italic; font-size: 13px; line-height: 1; }
-.mem-tile-meta { margin-left: auto; font-size: 10px; color: rgba(245,239,225,0.45); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 45%; }
+.mem-tile-bar { height: 17%; min-height: 32px; flex-shrink: 0; background: var(--charcoal); display: flex; align-items: center; gap: 8px; padding: 0 12px; }
+.mem-tile-type { text-transform: uppercase; font-size: 9px; letter-spacing: 0.08em; color: rgba(247,245,239,0.6); white-space: nowrap; }
+.mem-tile-flag { display: inline-flex; align-items: center; justify-content: center; color: var(--clay); font-family: 'Playfair Display', serif; font-style: italic; font-size: 13px; line-height: 1; }
+.mem-tile-meta { margin-left: auto; font-size: 10px; color: rgba(247,245,239,0.5); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 45%; }
+
+/* Written-story and link tiles get "card" treatment (see .mem-tile-story /
+   .mem-tile-url) — their bottom bar blends into the light card instead of
+   reading as a separate dark strip, and the signature is Caveat, not Inter. */
+.mem-tile-card .mem-tile-bar { background: transparent; border-top: 1px solid rgba(46,46,46,0.14); }
+.mem-tile-card .mem-tile-type { color: var(--sage-deep); font-weight: 600; }
+.mem-tile-card .mem-tile-meta { font-family: 'Caveat', cursive; font-weight: 600; font-size: 15px; color: var(--charcoal); opacity: 1; }
 
 @media (prefers-reduced-motion: reduce) {
   .mem-tile-caption { transition: none; }
   .mem-tile .voice-play-btn { transition: none; }
 }
 
-/* -- memory reader — full-screen overlay opened from any grid tile. Same
-   dark card + gold-accent shell the old featured-memory card used, but
-   this one is per-tile and always navigates the FULL memory list via
-   fixed prev/next buttons OUTSIDE the card (not the invisible in-card
-   click zones the old component used), so they can never overlap a
-   memory's own content. max-height + overflow-y keeps a long story
-   scrollable within the card on short viewports instead of pushing the
-   card off-screen. */
-.reader-overlay { position: fixed; inset: 0; z-index: 500; background: rgba(15,13,10,0.82); display: flex; align-items: center; justify-content: center; padding: 24px; overflow-y: auto; }
-.reader-card { position: relative; width: 100%; max-width: 640px; margin: auto; max-height: 86vh; max-height: 86dvh; overflow-y: auto; background: var(--mem-ink); border-radius: 8px; padding: 44px 36px 32px; box-shadow: var(--mem-shadow); }
-.reader-close { position: absolute; top: 14px; right: 14px; width: 32px; height: 32px; border-radius: 50%; border: none; background: rgba(255,255,255,0.08); color: var(--mem-paper); font-size: 20px; line-height: 1; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.15s ease; }
-.reader-close:hover { background: rgba(255,255,255,0.16); }
-.reader-count { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--mem-gold-soft); margin-bottom: 22px; text-align: center; }
+/* -- memory reader — full-screen overlay opened from any grid tile. Light
+   Stone card (matching the brand board's reader treatment) with fixed
+   prev/next buttons OUTSIDE the card (not the invisible in-card click
+   zones the old component used), so they can never overlap a memory's own
+   content — and, per the brand-refresh spec, always wrap: past the last
+   memory back to the first, and back past the first to the last. That
+   applies regardless of any active content-type filter, since "stories"
+   here is always the page's full, unfiltered list (see openIndex above).
+   max-height + overflow-y keeps a long story scrollable within the card on
+   short viewports instead of pushing the card off-screen. */
+.reader-overlay { position: fixed; inset: 0; z-index: 500; background: rgba(46,46,46,0.82); display: flex; align-items: center; justify-content: center; padding: 24px; overflow-y: auto; }
+.reader-card { position: relative; width: 100%; max-width: 640px; margin: auto; max-height: 86vh; max-height: 86dvh; overflow-y: auto; background: var(--stone); border-radius: 8px; padding: 44px 36px 32px; box-shadow: var(--mem-shadow); }
+.reader-close { position: absolute; top: 14px; right: 14px; width: 32px; height: 32px; border-radius: 50%; border: none; background: rgba(46,46,46,0.65); color: var(--stone); font-size: 20px; line-height: 1; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.15s ease; }
+.reader-close:hover { background: rgba(46,46,46,0.82); }
+.reader-count { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--sage-deep); margin-bottom: 22px; text-align: center; }
 
-.reader-media { border-radius: 6px; overflow: hidden; margin: 0 auto 24px; background: rgba(255,255,255,0.06); }
+.reader-media { border-radius: 6px; overflow: hidden; margin: 0 auto 24px; background: var(--sand); }
 .reader-media.photo, .reader-media.recipe, .reader-media.video { max-width: 480px; aspect-ratio: 4 / 3; }
 .reader-media.photo img, .reader-media.recipe img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .reader-media.video video { width: 100%; height: 100%; object-fit: contain; display: block; background: #000; }
-.reader-media.voicemail, .reader-media.spoken { max-width: 420px; padding: 22px 20px; }
+.reader-media.voicemail, .reader-media.spoken { max-width: 420px; padding: 22px 20px; background: var(--charcoal); }
 .reader-media.link { max-width: 480px; }
 
 .reader-audio { width: 100%; }
@@ -637,31 +664,32 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 
 .reader-link { display: block; width: 100%; background: none; border: none; padding: 0; cursor: pointer; text-align: left; font-family: inherit; position: relative; }
 .reader-link img, .reader-link-fallback { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; display: block; }
-.reader-link-fallback { display: flex; align-items: center; justify-content: center; font-size: 1.8rem; opacity: 0.5; color: var(--mem-paper); }
-.reader-yt-badge { position: absolute; top: 10px; left: 10px; z-index: 1; background: #E13B33; color: #fff; font-size: 10px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; padding: 4px 8px; border-radius: 3px; }
+.reader-link-fallback { display: flex; align-items: center; justify-content: center; font-size: 1.8rem; opacity: 0.6; color: var(--charcoal); }
+.reader-yt-badge { position: absolute; top: 10px; left: 10px; z-index: 1; background: rgba(46,46,46,0.72); backdrop-filter: blur(3px); color: var(--stone); font-size: 10px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; padding: 4px 8px; border-radius: 3px; }
 .reader-play { position: absolute; inset: 0; margin: auto; width: 54px; height: 54px; border-radius: 50%; background: rgba(255,255,255,0.9); display: flex; align-items: center; justify-content: center; }
-.reader-play::after { content: ''; border-left: 17px solid #1D2523; border-top: 11px solid transparent; border-bottom: 11px solid transparent; margin-left: 4px; }
+.reader-play::after { content: ''; border-left: 17px solid var(--charcoal); border-top: 11px solid transparent; border-bottom: 11px solid transparent; margin-left: 4px; }
 .reader-link-embed { aspect-ratio: 16 / 9; border-radius: 6px; overflow: hidden; background: #000; }
 .reader-link-embed iframe { width: 100%; height: 100%; border: none; display: block; }
 
-.reader-text { margin: 0 0 20px; font-family: 'Fraunces', serif; font-style: italic; font-weight: 500; font-size: clamp(1.1rem, 2.4vw, 1.35rem); line-height: 1.5; color: var(--mem-paper); text-align: center; }
-.reader-text::before { content: '“'; color: var(--mem-gold-soft); }
-.reader-text::after { content: '”'; color: var(--mem-gold-soft); }
+.reader-text { margin: 0 0 20px; font-family: 'Playfair Display', serif; font-style: italic; font-weight: 500; font-size: clamp(1.1rem, 2.4vw, 1.35rem); line-height: 1.5; color: var(--charcoal); text-align: center; }
+.reader-text::before { content: '“'; color: var(--clay); }
+.reader-text::after { content: '”'; color: var(--clay); }
 
 .reader-meta { display: flex; align-items: baseline; justify-content: center; gap: 10px; flex-wrap: wrap; text-align: center; }
-.reader-credit { font-size: 0.85rem; color: rgba(245,239,225,0.65); }
+.reader-credit { font-size: 0.85rem; color: rgba(46,46,46,0.65); }
+.reader-credit strong { font-family: 'Caveat', cursive; font-weight: 600; font-size: 1.15rem; color: var(--charcoal); }
 .reader-credit-time { margin-left: 6px; opacity: 0.75; }
-.reader-type-tag { text-transform: uppercase; font-size: 9px; letter-spacing: 0.08em; color: var(--mem-gold-soft); border: 1px solid rgba(245,239,225,0.25); border-radius: 999px; padding: 3px 10px; }
+.reader-type-tag { text-transform: uppercase; font-size: 9px; letter-spacing: 0.08em; color: var(--sage-deep); border: 1px solid rgba(46,46,46,0.2); border-radius: 999px; padding: 3px 10px; }
 
 /* Fixed to the viewport (not the card) so they can never overlap reader
    content. Offset uses max() against the iOS safe-area insets so a
    notched/home-indicator device doesn't tuck them under the curved edge
-   or the swipe-up gesture zone. */
-.reader-nav { position: fixed; top: 50%; transform: translateY(-50%); z-index: 501; width: 52px; height: 52px; border-radius: 50%; border: none; background: rgba(255,255,255,0.12); color: var(--mem-paper); font-size: 26px; line-height: 1; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.15s ease, opacity 0.15s ease; }
-.reader-nav:hover { background: rgba(255,255,255,0.22); }
+   or the swipe-up gesture zone. Always enabled now — prev/next wraps
+   instead of stopping at the ends, so there's no disabled state to style. */
+.reader-nav { position: fixed; top: 50%; transform: translateY(-50%); z-index: 501; width: 52px; height: 52px; border-radius: 50%; border: none; background: rgba(247,245,239,0.16); color: var(--stone); font-size: 26px; line-height: 1; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.15s ease, opacity 0.15s ease; }
+.reader-nav:hover { background: rgba(247,245,239,0.28); }
 .reader-nav.prev { left: max(24px, env(safe-area-inset-left)); }
 .reader-nav.next { right: max(24px, env(safe-area-inset-right)); }
-.reader-nav.disabled { opacity: 0.25; pointer-events: none; }
 
 @media (max-width: 700px) {
   .reader-card { padding: 40px 20px 28px; }
@@ -742,9 +770,9 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
    homepage's preview-crowd, adapted to the memorial page's own tokens and
    a per-contributor hashed color instead of one flat avatar background. */
 .mem-avatar-stack { display: flex; align-items: center; justify-content: center; margin-top: 18px; }
-.mem-avatar { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: var(--mem-paper); border: 2px solid var(--mem-paper); margin-left: -10px; flex-shrink: 0; }
+.mem-avatar { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: var(--stone); border: 2px solid var(--stone); margin-left: -10px; flex-shrink: 0; }
 .mem-avatar:first-child { margin-left: 0; }
-.mem-avatar-overflow { background: var(--mem-ink-soft) !important; }
+.mem-avatar-overflow { background: var(--charcoal) !important; }
 
 
 /* -- share-a-memory modal: form widgets are used only on this page -- */
@@ -859,12 +887,22 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 }
 
 /* -- closing / add-a-memory cta -- */
-.closing { text-align: center; padding: 90px 24px 100px; background: var(--mem-paper-deep); border-top: 1px solid rgba(44,36,32,0.1); }
-.closing .script { font-family: 'Caveat', cursive; font-size: 2rem; color: var(--mem-rose); margin-bottom: 10px; transform: rotate(-1deg); display: inline-block; }
-.closing h2 { font-size: clamp(1.8rem, 4vw, 2.6rem); font-weight: 600; max-width: 640px; margin: 0 auto 28px; line-height: 1.25; }
-.add-btn { font-family: 'DM Sans', sans-serif; font-weight: 700; font-size: 0.95rem; background: var(--mem-ink); color: var(--mem-paper); border: none; padding: 16px 34px; border-radius: 999px; cursor: pointer; transition: transform 0.15s ease, background 0.15s ease; }
-.add-btn:hover { transform: translateY(-2px); background: #463a32; }
-.closing .note { margin-top: 22px; font-size: 0.85rem; color: var(--mem-ink-soft); }
+.closing { text-align: center; padding: 90px 24px 100px; background: var(--charcoal); border-top: none; }
+.closing .script { font-family: 'Caveat', cursive; font-weight: 600; font-size: 2rem; color: var(--clay); margin-bottom: 10px; transform: rotate(-1deg); display: inline-block; }
+.closing h2 { font-family: 'Playfair Display', serif; font-style: italic; font-weight: 500; color: var(--stone); font-size: clamp(1.8rem, 4vw, 2.6rem); max-width: 640px; margin: 0 auto 28px; line-height: 1.25; }
+.add-btn { font-family: 'Inter', sans-serif; font-weight: 600; font-size: 0.95rem; background: var(--sage); color: var(--stone); border: none; padding: 16px 34px; border-radius: 999px; cursor: pointer; transition: transform 0.15s ease, background 0.15s ease; }
+.add-btn:hover { transform: translateY(-2px); background: var(--sage-deep); }
+.closing .note { margin-top: 22px; font-size: 0.85rem; color: rgba(247,245,239,0.62); }
+
+/* -- footer: thin rule + 3-dot motif, one line of tagline -- */
+.mem-footer { text-align: center; padding: 30px 24px; background: var(--stone); }
+.mem-footer-dots { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 12px; }
+.mem-footer-dots .line { height: 1px; width: 32px; background: rgba(46,46,46,0.16); }
+.mem-footer-dots i { width: 5px; height: 5px; border-radius: 50%; display: inline-block; }
+.mem-footer-dots i:nth-child(2) { background: var(--sage); }
+.mem-footer-dots i:nth-child(3) { background: var(--clay); }
+.mem-footer-dots i:nth-child(4) { background: var(--charcoal); }
+.mem-footer-tagline { font-family: 'Inter', sans-serif; font-size: 12.5px; color: rgba(46,46,46,0.55); margin: 0; }
 
 /* ── TOAST ── */
 .toast-wrap { position: fixed; bottom: 24px; right: 24px; z-index: 999; display: flex; flex-direction: column; gap: 8px; }

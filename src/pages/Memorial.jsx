@@ -60,11 +60,10 @@ const seedFor = (id) => {
   return h;
 };
 
-// Existing brand hues already used elsewhere on this page (rose/gold/sage
-// from the memorial palette, plus the video/link tag colors) rather than
-// inventing new ones — hashed per contributor via seedFor so the same
-// person always lands on the same color, not a fresh random one per render.
-const AVATAR_COLORS = ["#C1515A", "#B8863B", "#6E7F5C", "#33425E", "#4A3B66"];
+// Brand tokens only (Sage / Clay / Charcoal), per the brand refresh —
+// hashed per contributor via seedFor so the same person always lands on
+// the same color, not a fresh random one per render.
+const AVATAR_COLORS = ["#687A5E", "#C9A98B", "#2E2E2E"];
 const colorForContributor = (name) => AVATAR_COLORS[seedFor(name) % AVATAR_COLORS.length];
 const initialsFor = (name) =>
   name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() || "").join("") || "?";
@@ -478,7 +477,6 @@ export function MemorialPage({ inviteCode, showToast, onNavigate, currentUser })
 
   const heroTitle = (
     <>
-      <span className="eyebrow-script">as told by everyone who loves them</span>
       <h1 className="memorial-hero-name">{memorial.name}</h1>
       {(memorial.born || memorial.passed) && (
         <div className="memorial-hero-dates">
@@ -492,7 +490,9 @@ export function MemorialPage({ inviteCode, showToast, onNavigate, currentUser })
     <div className="memorial-page">
       <nav className="memorial-topbar">
         <button type="button" className="memorial-topbar-logo" onClick={() => onNavigate?.("home")}>
-          <em>And Then...</em>
+          <span className="mem-wordmark-line" aria-hidden="true" />
+          <span className="mem-wordmark-text">And Then</span>
+          <span className="mem-wordmark-dots" aria-hidden="true"><i /><i /><i /></span>
         </button>
       </nav>
       <header className="scrapbook-hero">
@@ -516,6 +516,11 @@ export function MemorialPage({ inviteCode, showToast, onNavigate, currentUser })
         )}
 
         <div className="hero-below">
+          <div className="mem-bio-eyebrow">
+            <span className="line" aria-hidden="true" />
+            <span className="label">as told by everyone who loves them</span>
+            <span className="line" aria-hidden="true" />
+          </div>
           {memorial.description && <p className="memorial-hero-desc">{memorial.description}</p>}
           {stories.length > 0 && (
             <>
@@ -592,6 +597,14 @@ export function MemorialPage({ inviteCode, showToast, onNavigate, currentUser })
                     : <>This page isn't open to contributions yet.</>}
         </p>
       </footer>
+
+      <div className="mem-footer">
+        <div className="mem-footer-dots" aria-hidden="true">
+          <span className="line" />
+          <i /><i /><i />
+        </div>
+        <p className="mem-footer-tagline">A living memorial — built one memory at a time.</p>
+      </div>
 
       {showContribute && (
         <ShareMemoryModal
@@ -1598,12 +1611,16 @@ function MemoryTile({ story: s, hidden, onOpen }) {
   const relLabel = s.contributor_name || "Someone";
   const hasStory = !!s.media_url && !!s.text?.trim();
   const tileLabel = contentTypeLabel(s);
+  // Written stories (no attached media) and links get the Stone/Sand
+  // "card" treatment — Clay border, Playfair quote mark, Caveat signature
+  // — instead of the dark media caption bar photo/video/voicemail tiles use.
+  const isCard = s.type === "url" || (s.type === "story" && !s.media_url);
 
   return (
     <button
       type="button"
       data-memory-id={s.id}
-      className={`mem-tile${hidden ? " hidden-card" : ""}`}
+      className={`mem-tile${isCard ? " mem-tile-card" : ""}${hidden ? " hidden-card" : ""}`}
       onClick={onOpen}
     >
       <TileBody story={s} />
@@ -1645,7 +1662,12 @@ function TileBody({ story: s }) {
 
   return (
     <div className="mem-tile-body mem-tile-story">
-      {s.text ? <blockquote>{s.text}</blockquote> : null}
+      {s.text ? (
+        <>
+          <span className="mem-tile-quote-mark" aria-hidden="true">&ldquo;</span>
+          <blockquote>{s.text}</blockquote>
+        </>
+      ) : null}
     </div>
   );
 }
@@ -1708,12 +1730,12 @@ function TileUrl({ story: s }) {
 function MemoryReader({ stories, index, onNavigate, onClose }) {
   useScrollLock();
   const story = stories[index];
-  const canPrev = index > 0;
-  const canNext = index < stories.length - 1;
   const touchStartRef = useRef(null);
 
-  const goPrev = () => { if (index > 0) onNavigate(index - 1); };
-  const goNext = () => { if (index < stories.length - 1) onNavigate(index + 1); };
+  // Always wraps — past the last memory back to the first, and back past
+  // the first to the last — rather than stopping dead at either end.
+  const goPrev = () => onNavigate((index - 1 + stories.length) % stories.length);
+  const goNext = () => onNavigate((index + 1) % stories.length);
 
   useEffect(() => {
     const onKeyDown = (e) => {
@@ -1771,19 +1793,17 @@ function MemoryReader({ stories, index, onNavigate, onClose }) {
           home-indicator device doesn't obscure or crowd them. */}
       <button
         type="button"
-        className={`reader-nav prev${canPrev ? "" : " disabled"}`}
+        className="reader-nav prev"
         aria-label="Previous memory"
         onClick={goPrev}
-        disabled={!canPrev}
       >
         &lsaquo;
       </button>
       <button
         type="button"
-        className={`reader-nav next${canNext ? "" : " disabled"}`}
+        className="reader-nav next"
         aria-label="Next memory"
         onClick={goNext}
-        disabled={!canNext}
       >
         &rsaquo;
       </button>
