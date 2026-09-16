@@ -24,6 +24,11 @@ import { OurPromisePage } from "./pages/OurPromise";
 import { HowItWorksPage } from "./pages/HowItWorks";
 import { ClaimGiftPage } from "./pages/ClaimGift";
 
+// Routes that get the brand-refreshed Nav — the marketing surface
+// (homepage + the four informational pages). Everything else (dashboard,
+// editing, admin) keeps the original nav.
+const MARKETING_ROUTES = new Set(["home", "pricing", "story", "our-promise", "how-it-works"]);
+
 export default function App() {
   const [route, setRoute] = useState(() => parseLocation().page);
   const [routeParam, setRouteParam] = useState(() => parseLocation().param);
@@ -272,7 +277,7 @@ export default function App() {
       )}
 
       {route !== "login" && route !== "memorial" && route !== "onboarding" && route !== "claim-gift" && (
-        <Nav currentUser={currentUser} onSignOut={handleSignOut} onNavigate={navigate} currentRoute={route} brand={route === "home"} />
+        <Nav currentUser={currentUser} onSignOut={handleSignOut} onNavigate={navigate} currentRoute={route} brand={MARKETING_ROUTES.has(route)} />
       )}
 
       {route === "home" && <HomePage onNavigate={navigate} />}

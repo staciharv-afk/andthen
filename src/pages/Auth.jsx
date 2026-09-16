@@ -29,30 +29,34 @@ export function AuthPage({ showToast }) {
   };
 
   return (
-    <div className="auth-page">
+    <div className="mkt-auth-page">
       <style>{STYLES}</style>
-      <div className="auth-card fade-up">
-        <div className="auth-logo"><em>And Then...</em></div>
+      <div className="mkt-auth-card fade-up">
+        <span className="mkt-wordmark" style={{ cursor: "default", justifyContent: "center", width: "100%", marginBottom: 24 }}>
+          <span className="mkt-wordmark-line" aria-hidden="true" />
+          <span className="mkt-wordmark-text">And Then</span>
+          <span className="mkt-wordmark-dots" aria-hidden="true">…</span>
+        </span>
 
         {sent ? (
           <>
-            <p className="auth-tagline">
+            <p className="mkt-auth-tagline">
               Check your email — we sent a sign-in link to <strong>{email.trim()}</strong>. Open it on this device and you'll be signed in.
             </p>
-            <button className="btn btn-ghost btn-lg" style={{ justifyContent: "center", width: "100%" }} onClick={() => { setSent(false); setEmail(""); }}>
+            <button className="mkt-btn mkt-btn-ghost" style={{ justifyContent: "center", width: "100%" }} onClick={() => { setSent(false); setEmail(""); }}>
               Use a different email
             </button>
           </>
         ) : (
           <>
-            <p className="auth-tagline">Enter your email and we'll send you a link to sign in. No password to remember.</p>
-            <div className="create-form">
-              <div className="form-group">
-                <label className="form-label">Email</label>
-                <input className="form-input" type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleSend()} autoFocus />
+            <p className="mkt-auth-tagline">Enter your email and we'll send you a link to sign in. No password to remember.</p>
+            <div className="mkt-auth-form">
+              <div className="mkt-form-group">
+                <label className="mkt-form-label">Email</label>
+                <input className="mkt-form-input" type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleSend()} autoFocus />
               </div>
-              {error && <div className="form-error">{error}</div>}
-              <button className="btn btn-rust btn-lg" onClick={handleSend} disabled={loading} style={{ justifyContent: "center" }}>
+              {error && <div className="mkt-form-error">{error}</div>}
+              <button className="mkt-btn mkt-btn-solid" onClick={handleSend} disabled={loading} style={{ justifyContent: "center" }}>
                 {loading ? <span className="spinner" /> : "Email me a sign-in link"}
               </button>
             </div>

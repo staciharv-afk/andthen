@@ -39,30 +39,26 @@ export function PricingPage({ onNavigate, intent }) {
   }, [giftSent]);
 
   return (
-    <div className="pricing-page">
+    <div className="mkt-page">
       {giftSent && (
-        <div className="gift-sent-banner fade-up" role="status">
-          <div className="gift-sent-banner-inner">
-            <h2 className="gift-sent-banner-title">Your gift is on its way.</h2>
-            <p className="gift-sent-banner-body">
-              We've emailed them a link to open it whenever they're ready — the page is paid for and waiting, with nothing for you to forward or track. If you added your email, there's a confirmation in your inbox too.
-            </p>
-            <button type="button" className="btn btn-ghost" onClick={() => setGiftSent(false)}>
-              Close
-            </button>
-          </div>
+        <div className="mkt-gift-banner page-wrap" role="status" style={{ marginTop: 24 }}>
+          <h2 className="mkt-gift-banner-title">Your gift is on its way.</h2>
+          <p className="mkt-gift-banner-body">
+            We've emailed them a link to open it whenever they're ready — the page is paid for and waiting, with nothing for you to forward or track. If you added your email, there's a confirmation in your inbox too.
+          </p>
+          <button type="button" className="mkt-btn mkt-btn-ghost" onClick={() => setGiftSent(false)}>
+            Close
+          </button>
         </div>
       )}
 
       {/* Hero */}
-      <div style={{ background: "var(--cream)" }}>
+      <div className="mkt-section">
         <div className="page-wrap">
-          <div className="pricing-hero">
-            <div className="hero-tag fade-up">Pricing</div>
-            <h1 className="hero-headline fade-up-2">
-              Start for free. The rest is simple.
-            </h1>
-            <p className="hero-body fade-up-3 pricing-hero-body">
+          <div className="mkt-page-hero">
+            <div className="mkt-eyebrow fade-up"><span className="mkt-eyebrow-line" aria-hidden="true" />Pricing</div>
+            <h1 className="mkt-h1 fade-up-2">Start for free. The rest is simple.</h1>
+            <p className="mkt-page-hero-sub fade-up-3">
               Five memories included, free — no card required. That's five photos, videos, voicemails, or stories, mixed however you like, with every feature unlocked. Start there, and see how it comes together before you pay anything.
             </p>
           </div>
@@ -70,23 +66,24 @@ export function PricingPage({ onNavigate, intent }) {
       </div>
 
       {/* One way to pay */}
-      <div style={{ background: "var(--cream)" }}>
+      <div className="mkt-section">
         <div className="page-wrap">
-          <p className="hiw-paths-sub">When you're ready to keep it, one payment unlocks everything — no plans to choose between, and nothing to guess about what you're getting.</p>
-          <div className="pricing-paths pricing-paths-single">
+          <div className="mkt-section-inner" style={{ paddingTop: 24 }}>
+            <p className="mkt-body mkt-narrow">When you're ready to keep it, one payment unlocks everything — no plans to choose between, and nothing to guess about what you're getting.</p>
+
             <button
               type="button"
-              className="pricing-path-card pricing-path-card-dark pricing-path-card-clickable"
+              className="mkt-pay-card"
               onClick={() => setShowCheckout(true)}
               aria-label="Pay Once — $49, no renewals ever. Continue to checkout."
+              style={{ marginTop: 28 }}
             >
-              <div className="pricing-path-label pricing-path-label-gold">{BUILD.label}</div>
-              <div className="pricing-path-price">{BUILD.price}</div>
-              <div className="pricing-path-sub">{BUILD.sub}</div>
-              <div className="pricing-path-ring"><span className="pricing-path-ring-dot" /></div>
-              <p className="pricing-path-body">{CARD_BODY}</p>
+              <div className="mkt-pay-card-label">{BUILD.label}</div>
+              <div className="mkt-pay-card-price">{BUILD.price}</div>
+              <div className="mkt-pay-card-sub">{BUILD.sub}</div>
+              <p className="mkt-pay-card-body">{CARD_BODY}</p>
             </button>
-            <button type="button" className="gift-pill" onClick={() => setShowGiftModal(true)}>
+            <button type="button" className="mkt-gift-pill" onClick={() => setShowGiftModal(true)}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="3" y="8" width="18" height="4" rx="1" />
                 <path d="M12 8v13" />
@@ -96,40 +93,44 @@ export function PricingPage({ onNavigate, intent }) {
               </svg>
               Buying this for someone else? Send it as a gift
             </button>
-          </div>
 
-          <div className="section-label" style={{ marginTop: 56 }}>What $49 unlocks</div>
-          <div className="wyg2-grid">
-            {UNLOCKS.map(({ label, body }, i) => (
-              <div className="wyg2-item" key={label} style={i === UNLOCKS.length - 1 ? { gridColumn: "1 / -1" } : undefined}>
-                <h3 className="wyg2-label">{label}</h3>
-                <p className="wyg2-body">{body}</p>
-              </div>
-            ))}
+            <div className="mkt-eyebrow" style={{ marginTop: 56 }}><span className="mkt-eyebrow-line" aria-hidden="true" />What $49 unlocks</div>
+            <div className="mkt-unlocks">
+              {UNLOCKS.map(({ label, body }, i) => (
+                <div className={i === UNLOCKS.length - 1 ? "mkt-unlock-full" : undefined} key={label}>
+                  <h3 className="mkt-unlock-label">{label}</h3>
+                  <p className="mkt-unlock-body">{body}</p>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
 
       {/* Closing CTA */}
-      <div style={{ background: "var(--cream)" }}>
+      <div className="mkt-section">
         <div className="page-wrap">
-          <div className="pricing-closing">
-            <button className="btn btn-rust btn-lg" onClick={() => onNavigate("onboarding")}>Start your page, free</button>
-            <span className="pricing-cta-note">Five entries, no card required. Upgrade any time.</span>
+          <div className="mkt-closing-block">
+            <button className="mkt-btn mkt-btn-solid" onClick={() => onNavigate("onboarding")}>Start your page, free</button>
+            <span className="mkt-closing-note">Five entries, no card required. Upgrade any time.</span>
           </div>
         </div>
       </div>
 
       {/* Footer */}
-      <footer className="footer">
-        <div className="footer-logo"><em>And Then...</em></div>
-        <div className="footer-links">
-          <button className="footer-link" onClick={() => onNavigate("home")}>Home</button>
-          <button className="footer-link" onClick={() => onNavigate("our-promise")}>Our Promise</button>
-          <button className="footer-link">Privacy</button>
-          <button className="footer-link">Contact</button>
+      <footer className="mkt-footer page-wrap">
+        <span className="mkt-wordmark" style={{ cursor: "default" }}>
+          <span className="mkt-wordmark-line" aria-hidden="true" />
+          <span className="mkt-wordmark-text">And Then</span>
+          <span className="mkt-wordmark-dots" aria-hidden="true">…</span>
+        </span>
+        <div className="mkt-footer-links">
+          <button className="mkt-footer-link" onClick={() => onNavigate("home")}>Home</button>
+          <button className="mkt-footer-link" onClick={() => onNavigate("our-promise")}>Our Promise</button>
+          <button className="mkt-footer-link">Privacy</button>
+          <button className="mkt-footer-link">Contact</button>
         </div>
-        <div className="footer-copy">© 2026 And Then</div>
+        <div className="mkt-footer-copy">© 2026 And Then</div>
       </footer>
 
       {showCheckout && (

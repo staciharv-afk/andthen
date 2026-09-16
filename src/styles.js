@@ -1109,7 +1109,7 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .mkt-wordmark-dots { color: var(--clay-deep); font-style: normal; }
 
 /* Eyebrow: short clay-deep line + uppercase letter-spaced label. */
-.mkt-eyebrow { display: inline-flex; align-items: center; gap: 10px; font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--clay-deep); margin-bottom: 20px; }
+.mkt-eyebrow { display: flex; width: fit-content; align-items: center; gap: 10px; font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--clay-deep); margin-bottom: 20px; }
 .mkt-eyebrow-line { width: 26px; height: 1px; background: var(--clay-deep); display: inline-block; flex-shrink: 0; }
 
 /* Continuum divider — appears once, after the hero collage only. */
@@ -1264,5 +1264,95 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 
 @media (prefers-reduced-motion: reduce) {
   .mkt-tile, .mkt-price-card { transition: none; }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   MARKETING PAGES — brand refresh, extended from the homepage
+   Pricing, How It Works, Our Story, Our Promise, Auth. Same "own
+   mkt-* classes, don't touch the shared hero-*/story-*/promise-*/
+   pricing-*/hiw-*/footer-*/form-*/btn-* classes" rule as Home.jsx,
+   since those shared ones are still used by Memorial.jsx, Dashboard,
+   CreateMemorial, Onboarding, ClaimGift, SharePagePanel and the
+   CropAdjuster-based modals (GiftModal, EmbeddedCheckoutModal) — all
+   out of scope for this pass.
+   ══════════════════════════════════════════════════════════════════ */
+
+.mkt-page-hero { padding: 72px 0 8px; }
+.mkt-page-hero .mkt-h1 { font-family: 'Playfair Display', serif; font-weight: 600; font-size: clamp(32px, 4.2vw, 52px); line-height: 1.15; color: var(--charcoal); margin-bottom: 18px; letter-spacing: -0.01em; }
+.mkt-page-hero .mkt-h1 em { font-style: italic; color: var(--sage-deep); }
+.mkt-page-hero-sub { font-size: 16.5px; line-height: 1.65; color: var(--charcoal-muted); max-width: 640px; }
+.mkt-byline { font-family: 'Inter', sans-serif; font-size: 14px; color: var(--clay-deep); font-weight: 600; margin-top: 10px; }
+
+.mkt-divider { border: none; border-top: 1px solid var(--sand); margin: 40px 0; }
+
+/* ── Pricing page ── */
+.mkt-pay-card { display: block; width: 100%; max-width: 420px; text-align: left; background: var(--charcoal); color: var(--stone); border: none; border-radius: 20px; padding: 34px 30px; cursor: pointer; font-family: inherit; transition: transform 0.2s, box-shadow 0.2s; }
+.mkt-pay-card:hover { transform: translateY(-3px); box-shadow: 0 16px 32px rgba(46,46,46,0.18); }
+.mkt-pay-card-label { font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--clay); margin-bottom: 12px; }
+.mkt-pay-card-price { font-family: 'Playfair Display', serif; font-weight: 700; font-size: 40px; margin-bottom: 6px; }
+.mkt-pay-card-sub { font-size: 14px; color: rgba(247,245,239,0.7); margin-bottom: 18px; }
+.mkt-pay-card-body { font-size: 14.5px; line-height: 1.6; color: rgba(247,245,239,0.85); padding-top: 18px; border-top: 1px solid rgba(247,245,239,0.15); margin: 0; }
+.mkt-gift-pill { display: inline-flex; align-items: center; gap: 8px; margin-top: 20px; background: none; border: 1px solid var(--sand); border-radius: 999px; padding: 10px 18px; font-family: 'Inter', sans-serif; font-size: 13.5px; font-weight: 500; color: var(--charcoal-muted); cursor: pointer; }
+.mkt-gift-pill:hover { border-color: var(--clay-deep); color: var(--charcoal); }
+.mkt-gift-pill svg { stroke: var(--clay-deep); }
+
+.mkt-unlocks { display: grid; grid-template-columns: 1fr 1fr; gap: 26px; margin: 20px 0 0; }
+@media (max-width: 700px) { .mkt-unlocks { grid-template-columns: 1fr; } }
+.mkt-unlock-full { grid-column: 1 / -1; }
+.mkt-unlock-label { font-family: 'Playfair Display', serif; font-weight: 600; font-size: 18px; color: var(--charcoal); margin-bottom: 8px; }
+.mkt-unlock-body { font-size: 14.5px; line-height: 1.6; color: var(--charcoal-muted); margin: 0; }
+
+.mkt-gift-banner { background: var(--sand); border-radius: 16px; padding: 24px 28px; margin: 24px 0 0; }
+.mkt-gift-banner-title { font-family: 'Playfair Display', serif; font-weight: 600; font-size: 19px; color: var(--charcoal); margin-bottom: 8px; }
+.mkt-gift-banner-body { font-size: 14.5px; line-height: 1.6; color: var(--charcoal-muted); margin-bottom: 14px; }
+
+.mkt-closing-block { text-align: center; padding: 12px 0 8px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.mkt-closing-note { font-family: 'Inter', sans-serif; font-size: 13.5px; color: var(--charcoal-muted); }
+
+/* ── How It Works page ── */
+.mkt-hiw-steps { display: flex; flex-direction: column; gap: 34px; margin: 40px 0; max-width: 660px; }
+.mkt-hiw-step { display: flex; gap: 22px; }
+.mkt-hiw-step-num { font-family: 'Playfair Display', serif; font-style: italic; font-weight: 600; font-size: 28px; color: var(--clay-deep); width: 40px; flex-shrink: 0; }
+.mkt-hiw-step-heading { font-family: 'Playfair Display', serif; font-weight: 600; font-size: 19px; color: var(--charcoal); margin-bottom: 8px; }
+.mkt-hiw-step-body { font-size: 15px; line-height: 1.65; color: var(--charcoal-muted); margin: 0; }
+
+/* ── Our Story page ── */
+.mkt-story-photo { border-radius: 16px; overflow: hidden; max-width: 520px; margin: 32px 0; aspect-ratio: 4/3; background: var(--sand); display: flex; align-items: center; justify-content: center; }
+.mkt-story-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.mkt-story-photo-label { font-family: 'Inter', sans-serif; font-size: 12.5px; color: var(--charcoal-muted); text-align: center; padding: 20px; }
+.mkt-story-article { max-width: 640px; }
+.mkt-story-article p { font-size: 16px; line-height: 1.75; color: var(--charcoal-muted); margin-bottom: 20px; }
+.mkt-story-article em { color: var(--charcoal); }
+.mkt-story-lede { font-family: 'Playfair Display', serif; font-style: italic; font-size: 22px !important; color: var(--charcoal) !important; line-height: 1.4 !important; }
+.mkt-story-pull { font-family: 'Playfair Display', serif; font-weight: 500; font-size: 22px !important; color: var(--charcoal) !important; line-height: 1.4 !important; border-left: 3px solid var(--clay); padding-left: 20px; }
+.mkt-story-signature { font-family: 'Playfair Display', serif; font-style: italic; font-size: 18px !important; color: var(--sage-deep) !important; }
+.mkt-story-closing { background: var(--sand); padding: 64px 0; margin-top: 56px; text-align: center; }
+.mkt-story-closing-line { font-family: 'Playfair Display', serif; font-style: italic; font-weight: 500; font-size: 26px; color: var(--charcoal); margin-bottom: 24px; }
+
+/* ── Our Promise page ── */
+.mkt-promise-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin: 40px 0; }
+@media (max-width: 700px) { .mkt-promise-cards { grid-template-columns: 1fr; } }
+.mkt-promise-card { background: var(--sand); border-radius: 16px; padding: 28px; }
+.mkt-promise-card h3 { font-family: 'Playfair Display', serif; font-weight: 600; font-size: 19px; color: var(--charcoal); margin-bottom: 10px; }
+.mkt-promise-card p { font-size: 14.5px; line-height: 1.65; color: var(--charcoal-muted); margin: 0; }
+.mkt-promise-closing { text-align: center; padding: 64px 0; max-width: 640px; margin: 0 auto; }
+.mkt-promise-closing-line { font-family: 'Playfair Display', serif; font-style: italic; font-size: 22px; line-height: 1.5; color: var(--charcoal); margin-bottom: 16px; }
+.mkt-promise-closing-line em { color: var(--sage-deep); }
+.mkt-promise-closing-note { font-family: 'Inter', sans-serif; font-size: 14px; color: var(--charcoal-muted); }
+.mkt-promise-closing-note a { color: var(--sage-deep); }
+
+/* ── Auth page ── */
+.mkt-auth-page { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--sand); padding: 40px 24px; font-family: 'Inter', sans-serif; }
+.mkt-auth-card { background: var(--stone); border-radius: 20px; padding: 48px; width: 100%; max-width: 440px; box-shadow: 0 20px 50px rgba(46,46,46,0.1); }
+.mkt-auth-tagline { font-size: 15px; line-height: 1.6; color: var(--charcoal-muted); text-align: center; margin-bottom: 28px; }
+.mkt-auth-form { display: flex; flex-direction: column; gap: 16px; }
+.mkt-form-group { display: flex; flex-direction: column; gap: 6px; }
+.mkt-form-label { font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; color: var(--charcoal); letter-spacing: 0.01em; }
+.mkt-form-input { font-family: 'Inter', sans-serif; font-size: 15px; color: var(--charcoal); background: var(--stone); border: 1.5px solid var(--sand); border-radius: 10px; padding: 12px 14px; width: 100%; }
+.mkt-form-input:focus { outline: none; border-color: var(--sage); }
+.mkt-form-error { font-family: 'Inter', sans-serif; font-size: 13.5px; color: #A9483C; }
+
+@media (prefers-reduced-motion: reduce) {
+  .mkt-pay-card { transition: none; }
 }
 `;

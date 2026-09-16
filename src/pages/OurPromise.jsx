@@ -23,21 +23,21 @@ const CARDS = [
 
 export function OurPromisePage({ onNavigate }) {
   return (
-    <div className="story-page">
-      <div className="page-wrap story-wrap">
-        <header className="story-hero">
-          <div className="hero-tag fade-up">Our Promise</div>
-          <h1 className="hero-headline fade-up-2">
+    <div className="mkt-page">
+      <div className="page-wrap mkt-page-hero">
+        <header>
+          <div className="mkt-eyebrow fade-up"><span className="mkt-eyebrow-line" aria-hidden="true" />Our Promise</div>
+          <h1 className="mkt-h1 fade-up-2">
             We keep every memory safe — for as long as <em>you</em> want it here.
           </h1>
-          <p className="story-byline fade-up-3">
+          <p className="mkt-page-hero-sub fade-up-3">
             A page like this holds something irreplaceable. We don't take that lightly. Here's exactly how we care for it.
           </p>
         </header>
 
-        <div className="promise-cards fade-up-3">
+        <div className="mkt-promise-cards fade-up-3">
           {CARDS.map((c) => (
-            <div className="promise-card" key={c.title}>
+            <div className="mkt-promise-card" key={c.title}>
               <h3>{c.title}</h3>
               <p>{c.body}</p>
             </div>
@@ -45,24 +45,28 @@ export function OurPromisePage({ onNavigate }) {
         </div>
       </div>
 
-      <div className="promise-closing">
-        <p className="promise-closing-line">
+      <div className="mkt-promise-closing">
+        <p className="mkt-promise-closing-line">
           However you choose to use <em>And Then</em>, this much is a promise: what you build here is <em>yours</em>, and it's not going anywhere.
         </p>
-        <p className="promise-closing-note">
+        <p className="mkt-promise-closing-note">
           Questions, anytime: <a href="mailto:hello@myandthen.com">hello@myandthen.com</a>
         </p>
       </div>
 
-      <footer className="footer">
-        <div className="footer-logo"><em>And Then...</em></div>
-        <div className="footer-links">
-          <button className="footer-link" onClick={() => onNavigate("home")}>Home</button>
-          <button className="footer-link" onClick={() => onNavigate("our-promise")}>Our Promise</button>
-          <button className="footer-link">Privacy</button>
-          <button className="footer-link">Contact</button>
+      <footer className="mkt-footer page-wrap">
+        <span className="mkt-wordmark" style={{ cursor: "default" }}>
+          <span className="mkt-wordmark-line" aria-hidden="true" />
+          <span className="mkt-wordmark-text">And Then</span>
+          <span className="mkt-wordmark-dots" aria-hidden="true">…</span>
+        </span>
+        <div className="mkt-footer-links">
+          <button className="mkt-footer-link" onClick={() => onNavigate("home")}>Home</button>
+          <button className="mkt-footer-link" onClick={() => onNavigate("our-promise")}>Our Promise</button>
+          <button className="mkt-footer-link">Privacy</button>
+          <button className="mkt-footer-link">Contact</button>
         </div>
-        <div className="footer-copy">© 2026 And Then</div>
+        <div className="mkt-footer-copy">© 2026 And Then</div>
       </footer>
     </div>
   );

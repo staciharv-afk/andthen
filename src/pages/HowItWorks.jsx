@@ -29,51 +29,55 @@ const STEPS = [
 // so the two numbers can't drift apart.
 export function HowItWorksPage({ onNavigate }) {
   return (
-    <div className="hiw-page">
-      <div className="page-wrap story-wrap">
-        <div className="hero-tag fade-up">How it works</div>
-        <h1 className="story-headline fade-up-2">Here's what happens when you start.</h1>
-        <p className="hiw-sub fade-up-3">No card, no commitment — just enough to see what their page could become.</p>
+    <div className="mkt-page">
+      <div className="page-wrap mkt-page-hero">
+        <div className="mkt-eyebrow fade-up"><span className="mkt-eyebrow-line" aria-hidden="true" />How it works</div>
+        <h1 className="mkt-h1 fade-up-2">Here's what happens when you start.</h1>
+        <p className="mkt-page-hero-sub fade-up-3">No card, no commitment — just enough to see what their page could become.</p>
 
-        {STEPS.map((step, i) => (
-          <div className="hiw-step" key={step.heading}>
-            <div className="hiw-step-num">{i + 1}</div>
-            <div className="hiw-step-body">
-              <h3>{step.heading}</h3>
-              <p>{step.body}</p>
+        <div className="mkt-hiw-steps">
+          {STEPS.map((step, i) => (
+            <div className="mkt-hiw-step" key={step.heading}>
+              <div className="mkt-hiw-step-num">{String(i + 1).padStart(2, "0")}</div>
+              <div>
+                <h3 className="mkt-hiw-step-heading">{step.heading}</h3>
+                <p className="mkt-hiw-step-body">{step.body}</p>
+              </div>
             </div>
-          </div>
-        ))}
-
-        <hr className="story-divider" />
-
-        <p className="hiw-paths-heading">One way to pay, whenever you're ready</p>
-        <p className="hiw-paths-sub">Nothing is charged until you decide to move past the free five.</p>
-
-        <div className="pricing-paths hiw-paths pricing-paths-single">
-          <div className="pricing-path-card pricing-path-card-dark">
-            <div className="pricing-path-label pricing-path-label-gold">{BUILD.label}</div>
-            <div className="pricing-path-price">{BUILD.price}</div>
-            <div className="pricing-path-sub">{BUILD.sub}</div>
-            <p className="pricing-path-body">{BUILD.body}</p>
-          </div>
+          ))}
         </div>
 
-        <div className="hiw-cta-block">
-          <button className="btn btn-rust btn-lg" onClick={() => onNavigate("onboarding")}>Start their page, free</button>
-          <span className="pricing-cta-note">Takes about two minutes. Nothing to pay yet.</span>
+        <hr className="mkt-divider" />
+
+        <div className="mkt-eyebrow"><span className="mkt-eyebrow-line" aria-hidden="true" />One way to pay, whenever you're ready</div>
+        <p className="mkt-body mkt-narrow">Nothing is charged until you decide to move past the free five.</p>
+
+        <div className="mkt-pay-card" style={{ marginTop: 24, cursor: "default" }}>
+          <div className="mkt-pay-card-label">{BUILD.label}</div>
+          <div className="mkt-pay-card-price">{BUILD.price}</div>
+          <div className="mkt-pay-card-sub">{BUILD.sub}</div>
+          <p className="mkt-pay-card-body">{BUILD.body}</p>
+        </div>
+
+        <div className="mkt-closing-block" style={{ marginTop: 48 }}>
+          <button className="mkt-btn mkt-btn-solid" onClick={() => onNavigate("onboarding")}>Start their page, free</button>
+          <span className="mkt-closing-note">Takes about two minutes. Nothing to pay yet.</span>
         </div>
       </div>
 
-      <footer className="footer">
-        <div className="footer-logo"><em>And Then...</em></div>
-        <div className="footer-links">
-          <button className="footer-link" onClick={() => onNavigate("home")}>Home</button>
-          <button className="footer-link" onClick={() => onNavigate("our-promise")}>Our Promise</button>
-          <button className="footer-link">Privacy</button>
-          <button className="footer-link">Contact</button>
+      <footer className="mkt-footer page-wrap">
+        <span className="mkt-wordmark" style={{ cursor: "default" }}>
+          <span className="mkt-wordmark-line" aria-hidden="true" />
+          <span className="mkt-wordmark-text">And Then</span>
+          <span className="mkt-wordmark-dots" aria-hidden="true">…</span>
+        </span>
+        <div className="mkt-footer-links">
+          <button className="mkt-footer-link" onClick={() => onNavigate("home")}>Home</button>
+          <button className="mkt-footer-link" onClick={() => onNavigate("our-promise")}>Our Promise</button>
+          <button className="mkt-footer-link">Privacy</button>
+          <button className="mkt-footer-link">Contact</button>
         </div>
-        <div className="footer-copy">© 2026 And Then</div>
+        <div className="mkt-footer-copy">© 2026 And Then</div>
       </footer>
     </div>
   );
