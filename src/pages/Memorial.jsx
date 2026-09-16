@@ -295,6 +295,7 @@ export function MemorialPage({ inviteCode, showToast, onNavigate, currentUser })
   const [loading, setLoading] = useState(true);
   const [stories, setStories] = useState([]);
   const [showContribute, setShowContribute] = useState(false);
+  const [showBulkUpload, setShowBulkUpload] = useState(false);
   const [activeFilter, setActiveFilter] = useState("all");
   // A ?token= from an approved access request. null while unchecked, then
   // true/false once validated against access_requests — an invalid/missing/
@@ -393,6 +394,17 @@ export function MemorialPage({ inviteCode, showToast, onNavigate, currentUser })
     setStories(data?.contributions || []);
     setCodeVerified(!!data?.code_verified);
     setLoading(false);
+  };
+
+  // Same fetch as loadMemorial, minus the full-page loading spinner — used
+  // after the share/bulk-upload modals close so a memory just added (or a
+  // whole batch, from bulk upload) shows up in the grid right away instead
+  // of waiting for a manual page reload.
+  const refreshStories = async () => {
+    const code = codeVerified ? (codeAttempt || new URLSearchParams(window.location.search).get("code")) : null;
+    const { data } = await supabase.rpc("get_memorial_page", { p_identifier: inviteCode, p_code: code || null });
+    if (data?.memorial) setMemorial(data.memorial);
+    setStories(data?.contributions || []);
   };
 
   const handleCodeSubmit = async (e) => {
@@ -539,6 +551,15 @@ export function MemorialPage({ inviteCode, showToast, onNavigate, currentUser })
           ) : (
             <p className="hero-cta-note">{contributeState === "closed" ? closedNote : "This page isn't open for contributions yet — check back soon."}</p>
           )}
+          {/* Bulk path — mainly for the steward populating a brand-new page
+              with a batch of photos/videos before sharing it, but open to
+              anyone who can contribute at all, same gating as the single
+              "Add Your Memory" flow above. */}
+          {contributeState === "share" && (
+            <button type="button" className="bulk-upload-link" onClick={() => setShowBulkUpload(true)}>
+              Add multiple photos &amp; videos at once
+            </button>
+          )}
         </div>
       </header>
 
@@ -612,8 +633,25 @@ export function MemorialPage({ inviteCode, showToast, onNavigate, currentUser })
           showToast={showToast}
           onClose={async () => {
             setShowContribute(false);
+            await refreshStories();
             // Just used their last free memory — surface the upgrade
             // prompt now rather than waiting for their next add attempt.
+            if ((await refreshFreeContributionCount()) >= FREE_MEMORY_LIMIT) setShowMemoryLimit(true);
+          }}
+          contributeToken={tokenValid ? contributeToken : null}
+          requireCode={codeRequiredToContribute}
+          verifiedCode={codeVerified ? codeAttempt || new URLSearchParams(window.location.search).get("code") : null}
+        />
+      )}
+
+      {showBulkUpload && (
+        <BulkUploadModal
+          memorial={memorial}
+          showToast={showToast}
+          freeSlotsLeft={memorial.is_paid ? Infinity : Math.max(0, FREE_MEMORY_LIMIT - freeContributionCount)}
+          onClose={async () => {
+            setShowBulkUpload(false);
+            await refreshStories();
             if ((await refreshFreeContributionCount()) >= FREE_MEMORY_LIMIT) setShowMemoryLimit(true);
           }}
           contributeToken={tokenValid ? contributeToken : null}
@@ -1594,6 +1632,248 @@ function QuestionAttachOptions({
       <button type="button" className="share-attach-btn" onClick={() => setAvRecording(true)}>Record a voice memo</button>
       <button type="button" className="share-attach-btn" onClick={onAvClick}>Upload audio or video</button>
       <button type="button" className="share-attach-btn" onClick={onLinkClick}>+ Add a link</button>
+    </div>
+  );
+}
+
+const BULK_MAX_FILES = 40; // sane ceiling per batch — big enough to empty a phone's camera roll, small enough not to choke the browser tab
+const bulkExt = (name, fallback) => (name && name.includes(".") ? name.split(".").pop() : fallback);
+
+// "Add multiple photos & videos" — mainly for a steward populating a brand
+// new page before sharing it broadly (per the design brief, that's the
+// critical case: it should be as close to zero-friction as picking files
+// and clicking one button), but open to anyone who can contribute at all.
+// One name/email signed once for the whole batch — no per-file caption or
+// relationship picker, no question prompts; each accepted file becomes its
+// own ordinary memory (same "contributions" row shape ShareMemoryModal
+// writes), just without text. Deliberately not a rebuild of that modal's
+// question-bank flow — this is the fast path around it.
+function BulkUploadModal({ memorial, showToast, onClose, contributeToken, requireCode, verifiedCode, freeSlotsLeft }) {
+  useScrollLock();
+  const [items, setItems] = useState([]); // { id, file, kind: 'photo'|'video', preview, status, error }
+  const [contributorName, setContributorName] = useState("");
+  const [contributorEmail, setContributorEmail] = useState("");
+  const [accessCodeInput, setAccessCodeInput] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const [attempted, setAttempted] = useState(false); // true once a batch has been run at least once
+  const fileInputRef = useRef();
+
+  const addFiles = async (fileList) => {
+    const incoming = Array.from(fileList).filter((f) => f.type.startsWith("image/") || f.type.startsWith("video/"));
+    if (!incoming.length) return;
+    const room = BULK_MAX_FILES - items.length;
+    if (room <= 0) { showToast(`You can add up to ${BULK_MAX_FILES} at a time.`, "error"); return; }
+    const accepted = incoming.slice(0, room);
+    if (incoming.length > accepted.length) showToast(`You can add up to ${BULK_MAX_FILES} at a time — the rest weren't added.`, "error");
+    const withPreviews = await Promise.all(accepted.map(async (file) => ({
+      id: uid(),
+      file,
+      kind: file.type.startsWith("video/") ? "video" : "photo",
+      preview: await fileToDataURL(file),
+      status: "pending", // pending | uploading | done | error | skipped
+      error: null,
+    })));
+    setItems((cur) => [...cur, ...withPreviews]);
+  };
+
+  const removeItem = (id) => setItems((cur) => cur.filter((it) => it.id !== id));
+
+  const onDrop = (e) => {
+    e.preventDefault();
+    setDragOver(false);
+    addFiles(e.dataTransfer.files);
+  };
+
+  const doneCount = items.filter((it) => it.status === "done").length;
+  const failedCount = items.filter((it) => it.status === "error" || it.status === "skipped").length;
+  const pendingCount = items.filter((it) => it.status === "pending").length;
+
+  const uploadOne = async (item) => {
+    let type, mediaUrl, secondaryMediaUrl = null, cropX = null, cropY = null;
+    if (item.kind === "video") {
+      if (!(await shareVideoWithinCap(item.file))) throw new Error("Over 60 seconds — trim it and try again.");
+      type = "video";
+      const finalFile = await compressVideo(item.file);
+      const poster = await generateVideoPoster(finalFile);
+      const id = uid();
+      const path = `contributions/${memorial.invite_code}/${id}.${bulkExt(finalFile.name, "mp4")}`;
+      mediaUrl = await uploadFileWithProgress("memorial-media", path, finalFile, finalFile.type || "video/mp4");
+      if (poster) {
+        const posterPath = `contributions/${memorial.invite_code}/${id}-poster.jpg`;
+        const { error: posterErr } = await supabase.storage.from("memorial-media").upload(posterPath, poster);
+        if (!posterErr) secondaryMediaUrl = supabase.storage.from("memorial-media").getPublicUrl(posterPath).data?.publicUrl;
+      }
+    } else {
+      type = "photo";
+      const cropPos = await detectCropPosition(item.file);
+      cropX = cropPos.x;
+      cropY = cropPos.y;
+      const path = `contributions/${memorial.invite_code}/${uid()}.${bulkExt(item.file.name, "jpg")}`;
+      const { error: upErr } = await supabase.storage.from("memorial-media").upload(path, item.file);
+      if (upErr) throw upErr;
+      mediaUrl = supabase.storage.from("memorial-media").getPublicUrl(path).data?.publicUrl;
+    }
+
+    const row = {
+      memorial_id: memorial.id,
+      contributor_name: contributorName.trim() || "Someone",
+      contributor_relation: null,
+      contributor_email: contributorEmail.trim() || null,
+      type,
+      subtype: null,
+      tags: [],
+      text: null,
+      media_url: mediaUrl,
+      secondary_media_url: secondaryMediaUrl,
+      status: memorial.require_approval ? "pending" : "approved",
+      crop_x: cropX,
+      crop_y: cropY,
+      link_meta: null,
+      submitted_code: verifiedCode || accessCodeInput.trim() || null,
+    };
+
+    // Pending rows are hidden from anonymous contributors by RLS (same
+    // reasoning as ShareMemoryModal's own insert) — don't ask for them back.
+    if (memorial.require_approval) {
+      const { error } = await supabase.from("contributions").insert(row);
+      if (error) throw error;
+      return null;
+    }
+    const { data: inserted, error } = await supabase.from("contributions").insert(row).select("id");
+    if (error) throw error;
+    return inserted?.[0]?.id || null;
+  };
+
+  const handleSubmit = async () => {
+    if (contributorEmail.trim() && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(contributorEmail.trim())) { showToast("That email doesn't look right.", "error"); return; }
+    if (requireCode && !verifiedCode && !accessCodeInput.trim()) { showToast("Please enter the access code.", "error"); return; }
+    const toRun = items.filter((it) => it.status === "pending" || it.status === "error");
+    if (!toRun.length) { showToast("Choose some photos or videos first.", "error"); return; }
+
+    setAttempted(true);
+    setSubmitting(true);
+    let slotsLeft = freeSlotsLeft;
+    let addedCount = 0;
+    let lastInsertedId = null;
+
+    for (const item of toRun) {
+      if (slotsLeft <= 0) {
+        setItems((cur) => cur.map((it) => (it.id === item.id ? { ...it, status: "skipped", error: "Free limit reached" } : it)));
+        continue;
+      }
+      setItems((cur) => cur.map((it) => (it.id === item.id ? { ...it, status: "uploading", error: null } : it)));
+      try {
+        const insertedId = await uploadOne(item);
+        if (insertedId) lastInsertedId = insertedId;
+        slotsLeft -= 1;
+        addedCount += 1;
+        setItems((cur) => cur.map((it) => (it.id === item.id ? { ...it, status: "done" } : it)));
+      } catch (e) {
+        setItems((cur) => cur.map((it) => (it.id === item.id ? { ...it, status: "error", error: e.message || "Upload failed." } : it)));
+      }
+    }
+
+    if (addedCount > 0) {
+      notifyCreator(memorial.id);
+      if (contributorEmail.trim() && lastInsertedId) sendThankYou(lastInsertedId);
+      trackEvent("memory_submitted", { content_type: "bulk_upload", count: addedCount });
+      if (contributeToken) {
+        supabase.from("access_requests").update({ token_used_at: new Date().toISOString() })
+          .eq("contribute_token", contributeToken).is("token_used_at", null).then(() => {});
+      }
+    }
+    setSubmitting(false);
+    if (addedCount === toRun.length) showToast(`Added ${addedCount} ${addedCount === 1 ? "memory" : "memories"}.`);
+    else if (addedCount > 0) showToast(`Added ${addedCount} of ${toRun.length} — see below for what didn't go through.`, "error");
+    else showToast("Nothing uploaded — see below for details.", "error");
+  };
+
+  return (
+    <div className="share-modal-overlay fade-in" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="share-modal bulk-upload-modal" role="dialog" aria-label={`Add multiple photos or videos of ${memorial.name}`}>
+        <button type="button" className="share-modal-close" aria-label="Close" onClick={onClose}>&times;</button>
+        <div className="share-modal-eyebrow">Add multiple at once</div>
+        <h2>Populate the page in one go</h2>
+
+        <div
+          className={`bulk-drop-zone${dragOver ? " drag-over" : ""}`}
+          onClick={() => fileInputRef.current?.click()}
+          onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={onDrop}
+        >
+          <p>Drag photos &amp; videos here, or click to choose</p>
+          <span className="bulk-drop-zone-hint">You can pick as many as you'd like — up to {BULK_MAX_FILES} at a time.</span>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*,video/*"
+            multiple
+            style={{ display: "none" }}
+            onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }}
+          />
+        </div>
+
+        {items.length > 0 && (
+          <div className="bulk-thumb-grid">
+            {items.map((it) => (
+              <div className={`bulk-thumb bulk-thumb-${it.status}`} key={it.id}>
+                {it.kind === "video" ? (
+                  <video src={it.preview} muted />
+                ) : (
+                  <img src={it.preview} alt="" />
+                )}
+                {it.status === "pending" && (
+                  <button type="button" className="bulk-thumb-remove" aria-label="Remove" onClick={() => removeItem(it.id)}>&times;</button>
+                )}
+                {it.status === "uploading" && <span className="bulk-thumb-status"><span className="spinner" /></span>}
+                {it.status === "done" && <span className="bulk-thumb-status bulk-thumb-check" aria-hidden="true">&#10003;</span>}
+                {(it.status === "error" || it.status === "skipped") && (
+                  <span className="bulk-thumb-status bulk-thumb-error" title={it.error || "Couldn't add this one."}>!</span>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {items.length > 0 && (
+          <>
+            <div className="share-signature-divider" />
+            <div className="share-signature">
+              <div className="share-signature-field">
+                <label>Your name</label>
+                <input className="share-signature-input" placeholder="Optional" value={contributorName} onChange={(e) => setContributorName(e.target.value)} />
+              </div>
+              <div className="share-signature-field">
+                <label>Your email</label>
+                <input className="share-signature-input" type="email" placeholder="Optional — for a thank-you note" value={contributorEmail} onChange={(e) => setContributorEmail(e.target.value)} />
+              </div>
+              {requireCode && !verifiedCode && (
+                <div className="share-signature-field">
+                  <label>Access code</label>
+                  <input className="share-signature-input" value={accessCodeInput} onChange={(e) => setAccessCodeInput(e.target.value)} />
+                </div>
+              )}
+            </div>
+
+            {attempted && failedCount > 0 && (
+              <p className="bulk-upload-note">
+                {doneCount} added, {failedCount} didn't go through
+                {items.some((it) => it.status === "skipped") ? " (free limit reached — upgrade to add the rest)" : " — remove them or try again"}.
+              </p>
+            )}
+
+            <button type="button" className="btn btn-rust share-submit-btn" onClick={handleSubmit} disabled={submitting || pendingCount + failedCount === 0}>
+              {submitting ? <span className="spinner" /> : `Add ${pendingCount + (attempted ? failedCount : 0)} ${pendingCount + (attempted ? failedCount : 0) === 1 ? "memory" : "memories"}`}
+            </button>
+          </>
+        )}
+
+        {attempted && doneCount > 0 && pendingCount === 0 && failedCount === 0 && (
+          <button type="button" className="btn btn-ghost share-submit-btn" style={{ marginTop: 10 }} onClick={onClose}>Done</button>
+        )}
+      </div>
     </div>
   );
 }

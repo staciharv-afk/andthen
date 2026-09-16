@@ -868,6 +868,29 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
   .share-signature-field label { width: auto; }
 }
 
+/* -- "Add multiple photos & videos" entry point + modal — same token
+   family as the rest of the share-a-memory system it sits alongside. -- */
+.bulk-upload-link { display: inline-block; margin-top: 14px; font-family: 'DM Sans', sans-serif; font-size: 0.82rem; color: var(--mem-rose); text-decoration: underline; background: none; border: none; cursor: pointer; }
+.bulk-upload-link:hover { color: #a8434b; }
+
+.bulk-upload-modal { max-width: 560px; }
+
+.bulk-drop-zone { border: 1.5px dashed rgba(44,36,32,0.22); border-radius: 8px; padding: 28px 20px; text-align: center; cursor: pointer; transition: border-color 0.15s ease, background 0.15s ease; margin-top: 4px; }
+.bulk-drop-zone:hover, .bulk-drop-zone.drag-over { border-color: var(--mem-rose); background: rgba(193,81,90,0.04); }
+.bulk-drop-zone p { margin: 0 0 4px; font-size: 14px; color: var(--mem-ink); font-weight: 500; }
+.bulk-drop-zone-hint { font-size: 12px; color: var(--mem-ink-soft); }
+
+.bulk-thumb-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 8px; margin-top: 16px; }
+.bulk-thumb { position: relative; aspect-ratio: 1; border-radius: 4px; overflow: hidden; background: var(--mem-paper-deep); }
+.bulk-thumb img, .bulk-thumb video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.bulk-thumb-remove { position: absolute; top: 3px; right: 3px; width: 20px; height: 20px; border-radius: 50%; border: none; background: rgba(26,14,8,0.65); color: #fff; font-size: 14px; line-height: 1; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.bulk-thumb-status { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(26,14,8,0.45); }
+.bulk-thumb-check { color: #fff; font-size: 20px; font-weight: 700; background: rgba(110,127,92,0.75); }
+.bulk-thumb-error { color: #fff; font-size: 16px; font-weight: 700; background: rgba(192,57,43,0.75); cursor: help; }
+.bulk-thumb-done img, .bulk-thumb-done video { opacity: 0.9; }
+
+.bulk-upload-note { font-size: 12.5px; color: var(--mem-ink-soft); margin: 14px 0 0; }
+
 .share-thanks-icon { width: 44px; height: 44px; border-radius: 50%; background: var(--mem-rose); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 20px; margin: 0 auto 18px; }
 .share-thanks-text { text-align: center; font-size: 15px; color: var(--mem-ink-soft); margin-bottom: 24px; }
 .share-thanks-actions { display: flex; gap: 10px; }
