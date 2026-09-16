@@ -870,7 +870,7 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 
 /* -- "Add multiple photos & videos" entry point + modal — same token
    family as the rest of the share-a-memory system it sits alongside. -- */
-.bulk-upload-link { display: inline-block; margin-top: 14px; font-family: 'DM Sans', sans-serif; font-size: 0.82rem; color: var(--mem-rose); text-decoration: underline; background: none; border: none; cursor: pointer; }
+.bulk-upload-link { display: inline-block; margin: 14px 0; font-family: 'DM Sans', sans-serif; font-size: 0.82rem; color: var(--mem-rose); text-decoration: underline; background: none; border: none; cursor: pointer; }
 .bulk-upload-link:hover { color: #a8434b; }
 
 .bulk-upload-modal { max-width: 560px; }

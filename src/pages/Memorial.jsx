@@ -551,15 +551,6 @@ export function MemorialPage({ inviteCode, showToast, onNavigate, currentUser })
           ) : (
             <p className="hero-cta-note">{contributeState === "closed" ? closedNote : "This page isn't open for contributions yet — check back soon."}</p>
           )}
-          {/* Bulk path — mainly for the steward populating a brand-new page
-              with a batch of photos/videos before sharing it, but open to
-              anyone who can contribute at all, same gating as the single
-              "Add Your Memory" flow above. */}
-          {contributeState === "share" && (
-            <button type="button" className="bulk-upload-link" onClick={() => setShowBulkUpload(true)}>
-              Add multiple photos &amp; videos at once
-            </button>
-          )}
         </div>
       </header>
 
@@ -641,6 +632,7 @@ export function MemorialPage({ inviteCode, showToast, onNavigate, currentUser })
           contributeToken={tokenValid ? contributeToken : null}
           requireCode={codeRequiredToContribute}
           verifiedCode={codeVerified ? codeAttempt || new URLSearchParams(window.location.search).get("code") : null}
+          onSwitchToBulk={() => { setShowContribute(false); setShowBulkUpload(true); }}
         />
       )}
 
@@ -830,7 +822,7 @@ const uploadFileWithProgress = async (bucket, path, file, contentType, onProgres
 // nothing but the writing itself is a precondition to writing. Fully
 // remounts each time it opens (see showContribute in MemorialPage), which
 // is what gives a fresh open its collapsed-reveal state for free.
-export function ShareMemoryModal({ memorial, showToast, onClose, contributeToken, requireCode, verifiedCode }) {
+export function ShareMemoryModal({ memorial, showToast, onClose, contributeToken, requireCode, verifiedCode, onSwitchToBulk }) {
   useScrollLock();
   const subjectType = deriveSubjectType(memorial);
   const livingStatus = deriveLivingStatus(memorial);
@@ -1136,6 +1128,12 @@ export function ShareMemoryModal({ memorial, showToast, onClose, contributeToken
           {screen === "compose" && (
             <div>
               <div className="share-modal-eyebrow">SHARE A MEMORY OF {memorial.name.toUpperCase()}</div>
+
+              {onSwitchToBulk && (
+                <button type="button" className="bulk-upload-link" onClick={onSwitchToBulk}>
+                  Add multiple photos &amp; videos at once
+                </button>
+              )}
 
               {/* Relationship, inline as chips instead of its own screen.
                   No chip reads as selected until the contributor picks one
