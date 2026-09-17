@@ -264,9 +264,7 @@ export function HomePage({ onNavigate }) {
         <div className="page-wrap">
           <div className="mkt-hero">
             <div>
-              <div className="mkt-eyebrow fade-up"><span className="mkt-eyebrow-line" aria-hidden="true" />And Then…</div>
               <h1 className="mkt-hero-h1 fade-up-2">Every life deserves<br />to be well told.</h1>
-              <p className="mkt-hero-sub fade-up-2">For someone you love, told by everyone who loves them.</p>
               <p className="mkt-hero-body fade-up-3">
                 Everyone who loved them remembers something different. <em>And Then</em> brings it all together — into one page that keeps growing.
               </p>
