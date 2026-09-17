@@ -1391,7 +1391,7 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .mkt-story-closing-line { font-family: 'Playfair Display', serif; font-style: italic; font-weight: 500; font-size: 26px; color: var(--charcoal); margin-bottom: 24px; }
 
 /* ── Our Promise page ── */
-.mkt-promise-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin: 40px 0; }
+.mkt-promise-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin: 40px 0; }
 @media (max-width: 700px) { .mkt-promise-cards { grid-template-columns: 1fr; } }
 .mkt-promise-card { background: var(--sand); border-radius: 16px; padding: 28px; }
 .mkt-promise-card h3 { font-family: 'Playfair Display', serif; font-weight: 600; font-size: 19px; color: var(--charcoal); margin-bottom: 10px; }

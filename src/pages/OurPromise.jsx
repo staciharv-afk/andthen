@@ -12,6 +12,10 @@ const CARDS = [
     body: "Every photo, story, voicemail, and note belongs to you and the people you've shared it with — not to us. As the page's creator or steward, you can export everything on it, in full, at any point. No waiting, no gatekeeping.",
   },
   {
+    title: "We never sell it.",
+    body: "What's shared here is never sold, licensed, or used to train anything, ours or anyone else's. We don't run ads on this page, and we don't pass your data to anyone who does. It belongs to you and the people you've invited, and it exists for exactly one reason: so it can be found by the people who loved them.",
+  },
+  {
     title: "A real person is always reachable.",
     body: "If you ever have a question — about a memory, a setting, or anything else — email us. A person will write back, not a bot.",
   },
