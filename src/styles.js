@@ -562,13 +562,11 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
   outline: 3px solid var(--clay);
   outline-offset: 2px;
   box-shadow: 0 18px 40px -8px rgba(46,46,46,0.35);
-  animation: memTileWiggle 0.35s ease-out forwards;
+  animation: memTileWiggle 0.2s ease-out forwards;
 }
 @keyframes memTileWiggle {
-  0% { transform: scale(1) rotate(0deg); }
-  30% { transform: scale(1.06) rotate(-2deg); }
-  60% { transform: scale(1.06) rotate(2deg); }
-  100% { transform: scale(1.06) rotate(0deg); }
+  0% { transform: scale(1); }
+  100% { transform: scale(1.02); }
 }
 @media (prefers-reduced-motion: reduce) {
   .mem-tile:hover { animation: none; }
@@ -621,7 +619,7 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
    bar rendered in Caveat — see .mem-tile-card below. */
 .mem-tile-story { background: var(--sand); padding: 20px 18px 16px; align-items: flex-start; border-left: 3px solid var(--clay); }
 .mem-tile-quote-mark { font-family: 'Playfair Display', serif; font-style: italic; color: var(--clay); font-size: 2.4rem; line-height: 0.6; margin-bottom: 8px; display: block; }
-.mem-tile-story blockquote { margin: 0; font-family: 'Playfair Display', serif; font-style: italic; font-size: 0.85rem; line-height: 1.5; color: var(--charcoal); text-align: left; }
+.mem-tile-story blockquote { margin: 0; font-family: 'Inter', sans-serif; font-style: normal; font-size: 0.85rem; line-height: 1.55; color: var(--charcoal); text-align: left; }
 
 /* Caption reveal for a media entry with attached text — visible on
    :hover (desktop) or via the .revealed class MemoryTile toggles on
@@ -1236,11 +1234,7 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .mkt-collage-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; max-width: 440px; }
 @media (max-width: 900px) { .mkt-collage-grid { max-width: 420px; margin: 0 auto; } }
 .mkt-tile { position: relative; aspect-ratio: 1; border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; border: none; background: var(--ink-solid); padding: 0; margin: 0; text-align: left; font-family: inherit; cursor: pointer; box-shadow: 0 8px 20px rgba(46,46,46,0.16); transition: transform 0.2s; }
-.mkt-tile:nth-child(1) { transform: rotate(-1deg); }
-.mkt-tile:nth-child(2) { transform: rotate(1deg); }
-.mkt-tile:nth-child(3) { transform: rotate(1deg); }
-.mkt-tile:nth-child(4) { transform: rotate(-1deg); }
-.mkt-tile:hover { transform: rotate(0deg) translateY(-2px); }
+.mkt-tile:hover { transform: translateY(-2px); }
 .mkt-tile-body { flex: 1; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; background: var(--ink-solid); }
 .mkt-tile-body img, .mkt-tile-body video { width: 100%; height: 100%; object-fit: cover; }
 .mkt-tile-body.voicemail { background: var(--ink-solid); }
