@@ -6,6 +6,18 @@ import { CropAdjuster, coverSize, detectCropPosition, clamp } from "../component
 import { MemoryLimitModal } from "../components/MemoryLimitModal";
 import { useScrollLock } from "../lib/useScrollLock";
 
+// Reshuffled on every load (see loadMemorial/refreshStories) so a memorial
+// with no new activity still feels alive — visitors see the memories in a
+// different order each time they come back, even though nothing changed.
+function shuffled(arr) {
+  const copy = [...arr];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
 // An entry's `type` is the single format it was submitted as (photo/video/
 // voice/url/story), auto-derived from what was attached. Independently, an
 // entry can carry zero or more descriptive `tags` from a small fixed
@@ -391,7 +403,7 @@ export function MemorialPage({ inviteCode, showToast, onNavigate, currentUser })
     setLoading(true);
     const { data } = await supabase.rpc("get_memorial_page", { p_identifier: inviteCode, p_code: code || null });
     setMemorial(data?.memorial || null);
-    setStories(data?.contributions || []);
+    setStories(shuffled(data?.contributions || []));
     setCodeVerified(!!data?.code_verified);
     setLoading(false);
   };
@@ -404,7 +416,7 @@ export function MemorialPage({ inviteCode, showToast, onNavigate, currentUser })
     const code = codeVerified ? (codeAttempt || new URLSearchParams(window.location.search).get("code")) : null;
     const { data } = await supabase.rpc("get_memorial_page", { p_identifier: inviteCode, p_code: code || null });
     if (data?.memorial) setMemorial(data.memorial);
-    setStories(data?.contributions || []);
+    setStories(shuffled(data?.contributions || []));
   };
 
   const handleCodeSubmit = async (e) => {
@@ -1657,6 +1669,11 @@ function BulkUploadModal({ memorial, showToast, onClose, contributeToken, requir
   const [attempted, setAttempted] = useState(false); // true once a batch has been run at least once
   const fileInputRef = useRef();
 
+  // A bare <video src="..."> never paints a frame on its own on iOS Safari
+  // — it just shows blank/black until played — so a video's thumbnail is a
+  // real generated poster image (same helper the single-upload flow already
+  // uses), not the video file itself. Kept on the item and reused at upload
+  // time in uploadOne, rather than regenerated from the compressed file.
   const addFiles = async (fileList) => {
     const incoming = Array.from(fileList).filter((f) => f.type.startsWith("image/") || f.type.startsWith("video/"));
     if (!incoming.length) return;
@@ -1664,14 +1681,21 @@ function BulkUploadModal({ memorial, showToast, onClose, contributeToken, requir
     if (room <= 0) { showToast(`You can add up to ${BULK_MAX_FILES} at a time.`, "error"); return; }
     const accepted = incoming.slice(0, room);
     if (incoming.length > accepted.length) showToast(`You can add up to ${BULK_MAX_FILES} at a time — the rest weren't added.`, "error");
-    const withPreviews = await Promise.all(accepted.map(async (file) => ({
-      id: uid(),
-      file,
-      kind: file.type.startsWith("video/") ? "video" : "photo",
-      preview: await fileToDataURL(file),
-      status: "pending", // pending | uploading | done | error | skipped
-      error: null,
-    })));
+    const withPreviews = await Promise.all(accepted.map(async (file) => {
+      const isVideo = file.type.startsWith("video/");
+      const posterFile = isVideo ? await generateVideoPoster(file) : null;
+      return {
+        id: uid(),
+        file,
+        kind: isVideo ? "video" : "photo",
+        posterFile,
+        preview: isVideo
+          ? (posterFile ? URL.createObjectURL(posterFile) : null)
+          : await fileToDataURL(file),
+        status: "pending", // pending | uploading | done | error | skipped
+        error: null,
+      };
+    }));
     setItems((cur) => [...cur, ...withPreviews]);
   };
 
@@ -1693,7 +1717,10 @@ function BulkUploadModal({ memorial, showToast, onClose, contributeToken, requir
       if (!(await shareVideoWithinCap(item.file))) throw new Error("Over 60 seconds — trim it and try again.");
       type = "video";
       const finalFile = await compressVideo(item.file);
-      const poster = await generateVideoPoster(finalFile);
+      // Reuse the poster generated back in addFiles (from the original,
+      // uncompressed file) rather than regenerating it from finalFile —
+      // same visual content, no reason to do the work twice.
+      const poster = item.posterFile;
       const id = uid();
       const path = `contributions/${memorial.invite_code}/${id}.${bulkExt(finalFile.name, "mp4")}`;
       mediaUrl = await uploadFileWithProgress("memorial-media", path, finalFile, finalFile.type || "video/mp4");
@@ -1817,10 +1844,10 @@ function BulkUploadModal({ memorial, showToast, onClose, contributeToken, requir
           <div className="bulk-thumb-grid">
             {items.map((it) => (
               <div className={`bulk-thumb bulk-thumb-${it.status}`} key={it.id}>
-                {it.kind === "video" ? (
-                  <video src={it.preview} muted />
-                ) : (
+                {it.preview ? (
                   <img src={it.preview} alt="" />
+                ) : (
+                  <span className="bulk-thumb-fallback" aria-hidden="true">{it.kind === "video" ? "🎬" : "🖼️"}</span>
                 )}
                 {it.status === "pending" && (
                   <button type="button" className="bulk-thumb-remove" aria-label="Remove" onClick={() => removeItem(it.id)}>&times;</button>
