@@ -895,6 +895,7 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .bulk-thumb-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 8px; margin-top: 16px; }
 .bulk-thumb { position: relative; aspect-ratio: 1; border-radius: 4px; overflow: hidden; background: var(--mem-paper-deep); }
 .bulk-thumb img, .bulk-thumb video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.bulk-thumb-fallback { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 24px; }
 .bulk-thumb-remove { position: absolute; top: 3px; right: 3px; width: 20px; height: 20px; border-radius: 50%; border: none; background: rgba(26,14,8,0.65); color: #fff; font-size: 14px; line-height: 1; display: flex; align-items: center; justify-content: center; cursor: pointer; }
 .bulk-thumb-status { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(26,14,8,0.45); }
 .bulk-thumb-check { color: #fff; font-size: 20px; font-weight: 700; background: rgba(110,127,92,0.75); }
