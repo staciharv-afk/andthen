@@ -21,13 +21,14 @@ import { AdminPage } from "./pages/Admin";
 import { PricingPage } from "./pages/Pricing";
 import { OurStoryPage } from "./pages/OurStory";
 import { OurPromisePage } from "./pages/OurPromise";
+import { PrivacyPage } from "./pages/Privacy";
 import { HowItWorksPage } from "./pages/HowItWorks";
 import { ClaimGiftPage } from "./pages/ClaimGift";
 
 // Routes that get the brand-refreshed Nav — the marketing surface
 // (homepage + the four informational pages). Everything else (dashboard,
 // editing, admin) keeps the original nav.
-const MARKETING_ROUTES = new Set(["home", "pricing", "story", "our-promise", "how-it-works"]);
+const MARKETING_ROUTES = new Set(["home", "pricing", "story", "our-promise", "how-it-works", "privacy"]);
 
 export default function App() {
   const [route, setRoute] = useState(() => parseLocation().page);
@@ -287,6 +288,8 @@ export default function App() {
       {route === "story" && <OurStoryPage onNavigate={navigate} />}
 
       {route === "our-promise" && <OurPromisePage onNavigate={navigate} />}
+
+      {route === "privacy" && <PrivacyPage onNavigate={navigate} />}
 
       {route === "how-it-works" && <HowItWorksPage onNavigate={navigate} />}
 

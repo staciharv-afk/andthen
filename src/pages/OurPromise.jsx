@@ -67,7 +67,7 @@ export function OurPromisePage({ onNavigate }) {
         <div className="mkt-footer-links">
           <button className="mkt-footer-link" onClick={() => onNavigate("home")}>Home</button>
           <button className="mkt-footer-link" onClick={() => onNavigate("our-promise")}>Our Promise</button>
-          <button className="mkt-footer-link">Privacy</button>
+          <button className="mkt-footer-link" onClick={() => onNavigate("privacy")}>Privacy</button>
           <button className="mkt-footer-link">Contact</button>
         </div>
         <div className="mkt-footer-copy">© 2026 And Then</div>

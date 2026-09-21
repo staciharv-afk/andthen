@@ -1427,6 +1427,31 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .mkt-form-input:focus { outline: none; border-color: var(--sage); }
 .mkt-form-error { font-family: 'Inter', sans-serif; font-size: 13.5px; color: #A9483C; }
 
+/* -- Privacy policy / legal text -- */
+.mkt-legal { max-width: 680px; margin-top: 8px; }
+.mkt-legal section { margin-top: 44px; }
+.mkt-legal section:first-child { margin-top: 0; }
+.mkt-legal h2 { font-family: 'Playfair Display', serif; font-style: italic; font-weight: 600; font-size: 22px; color: var(--charcoal); margin-bottom: 14px; }
+.mkt-legal p { font-size: 15px; line-height: 1.7; color: var(--charcoal-muted); margin-bottom: 14px; }
+.mkt-legal p:last-child { margin-bottom: 0; }
+.mkt-legal p strong { color: var(--charcoal); font-weight: 600; }
+.mkt-legal a { color: var(--sage-deep); }
+.mkt-legal ul { margin: 0 0 14px; padding-left: 22px; }
+.mkt-legal ul:last-child { margin-bottom: 0; }
+.mkt-legal li { font-size: 15px; line-height: 1.7; color: var(--charcoal-muted); margin-bottom: 8px; }
+.mkt-legal li:last-child { margin-bottom: 0; }
+.mkt-inline-link { display: inline; background: none; border: none; padding: 0; margin: 0; font: inherit; color: var(--sage-deep); text-decoration: underline; cursor: pointer; }
+
+.mkt-legal-table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px; }
+.mkt-legal-table th, .mkt-legal-table td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--sand); vertical-align: top; }
+.mkt-legal-table th { font-family: 'Inter', sans-serif; font-weight: 600; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--clay-deep); }
+.mkt-legal-table td { color: var(--charcoal-muted); }
+.mkt-legal-table td:first-child { color: var(--charcoal); font-weight: 600; white-space: nowrap; }
+@media (max-width: 600px) {
+  .mkt-legal-table { font-size: 13px; }
+  .mkt-legal-table th, .mkt-legal-table td { padding: 8px 10px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .mkt-pay-card { transition: none; }
 }
