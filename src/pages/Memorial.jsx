@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from "../lib/supabase";
 import { uid, fmtDate, timeAgo, fileToDataURL, fmtTime, sendThankYou, notifyCreator, FREE_MEMORY_LIMIT, memorialUrl } from "../lib/utils";
 import { trackEvent } from "../lib/analytics";
-import { CropAdjuster, coverSize, detectCropPosition, clamp } from "../components/CropAdjuster";
+import { detectCropPosition } from "../components/CropAdjuster";
 import { MemoryLimitModal } from "../components/MemoryLimitModal";
 import { useScrollLock } from "../lib/useScrollLock";
 
@@ -285,27 +285,18 @@ function deriveModerationMode(memorial) {
   return memorial.require_approval ? "moderated" : "auto";
 }
 
-const shareRelationshipKey = (memorialId) => `andthen_share_relationship_${memorialId}`;
-
-// A stored relationship only counts as valid if it's still one of the
-// current subject type's relationship options — guards against a stale
-// value from before a steward correction changed born/passed and flipped
-// the derived subjectType out from under it.
-function loadStoredRelationship(memorialId, subjectType, relationships) {
-  const raw = localStorage.getItem(shareRelationshipKey(memorialId));
-  if (!raw) return null;
-  const [savedSubject, savedRel] = raw.split(":");
-  if (savedSubject !== subjectType) return null;
-  return relationships.some((r) => r.id === savedRel) ? savedRel : null;
-}
-function storeRelationship(memorialId, subjectType, relId) {
-  localStorage.setItem(shareRelationshipKey(memorialId), `${subjectType}:${relId}`);
-}
-
 export function MemorialPage({ inviteCode, showToast, onNavigate, currentUser }) {
   const [memorial, setMemorial] = useState(null);
   const [loading, setLoading] = useState(true);
   const [stories, setStories] = useState([]);
+  // ShareMemoryModal is mounted once (contributeMounted) and then kept in
+  // the tree for the rest of this page visit — contributeOpen just toggles
+  // its visibility. That's what lets a contributor's draft (including a
+  // picked photo/video File, which can't be serialized to storage) survive
+  // "see what others have shared" and "see all memories" round trips
+  // without being rebuilt from scratch. See ShareMemoryModal's own header
+  // comment for the full reasoning.
+  const [contributeMounted, setContributeMounted] = useState(false);
   const [showContribute, setShowContribute] = useState(false);
   const [showBulkUpload, setShowBulkUpload] = useState(false);
   const [activeFilter, setActiveFilter] = useState("all");
@@ -389,7 +380,7 @@ export function MemorialPage({ inviteCode, showToast, onNavigate, currentUser })
     refreshFreeContributionCount();
   }, [memorial?.id, memorial?.is_paid, isOwner]);
 
-  const openContribute = () => setShowContribute(true);
+  const openContribute = () => { setContributeMounted(true); setShowContribute(true); };
 
   // The URL param may be the invite code (?memorial=<code>) or a custom
   // vanity slug (myandthen.com/<slug>) — get_memorial_page() tries both
@@ -620,6 +611,11 @@ export function MemorialPage({ inviteCode, showToast, onNavigate, currentUser })
                     ? <>You've added the {FREE_MEMORY_LIMIT} memories included free. Upgrade to add more, and invite others to help gather memories too.</>
                     : <>This page isn't open to contributions yet.</>}
         </p>
+        {contributeState === "share" && (
+          <button type="button" className="bulk-upload-link" onClick={() => setShowBulkUpload(true)}>
+            Add multiple photos &amp; videos at once
+          </button>
+        )}
       </footer>
 
       <div className="mem-footer">
@@ -630,21 +626,25 @@ export function MemorialPage({ inviteCode, showToast, onNavigate, currentUser })
         <p className="mem-footer-tagline">A living memorial — built one memory at a time.</p>
       </div>
 
-      {showContribute && (
+      {contributeMounted && (
         <ShareMemoryModal
           memorial={memorial}
           showToast={showToast}
+          open={showContribute}
+          stories={stories}
+          // Just hides the sheet — refreshStories already ran from
+          // onSubmitted the moment a memory was actually added, so this is
+          // only about the free-tier upgrade nudge, which stays deferred to
+          // an actual close (not mid-thanks-screen) same as before.
           onClose={async () => {
             setShowContribute(false);
-            await refreshStories();
-            // Just used their last free memory — surface the upgrade
-            // prompt now rather than waiting for their next add attempt.
             if ((await refreshFreeContributionCount()) >= FREE_MEMORY_LIMIT) setShowMemoryLimit(true);
           }}
+          onViewAllMemories={() => setShowContribute(false)}
+          onSubmitted={refreshStories}
           contributeToken={tokenValid ? contributeToken : null}
           requireCode={codeRequiredToContribute}
           verifiedCode={codeVerified ? codeAttempt || new URLSearchParams(window.location.search).get("code") : null}
-          onSwitchToBulk={() => { setShowContribute(false); setShowBulkUpload(true); }}
         />
       )}
 
@@ -826,197 +826,206 @@ const uploadFileWithProgress = async (bucket, path, file, contentType, onProgres
   return supabase.storage.from(bucket).getPublicUrl(path).data?.publicUrl;
 };
 
-// "Share a memory" modal — one screen, progressive reveal. Opens straight
-// to the compose screen: a relationship-tailored, tense-aware prompt
-// (SHARE_QUESTION_BANK) sits above an always-focusable textarea, and the
-// attach row / type-record toggle / signature fields / submit button stay
-// visually collapsed until the contributor actually starts typing, so
-// nothing but the writing itself is a precondition to writing. Fully
-// remounts each time it opens (see showContribute in MemorialPage), which
-// is what gives a fresh open its collapsed-reveal state for free.
-export function ShareMemoryModal({ memorial, showToast, onClose, contributeToken, requireCode, verifiedCode, onSwitchToBulk }) {
-  useScrollLock();
+// Turns a contributor-typed string into a real absolute URL, defaulting to
+// https:// when no scheme was typed (e.g. "site.com/obituary") — the same
+// forgiving parse a browser address bar does, so "That doesn't look like a
+// link" only fires on genuinely malformed input, not a missing "https://".
+function normalizeShareUrl(input) {
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+  const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  try {
+    const url = new URL(withScheme);
+    if (!url.hostname.includes(".")) return null; // rejects e.g. "https://asdf"
+    return url;
+  } catch { return null; }
+}
+
+// Draft autosave key — scoped per memorial, not per contributor, since a
+// contributor isn't signed in. Only ever read/written from the same browser
+// tab session (sessionStorage), and only holds plain serializable fields
+// (never File objects) — see the ShareMemoryModal header comment for why
+// attachments are carried a different way.
+const shareDraftKey = (memorialId) => `andthen_share_draft_${memorialId}`;
+function loadShareDraft(memorialId) {
+  try { return JSON.parse(sessionStorage.getItem(shareDraftKey(memorialId)) || "null"); }
+  catch { return null; }
+}
+function saveShareDraft(memorialId, draft) {
+  try { sessionStorage.setItem(shareDraftKey(memorialId), JSON.stringify(draft)); } catch { /* storage unavailable — draft just won't survive a reload */ }
+}
+
+// "Share a memory" — a single full-screen sheet on mobile (a centered card
+// on desktop). Nothing is a precondition to writing: the textarea is
+// focused immediately, no question is shown until asked for, and no
+// relationship chip is ever preselected.
+//
+// This component is mounted once per page visit and kept alive for the rest
+// of it (see contributeMounted in MemorialPage) — it never unmounts just
+// because the sheet is hidden. That's deliberate: "See what others have
+// shared" and "See all N memories" both send the contributor away from the
+// compose screen (in-sheet for the former, out to the grid for the latter),
+// and the spec requires their draft — including any photo/video File
+// they've already picked — to still be there when they come back. A File
+// can't survive being serialized to storage, so keeping the component
+// instance alive (rather than a snapshot-and-restore dance) is what
+// actually guarantees that. The sessionStorage draft below is a secondary,
+// text-only safety net purely for a real page reload — it can't help with
+// attachments either, for the same reason.
+export function ShareMemoryModal({ memorial, showToast, open, onClose, onViewAllMemories, onSubmitted, stories, contributeToken, requireCode, verifiedCode }) {
+  useScrollLock(open);
   const subjectType = deriveSubjectType(memorial);
   const livingStatus = deriveLivingStatus(memorial);
   const moderationMode = deriveModerationMode(memorial);
   const firstName = memorial.name.split(" ")[0];
   const relationships = SHARE_QUESTION_BANK[subjectType].relationships;
-  const universal = SHARE_QUESTION_BANK[subjectType].universal;
-  const universalTexts = universal.map((u) => u.text);
-  const universalKindMap = Object.fromEntries(universal.map((u) => [u.text, u.kind]));
+  const universalTexts = SHARE_QUESTION_BANK[subjectType].universal.map((u) => u.text);
 
-  const [screen, setScreen] = useState("compose"); // compose | thanks
-  // Prefilled from a prior visit exactly like the old "ready to share" path
-  // did — null (no chip shown selected) if nothing was stored yet.
-  const [relationship, setRelationship] = useState(() => loadStoredRelationship(memorial.id, subjectType, relationships));
+  const storedDraft = useRef(loadShareDraft(memorial.id)).current;
+
+  const [screen, setScreen] = useState("compose"); // compose | preview | thanks
+  // Never prefilled as "selected" from a past visit — only ever set by the
+  // contributor tapping a chip in this session (including one restored from
+  // this same session's autosaved draft, which isn't a preselection so much
+  // as not discarding what they'd already chosen a moment ago).
+  const [relationship, setRelationship] = useState(storedDraft?.relationship || null);
+  const [otherRelationshipText, setOtherRelationshipText] = useState(storedDraft?.otherRelationshipText || "");
+  const [questionRequested, setQuestionRequested] = useState(false);
   const [questionIndex, setQuestionIndex] = useState(0);
 
-  const [contributorName, setContributorName] = useState("");
-  const [contributorEmail, setContributorEmail] = useState("");
+  const [name, setName] = useState(storedDraft?.name || "");
   const [accessCodeInput, setAccessCodeInput] = useState("");
-  const [answerText, setAnswerText] = useState("");
-  const [answerMode, setAnswerMode] = useState("type"); // "type" | "record" — general questions only
-  const [attachment, setAttachment] = useState(null); // { kind: 'photo'|'video'|'voice'|'link', ... } | null
-  const [isRecipe, setIsRecipe] = useState(false); // optional "recipe or document" flag — feeds tags: ['Recipe'] (photo attachment or a typed written story)
-  const [avRecording, setAvRecording] = useState(false); // showing the inline recorder within the "type it out" attach row
-  const [recordPhoto, setRecordPhoto] = useState(null); // { file, preview, cropPos } | null — "record it" mode's "Add a photo too"
-  const [showCropAdjuster, setShowCropAdjuster] = useState(false);
+  const [text, setText] = useState(storedDraft?.text || "");
+  const [attachment, setAttachment] = useState(null); // { kind: 'photo'|'video', ... } | null — File objects, so never persisted
+  const [linkOpen, setLinkOpen] = useState(storedDraft?.linkOpen || false);
+  const [linkUrl, setLinkUrl] = useState(storedDraft?.linkUrl || "");
+  const [linkPreview, setLinkPreview] = useState(null);
+  const [linkLoading, setLinkLoading] = useState(false);
+  const [compressingVideo, setCompressingVideo] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [compressingVideo, setCompressingVideo] = useState(false); // re-encoding an oversized video before it becomes the attachment
-  const [uploadProgress, setUploadProgress] = useState(null); // 0-1 while the video's main file is uploading, else null
+  const [uploadProgress, setUploadProgress] = useState(null); // 0-1 while a video uploads, else null
+  const [errors, setErrors] = useState({});
+  const [justSubmitted, setJustSubmitted] = useState(null); // tile-shaped object for the thanks screen
 
-  const photoInputRef = useRef();
-  const videoInputRef = useRef();
-  const audioInputRef = useRef();
-  const avInputRef = useRef();
-  const recordPhotoInputRef = useRef();
-  const videoPreviewRef = useRef(); // the <video> shown in the attach row, so "use this frame" can read its scrub position
+  const photoVideoInputRef = useRef();
+  const textareaRef = useRef();
+  const contentSectionRef = useRef();
+  const nameSectionRef = useRef();
+  const relationshipSectionRef = useRef();
+  const viewAllRequestedRef = useRef(false);
 
-  // No chip picked yet still needs a prompt to show — falls back to the
-  // relationship list's last ("Someone else") entry for that, same
-  // fallback the old skip-to-freewrite/add-another paths used, without
-  // marking any chip as selected until the contributor actually picks one.
+  // Autosave the serializable half of the draft on every change. Deliberately
+  // NOT gated to `open` — a contributor mid-attachment-upload who taps away
+  // should still have their typed text recovered after a stray reload.
+  useEffect(() => {
+    saveShareDraft(memorial.id, { name, relationship, otherRelationshipText, text, linkOpen, linkUrl });
+  }, [memorial.id, name, relationship, otherRelationshipText, text, linkOpen, linkUrl]);
+
+  // The scroll-lock effect (useScrollLock) restores the page's own scroll
+  // position the moment `open` goes false. "See all memories" additionally
+  // wants to land on the grid, which has to happen strictly after that
+  // restore or it gets clobbered — hence the rAF, which always runs after
+  // the commit that ran the scroll-lock's cleanup.
+  useEffect(() => {
+    if (open || !viewAllRequestedRef.current) return;
+    viewAllRequestedRef.current = false;
+    requestAnimationFrame(() => {
+      document.getElementById("archive")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }, [open]);
+
+  useEffect(() => {
+    if (screen === "compose") textareaRef.current?.focus();
+  }, [screen]);
+
+  if (!open) return null;
+
+  // No chip picked yet still needs a prompt to show if "Not sure what to
+  // say?" is tapped — falls back to the relationship list's last ("Someone
+  // else") entry for that, without marking any chip as selected.
   const effectiveRelationship = relationship || relationships[relationships.length - 1].id;
   const questionList = (SHARE_QUESTION_BANK[subjectType].banks[livingStatus][effectiveRelationship] || []).concat(universalTexts);
   const question = questionList[questionIndex % questionList.length];
-
-  // A question showing one of the three universal media prompts ("do you
-  // have a photo/voicemail/video...") narrows the attach row to just that
-  // one option; any other question gets the full type/record toggle and the
-  // general attach set. See the DO NOT list in the build spec — the toggle
-  // must not appear on these three.
-  const questionMediaKind = universalKindMap[question] || null;
-
-  // A fresh relationship pick or "add another" always resets the answer
-  // area — otherwise a leftover photo/voice attachment from a different
-  // question's media kind could stick around mismatched with the new
-  // question's single-option gating.
-  const resetAnswerArea = () => {
-    setAnswerText("");
-    setAnswerMode("type");
-    setAttachment(null);
-    setIsRecipe(false);
-    setAvRecording(false);
-    setRecordPhoto(null);
-  };
+  const showQuestion = questionRequested && !text.trim();
 
   const selectRelationship = (relId) => {
     setRelationship(relId);
-    storeRelationship(memorial.id, subjectType, relId);
     setQuestionIndex(0);
+    setErrors((e) => ({ ...e, relationship: null }));
   };
 
+  const revealQuestion = () => { setQuestionRequested(true); setQuestionIndex(0); };
   const cycleQuestion = () => setQuestionIndex((i) => (i + 1) % questionList.length);
 
-  // From the thanks screen's "Add another" — keeps whatever relationship
-  // was already picked, starts back at that relationship's first question,
-  // and collapses the reveal group by clearing the answer area.
-  const addAnother = () => {
-    setQuestionIndex(0);
-    resetAnswerArea();
-    setScreen("compose");
-  };
+  const clearAttachment = () => { setAttachment(null); setCompressingVideo(false); };
 
-  const clearAttachment = () => { setAttachment(null); setIsRecipe(false); setAvRecording(false); setCompressingVideo(false); };
-
-  const handlePhotoSelect = async (file) => {
+  const handlePhotoVideoSelect = async (file) => {
     if (!file) return;
-    const preview = await fileToDataURL(file);
-    const cropPos = await detectCropPosition(file);
-    setAttachment({ kind: "photo", file, preview, cropPos });
-    setIsRecipe(false);
-    setAvRecording(false);
+    setLinkOpen(false); setLinkUrl(""); setLinkPreview(null); // mutually exclusive with a link — one primary attachment per memory
+    setErrors((e) => ({ ...e, content: null }));
+    if (file.type.startsWith("video/")) {
+      if (!(await shareVideoWithinCap(file))) { showToast("Videos must be 60 seconds or less.", "error"); return; }
+      setCompressingVideo(true);
+      const finalFile = await compressVideo(file);
+      const poster = await generateVideoPoster(finalFile);
+      setCompressingVideo(false);
+      setAttachment({ kind: "video", file: finalFile, preview: URL.createObjectURL(finalFile), posterFile: poster, posterPreview: poster ? URL.createObjectURL(poster) : null });
+    } else {
+      const preview = await fileToDataURL(file);
+      const cropPos = await detectCropPosition(file);
+      setAttachment({ kind: "photo", file, preview, cropPos });
+    }
   };
 
-  const handleVideoSelect = async (file) => {
-    if (!file) return;
-    if (!(await shareVideoWithinCap(file))) { showToast("Videos must be 60 seconds or less.", "error"); return; }
-    setAvRecording(false);
-    setCompressingVideo(true);
-    const finalFile = await compressVideo(file);
-    const poster = await generateVideoPoster(finalFile);
-    setCompressingVideo(false);
-    setAttachment({
-      kind: "video",
-      file: finalFile,
-      preview: URL.createObjectURL(finalFile),
-      posterFile: poster,
-      posterPreview: poster ? URL.createObjectURL(poster) : null,
-    });
+  const openLink = () => {
+    if (linkOpen) { setLinkOpen(false); setLinkUrl(""); setLinkPreview(null); return; }
+    setAttachment(null); // mutually exclusive with a photo/video attachment
+    setLinkOpen(true);
+    setErrors((e) => ({ ...e, content: null }));
   };
 
-  // Regenerates the poster from wherever the contributor has scrubbed the
-  // preview video to — the "or allow users to choose a still frame" half of
-  // the ask, without needing a separate scrubber UI.
-  const useCurrentFrameAsPoster = async () => {
-    if (!attachment || attachment.kind !== "video" || !videoPreviewRef.current) return;
-    const t = videoPreviewRef.current.currentTime;
-    const poster = await generateVideoPoster(attachment.file, t);
-    if (!poster) { showToast("Couldn't capture that frame. Try a different spot.", "error"); return; }
-    setAttachment((prev) => (prev?.kind === "video" ? { ...prev, posterFile: poster, posterPreview: URL.createObjectURL(poster) } : prev));
-  };
-
-  // An uploaded audio FILE, not a live recording — keeps its real extension/
-  // mime instead of forcing .webm, unlike the recorder's captured blob.
-  const handleAudioFileSelect = async (file) => {
-    if (!file) return;
-    const ext = (file.name.split(".").pop() || "mp3").toLowerCase();
-    setAttachment({ kind: "voice", url: URL.createObjectURL(file), ext, mime: file.type || "audio/mpeg", subtype: "upload" });
-    setAvRecording(false);
-  };
-
-  const handleAvSelect = async (file) => {
-    if (!file) return;
-    if (file.type.startsWith("audio/")) await handleAudioFileSelect(file);
-    else await handleVideoSelect(file);
-  };
-
-  const openLinkInput = () => setAttachment({ kind: "link", url: "", preview: null, loading: false, error: "" });
-
-  // Preview fetch runs on blur, not keystroke — same as the pre-modal-redesign
-  // build this restores. A failed fetch still lets the link be shared
-  // (handleSubmit falls back to the bare url as the title).
+  // Preview fetch runs on blur, same as before — a failed fetch still lets
+  // the link be shared (handleSubmit falls back to the bare url as the title).
   const fetchLinkPreview = async () => {
-    setAttachment((a) => {
-      if (a?.kind !== "link") return a;
-      const url = a.url.trim();
-      if (!url) return { ...a, preview: null, error: "" };
-      let hostname;
-      try {
-        hostname = new URL(url).hostname.replace(/^www\./, "");
-      } catch {
-        return { ...a, preview: null, error: "That doesn't look like a valid URL." };
-      }
-      fetch("/api/link-preview", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url }),
-      })
-        .then((res) => { if (!res.ok) throw new Error("preview failed"); return res.json(); })
-        .then((data) => setAttachment((cur) => (cur?.kind === "link" ? { ...cur, preview: { ...data, hostname }, loading: false, error: "" } : cur)))
-        .catch(() => setAttachment((cur) => (cur?.kind === "link" ? { ...cur, preview: null, loading: false, error: "Couldn't load a preview — you can still share the link." } : cur)));
-      return { ...a, loading: true, error: "" };
-    });
+    const url = normalizeShareUrl(linkUrl);
+    if (!url) { setLinkPreview(null); return; }
+    setLinkLoading(true);
+    try {
+      const res = await fetch("/api/link-preview", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: url.href }) });
+      if (!res.ok) throw new Error("preview failed");
+      const data = await res.json();
+      setLinkPreview({ ...data, hostname: url.hostname.replace(/^www\./, "") });
+    } catch { setLinkPreview(null); }
+    finally { setLinkLoading(false); }
   };
 
-  const handleRecordPhotoSelect = async (file) => {
-    if (!file) return;
-    const preview = await fileToDataURL(file);
-    const cropPos = await detectCropPosition(file);
-    setRecordPhoto({ file, preview, cropPos });
-  };
+  const hasLinkText = linkOpen && linkUrl.trim().length > 0;
+  const hasContent = text.trim() || attachment || hasLinkText;
 
-  const hasValidAttachment = attachment && (attachment.kind !== "link" || attachment.url.trim());
-  const canSubmit = answerText.trim() || hasValidAttachment;
-  // Drives the progressive reveal: the attach row, mode toggle, signature
-  // fields, and submit button all stay collapsed until there's something
-  // typed — see .share-reveal-group in the compose screen below.
-  const revealed = answerText.trim().length > 0;
+  const scrollToRef = (ref) => ref.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+
+  const validate = () => {
+    const next = {};
+    let normalizedLink = null;
+    if (hasLinkText) {
+      normalizedLink = normalizeShareUrl(linkUrl);
+      if (!normalizedLink) next.content = "That doesn't look like a link.";
+    }
+    if (!next.content && !hasContent) next.content = "Add something to share.";
+    if (!name.trim()) next.name = "Add your name.";
+    else if (requireCode && !verifiedCode && !accessCodeInput.trim()) next.name = "Add the access code.";
+    if (!relationship || (relationship === "other" && !otherRelationshipText.trim())) next.relationship = `Choose how you knew ${firstName}.`;
+
+    setErrors(next);
+    if (next.content) scrollToRef(contentSectionRef);
+    else if (next.name) scrollToRef(nameSectionRef);
+    else if (next.relationship) scrollToRef(relationshipSectionRef);
+    return { ok: Object.keys(next).length === 0, normalizedLink };
+  };
 
   const handleSubmit = async () => {
-    if (contributorEmail.trim() && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(contributorEmail.trim())) { showToast("That email doesn't look right.", "error"); return; }
-    if (requireCode && !verifiedCode && !accessCodeInput.trim()) { showToast("Please enter the access code.", "error"); return; }
-    if (!canSubmit) { showToast("Please write something, or attach a photo, audio, video, or link.", "error"); return; }
+    const { ok, normalizedLink } = validate();
+    if (!ok) return;
 
     setSubmitting(true);
     try {
@@ -1046,57 +1055,30 @@ export function ShareMemoryModal({ memorial, showToast, onClose, contributeToken
           const { error: posterErr } = await supabase.storage.from("memorial-media").upload(posterPath, attachment.posterFile);
           if (!posterErr) secondaryMediaUrl = supabase.storage.from("memorial-media").getPublicUrl(posterPath).data?.publicUrl;
         }
-      } else if (attachment?.kind === "voice") {
-        type = "voice";
-        const resp = await fetch(attachment.url);
-        const blob = await resp.blob();
-        const path = `contributions/${memorial.invite_code}/${uid()}.${attachment.ext || "webm"}`;
-        const { error: upErr } = await supabase.storage.from("memorial-media").upload(path, blob, { contentType: attachment.mime || "audio/webm" });
-        if (upErr) throw upErr;
-        mediaUrl = supabase.storage.from("memorial-media").getPublicUrl(path).data?.publicUrl;
-      } else if (attachment?.kind === "link" && attachment.url.trim()) {
+      } else if (normalizedLink) {
         type = "url";
-        mediaUrl = attachment.preview?.image || null;
+        mediaUrl = linkPreview?.image || null;
         linkMeta = {
-          url: attachment.url.trim(),
-          provider: attachment.preview?.provider || null,
-          videoId: attachment.preview?.videoId || null,
-          start: attachment.preview?.start ?? null,
-          title: attachment.preview?.title || null,
-          hostname: attachment.preview?.hostname || null,
+          url: normalizedLink.href,
+          provider: linkPreview?.provider || null,
+          videoId: linkPreview?.videoId || null,
+          start: linkPreview?.start ?? null,
+          title: linkPreview?.title || null,
+          hostname: linkPreview?.hostname || normalizedLink.hostname.replace(/^www\./, ""),
         };
       }
 
-      // "Record it in your own voice" mode's optional "Add a photo too" — the
-      // other case (besides a video's poster frame, set above) where a
-      // contribution carries two media files via secondary_media_url.
-      if (recordPhoto) {
-        const path = `contributions/${memorial.invite_code}/${uid()}-secondary.${recordPhoto.file.name.split(".").pop()}`;
-        const { error: upErr } = await supabase.storage.from("memorial-media").upload(path, recordPhoto.file);
-        if (upErr) throw upErr;
-        secondaryMediaUrl = supabase.storage.from("memorial-media").getPublicUrl(path).data?.publicUrl;
-      }
-
-      const relLabel = relationships.find((r) => r.id === relationship)?.label || null;
-      const subtype = attachment?.kind === "voice" ? attachment.subtype || null : null;
-      // The "recipe or document" checkbox only shows for a photo attachment
-      // or a plain typed story — gate the tag to those cases so a stale
-      // check from a since-changed attachment can't leak through.
-      const tags = isRecipe && (attachment?.kind === "photo" || (!attachment && type === "story"))
-        ? ["Recipe"] : [];
+      const relLabel = relationship === "other" ? otherRelationshipText.trim() : relationships.find((r) => r.id === relationship)?.label || null;
 
       const row = {
         memorial_id: memorial.id,
-        // The name field is optional in the UI, but the insert RLS policy
-        // still requires a non-empty contributor_name — "Someone" is the
-        // same fallback MemoryTile already displays for a blank name.
-        contributor_name: contributorName.trim() || "Someone",
+        contributor_name: name.trim(),
         contributor_relation: relLabel,
-        contributor_email: contributorEmail.trim() || null,
+        contributor_email: null,
         type,
-        subtype,
-        tags,
-        text: answerText.trim() || null,
+        subtype: null,
+        tags: [],
+        text: text.trim() || null,
         media_url: mediaUrl,
         secondary_media_url: secondaryMediaUrl,
         status: memorial.require_approval ? "pending" : "approved",
@@ -1112,9 +1094,8 @@ export function ShareMemoryModal({ memorial, showToast, onClose, contributeToken
         const { error } = await supabase.from("contributions").insert(row);
         if (error) throw error;
       } else {
-        const { data: inserted, error } = await supabase.from("contributions").insert(row).select("id");
+        const { error } = await supabase.from("contributions").insert(row).select("id");
         if (error) throw error;
-        if (contributorEmail.trim()) sendThankYou(inserted?.[0]?.id);
       }
 
       notifyCreator(memorial.id);
@@ -1126,32 +1107,155 @@ export function ShareMemoryModal({ memorial, showToast, onClose, contributeToken
         supabase.from("access_requests").update({ token_used_at: new Date().toISOString() })
           .eq("contribute_token", contributeToken).is("token_used_at", null).then(() => {});
       }
+
+      setJustSubmitted({ ...row, id: "just-submitted" });
       setScreen("thanks");
+      // Keep the signature (name + relationship) so "Add another memory" and
+      // any future reload arrive prefilled — everything else about the
+      // draft is done with, once it's actually been shared.
+      saveShareDraft(memorial.id, { name, relationship, otherRelationshipText, text: "", linkOpen: false, linkUrl: "" });
+      onSubmitted?.();
     } catch { showToast("Something went wrong. Please try again.", "error"); }
     finally { setSubmitting(false); setUploadProgress(null); }
   };
 
+  // From the thanks screen's "Add another memory" — keeps name + relationship,
+  // clears everything else, and returns focus to the textarea (via the
+  // screen-change effect above).
+  const addAnother = () => {
+    setScreen("compose");
+    setText("");
+    clearAttachment();
+    setLinkOpen(false);
+    setLinkUrl("");
+    setLinkPreview(null);
+    setQuestionRequested(false);
+    setQuestionIndex(0);
+    setErrors({});
+  };
+
+  const openPreview = () => setScreen("preview");
+  const backFromPreview = () => setScreen("compose");
+  const viewAllMemories = () => {
+    viewAllRequestedRef.current = true;
+    setScreen("compose"); // so a later reopen lands back on the form, not the preview
+    onViewAllMemories();
+  };
+
+  const previewStories = stories.slice(0, 3);
+  const hasDraftContent = text.trim() || attachment || hasLinkText || name.trim();
+
   return (
-    <>
-      <div className="share-modal-overlay fade-in" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-        <div className="share-modal" role="dialog" aria-label={`Share a memory of ${memorial.name}`}>
-          <button type="button" className="share-modal-close" aria-label="Close" onClick={onClose}>&times;</button>
+    <div className="share-sheet-overlay fade-in" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="share-sheet" role="dialog" aria-label={`Share a memory of ${memorial.name}`}>
+        <div className="share-sheet-header">
+          <h2>Share a memory of {firstName}</h2>
+          <button type="button" className="share-sheet-close" aria-label="Close" onClick={onClose}>&times;</button>
+        </div>
 
-          {screen === "compose" && (
-            <div>
-              <div className="share-modal-eyebrow">SHARE A MEMORY OF {memorial.name.toUpperCase()}</div>
+        {screen === "preview" && (
+          <div className="share-sheet-body">
+            <div className="share-preview-grid">
+              {previewStories.map((s) => (
+                <MemoryTile key={s.id} story={s} hidden={false} onOpen={viewAllMemories} />
+              ))}
+            </div>
+            <span className="share-preview-see-all" onClick={viewAllMemories}>
+              See all {stories.length} {stories.length === 1 ? "memory" : "memories"}
+            </span>
+          </div>
+        )}
 
-              {onSwitchToBulk && (
-                <button type="button" className="bulk-upload-link" onClick={onSwitchToBulk}>
-                  Add multiple photos &amp; videos at once
-                </button>
+        {screen === "compose" && (
+          <div className="share-sheet-body">
+            <p className="share-intro">
+              You don't need to write the whole story. Add what comes to mind now, and come back when you think of more.
+            </p>
+            {stories.length > 0 && (
+              <span className="share-see-shared-link" onClick={openPreview}>See what others have shared.</span>
+            )}
+
+            <div ref={contentSectionRef} className="share-content-section">
+              {showQuestion && (
+                <div className="share-question-box">
+                  <p className="share-question-text">{question}</p>
+                  <span className="share-shuffle-link" onClick={cycleQuestion}>Try a different question</span>
+                </div>
               )}
 
-              {/* Relationship, inline as chips instead of its own screen.
-                  No chip reads as selected until the contributor picks one
-                  (or one was prefilled from a prior visit) — the prompt
-                  below still has something to show either way, via
-                  effectiveRelationship's "Someone else" fallback. */}
+              <textarea
+                ref={textareaRef}
+                autoFocus
+                className="form-input share-textarea"
+                placeholder="Type the memory here…"
+                value={text}
+                onChange={(e) => { setText(e.target.value); setErrors((er) => ({ ...er, content: null })); }}
+              />
+              {!text.trim() && !showQuestion && (
+                <span className="share-nudge-link" onClick={revealQuestion}>Not sure what to say?</span>
+              )}
+
+              {attachment?.kind === "photo" && (
+                <div className="share-attach-preview photo-preview-crop">
+                  <img src={attachment.preview} alt="" style={{ objectPosition: `${attachment.cropPos.x}% ${attachment.cropPos.y}%` }} />
+                  <button type="button" className="share-attach-remove" onClick={clearAttachment}>Remove</button>
+                </div>
+              )}
+              {attachment?.kind === "video" && (
+                <div className="share-attach-preview">
+                  <video src={attachment.preview} poster={attachment.posterPreview || undefined} controls style={{ width: "100%", maxHeight: 260, borderRadius: 8 }} />
+                  <button type="button" className="share-attach-remove" onClick={clearAttachment}>Remove</button>
+                </div>
+              )}
+              {compressingVideo && (
+                <div className="share-attach-preview"><span className="spinner spinner-dark" /> Getting your video ready…</div>
+              )}
+              {linkOpen && (
+                <div className="share-attach-preview">
+                  <input
+                    className="form-input"
+                    type="text"
+                    autoFocus
+                    placeholder="Paste a link, such as an obituary or a video"
+                    value={linkUrl}
+                    onChange={(e) => { setLinkUrl(e.target.value); setLinkPreview(null); setErrors((er) => ({ ...er, content: null })); }}
+                    onBlur={fetchLinkPreview}
+                  />
+                  {linkLoading && <span className="form-hint">Loading preview…</span>}
+                  {linkPreview && (
+                    <div className="link-preview-card">
+                      {linkPreview.image ? <img src={linkPreview.image} alt="" className="link-preview-thumb" /> : <div className="link-preview-thumb link-preview-thumb-fallback">🔗</div>}
+                      <div>
+                        <div className="link-preview-title">{linkPreview.title || linkUrl.trim()}</div>
+                        <div className="link-preview-provider">{linkPreview.provider === "youtube" ? "YouTube" : linkPreview.hostname}</div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {!attachment && !linkOpen && !compressingVideo && (
+                <div className="share-attach-buttons">
+                  <button type="button" className="share-attach-choice" onClick={() => photoVideoInputRef.current?.click()}>Photo or video</button>
+                  <button type="button" className="share-attach-choice" onClick={openLink}>Link</button>
+                </div>
+              )}
+              <input ref={photoVideoInputRef} type="file" accept="image/*,video/*" style={{ display: "none" }} onChange={(e) => { handlePhotoVideoSelect(e.target.files[0]); e.target.value = ""; }} />
+
+              {errors.content && <p className="share-error">{errors.content}</p>}
+            </div>
+
+            <div ref={nameSectionRef} className="share-field-section">
+              <label className="form-label" htmlFor="share-name">Your name</label>
+              <input id="share-name" className="form-input" autoComplete="off" value={name} onChange={(e) => { setName(e.target.value); setErrors((er) => ({ ...er, name: null })); }} />
+              {requireCode && !verifiedCode && (
+                <input className="form-input" style={{ marginTop: 8 }} placeholder="Access code — ask the family if you don't have it" value={accessCodeInput} onChange={(e) => { setAccessCodeInput(e.target.value); setErrors((er) => ({ ...er, name: null })); }} />
+              )}
+              {errors.name && <p className="share-error">{errors.name}</p>}
+            </div>
+
+            <div ref={relationshipSectionRef} className="share-field-section">
+              <label className="form-label">How did you know {firstName}?</label>
               <div className="share-rel-row">
                 {relationships.map((r) => (
                   <button
@@ -1164,167 +1268,59 @@ export function ShareMemoryModal({ memorial, showToast, onClose, contributeToken
                   </button>
                 ))}
               </div>
-
-              <div className="share-question-box">
-                <p className="share-question-text">{question}</p>
-                <span className="share-shuffle-link" onClick={cycleQuestion}>a different question</span>
-              </div>
-
-              {questionMediaKind === null && memorial.is_paid && answerMode === "record" ? (
-                <>
-                  <VoiceRecorder value={attachment} onChange={setAttachment} showToast={showToast} />
-                  {recordPhoto ? (
-                    <div className="form-group">
-                      <div className="photo-preview-crop">
-                        <img src={recordPhoto.preview} alt="" style={{ objectPosition: `${recordPhoto.cropPos.x}% ${recordPhoto.cropPos.y}%` }} />
-                      </div>
-                      <button type="button" className="btn btn-sm btn-ghost" style={{ marginTop: 8 }} onClick={() => setRecordPhoto(null)}>Remove photo</button>
-                    </div>
-                  ) : (
-                    <div className="share-attach-row">
-                      <button type="button" className="share-attach-btn" onClick={() => recordPhotoInputRef.current?.click()}>+ Add a photo too</button>
-                    </div>
-                  )}
-                  <input ref={recordPhotoInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => handleRecordPhotoSelect(e.target.files[0])} />
-                </>
-              ) : (
-                <>
-                  <textarea
-                    autoFocus
-                    className="form-input share-answer-textarea"
-                    placeholder={questionMediaKind ? "Add the file below, or describe it here..." : "Type the memory here..."}
-                    value={answerText}
-                    onChange={(e) => setAnswerText(e.target.value)}
-                  />
-                  {/* Collapses the moment there's anything to reveal instead
-                      of — see .share-reveal-group below, which is what
-                      actually shows next. */}
-                  {!revealed && <p className="share-reveal-hint">Start writing, a photo, your name, and Share will show up right below.</p>}
-                </>
+              {relationship === "other" && (
+                <input
+                  className="form-input"
+                  style={{ marginTop: 8 }}
+                  placeholder="How did you know them?"
+                  value={otherRelationshipText}
+                  onChange={(e) => { setOtherRelationshipText(e.target.value); setErrors((er) => ({ ...er, relationship: null })); }}
+                />
               )}
-
-              {/* Everything past this point stays visually collapsed until
-                  the textarea has non-whitespace content — see the reveal
-                  hint above. The Type/Record toggle only makes sense once
-                  revealed (switching to Record only happens after someone's
-                  already started typing), so it lives in here too. */}
-              <div className={`share-reveal-group${revealed ? " revealed" : ""}`}>
-                {/* Type/record toggle — general questions only, never on
-                    the three media-specific universal prompts. Free
-                    memorials collect written memories only (same gate as
-                    the attach row below), so recording isn't offered there
-                    either. */}
-                {questionMediaKind === null && memorial.is_paid && (
-                  <div className="share-mode-toggle">
-                    <button type="button" className={answerMode === "type" ? "active" : ""} onClick={() => setAnswerMode("type")}>Type it out</button>
-                    <button type="button" className={answerMode === "record" ? "active" : ""} onClick={() => setAnswerMode("record")}>Record it in your own voice</button>
-                  </div>
-                )}
-
-                {!(questionMediaKind === null && memorial.is_paid && answerMode === "record") && (
-                  <>
-                    {memorial.is_paid && (
-                      <QuestionAttachOptions
-                        kind={questionMediaKind}
-                        attachment={attachment}
-                        isRecipe={isRecipe}
-                        onToggleRecipe={setIsRecipe}
-                        avRecording={avRecording}
-                        setAvRecording={setAvRecording}
-                        showToast={showToast}
-                        onAttachmentChange={setAttachment}
-                        onPhotoClick={() => photoInputRef.current?.click()}
-                        onVideoClick={() => videoInputRef.current?.click()}
-                        onAudioClick={() => audioInputRef.current?.click()}
-                        onAvClick={() => avInputRef.current?.click()}
-                        onLinkClick={openLinkInput}
-                        onLinkUrlChange={(url) => setAttachment((a) => ({ ...a, url, preview: null, error: "" }))}
-                        onLinkBlur={fetchLinkPreview}
-                        onAdjustCrop={() => setShowCropAdjuster(true)}
-                        onRemove={clearAttachment}
-                        compressingVideo={compressingVideo}
-                        videoPreviewRef={videoPreviewRef}
-                        onUseFrameAsPoster={useCurrentFrameAsPoster}
-                      />
-                    )}
-
-                    {/* Typed-out written story: the same optional recipe/document
-                        flag the photo attachment offers, shown once there's text
-                        and no attachment to carry it instead. */}
-                    {!attachment && answerText.trim() && (
-                      <label className="share-recipe-check" style={{ marginTop: 10 }}>
-                        <input type="checkbox" checked={isRecipe} onChange={(e) => setIsRecipe(e.target.checked)} />
-                        This is a recipe or document
-                      </label>
-                    )}
-                    <input ref={photoInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => handlePhotoSelect(e.target.files[0])} />
-                    <input ref={videoInputRef} type="file" accept="video/*" style={{ display: "none" }} onChange={(e) => handleVideoSelect(e.target.files[0])} />
-                    <input ref={audioInputRef} type="file" accept="audio/*" style={{ display: "none" }} onChange={(e) => handleAudioFileSelect(e.target.files[0])} />
-                    <input ref={avInputRef} type="file" accept="audio/*,video/*" style={{ display: "none" }} onChange={(e) => handleAvSelect(e.target.files[0])} />
-                  </>
-                )}
-
-                <div className="share-signature-divider" />
-                <div className="share-signature">
-                  <div className="share-signature-field">
-                    <label htmlFor="share-signature-name">Your name (optional)</label>
-                    <input id="share-signature-name" className="share-signature-input" placeholder="How you were known to them" value={contributorName} onChange={(e) => setContributorName(e.target.value)} />
-                  </div>
-                  <div className="share-signature-field">
-                    <label htmlFor="share-signature-email">Email (optional)</label>
-                    <input id="share-signature-email" className="share-signature-input" type="email" placeholder="So the family can say thank you" value={contributorEmail} onChange={(e) => setContributorEmail(e.target.value)} />
-                  </div>
-                  {requireCode && !verifiedCode && (
-                    <div className="share-signature-field">
-                      <label htmlFor="share-signature-code">Access code</label>
-                      <input id="share-signature-code" className="share-signature-input" placeholder="Ask the family if you don't have it" value={accessCodeInput} onChange={(e) => setAccessCodeInput(e.target.value)} />
-                    </div>
-                  )}
-                </div>
-
-                <button className="btn btn-rust btn-lg share-submit-btn" onClick={handleSubmit} disabled={submitting || compressingVideo} style={{ justifyContent: "center" }}>
-                  {submitting
-                    ? <><span className="spinner" /> {uploadProgress != null ? `Uploading... ${Math.round(uploadProgress * 100)}%` : "Sharing..."}</>
-                    : "Share this memory"}
-                </button>
-              </div>
+              {errors.relationship && <p className="share-error">{errors.relationship}</p>}
             </div>
+          </div>
+        )}
+
+        {screen === "thanks" && (
+          <div className="share-sheet-body">
+            <div className="share-thanks-icon">&#10003;</div>
+            <h2 style={{ textAlign: "center" }}>That's a great one.</h2>
+            <p className="share-thanks-text">
+              {moderationMode === "moderated"
+                ? `Thank you — ${firstName}'s family will see this soon.`
+                : `It's been added to ${firstName}'s page.`}
+            </p>
+            {justSubmitted && (
+              <div className="share-preview-grid share-preview-grid-single">
+                <MemoryTile story={justSubmitted} hidden={false} onOpen={() => {}} />
+              </div>
+            )}
+            <p className="share-thanks-text">
+              You can add more whenever you think of it. Your name and how you knew {firstName} will already be filled in.
+            </p>
+            <button type="button" className="mkt-btn mkt-btn-solid share-cta-btn" onClick={addAnother}>Add another memory</button>
+            <span className="share-back-link" onClick={onClose}>Back to {firstName}'s page</span>
+            <ShareNudge memorial={memorial} showToast={showToast} />
+          </div>
+        )}
+
+        <div className="share-sheet-footer">
+          {screen === "compose" && (
+            <button type="button" className="mkt-btn mkt-btn-solid share-cta-btn" onClick={handleSubmit} disabled={submitting || compressingVideo}>
+              {submitting
+                ? <><span className="spinner" /> {uploadProgress != null ? `Uploading… ${Math.round(uploadProgress * 100)}%` : "Sharing…"}</>
+                : "Share"}
+            </button>
           )}
-
-          {screen === "thanks" && (
-            <div>
-              <div className="share-thanks-icon">&#10003;</div>
-              <h2 style={{ textAlign: "center" }}>That's a great one.</h2>
-              <p className="share-thanks-text">
-                {moderationMode === "moderated"
-                  ? `Thank you — ${firstName}'s family will see this soon.`
-                  : `It's been added to ${firstName}'s page.`}{" "}
-                Want to add another?
-              </p>
-              <div className="share-thanks-actions">
-                <button type="button" className="btn btn-ghost" onClick={onClose}>Done for now</button>
-                <button type="button" className="btn btn-rust" onClick={addAnother}>Add another</button>
-              </div>
-              <ShareNudge memorial={memorial} showToast={showToast} />
-            </div>
+          {screen === "preview" && (
+            <button type="button" className="mkt-btn mkt-btn-solid share-cta-btn" onClick={backFromPreview}>
+              {hasDraftContent ? "Back to your draft" : "Write your own"}
+            </button>
           )}
         </div>
       </div>
-
-      {/* Rendered as a sibling of .share-modal-overlay, not nested inside it —
-          same reasoning as CropAdjuster's original top-level placement: a
-          completed fade/scale animation on an ancestor becomes a new
-          containing block for position: fixed descendants. .fade-in here is
-          opacity-only, but keeping this sibling avoids the whole class of bug. */}
-      {attachment?.kind === "photo" && showCropAdjuster && (
-        <CropAdjuster
-          file={attachment.file}
-          initialPos={attachment.cropPos}
-          onCancel={() => setShowCropAdjuster(false)}
-          onConfirm={(pos) => { setAttachment((a) => ({ ...a, cropPos: pos })); setShowCropAdjuster(false); }}
-        />
-      )}
-    </>
+    </div>
   );
 }
 
@@ -1369,279 +1365,6 @@ function ShareNudge({ memorial, showToast }) {
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-const fmtRecordDuration = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
-
-// Circular record button + live waveform + "Tap to start recording" ->
-// "Recording... tap to stop" -> "Recorded — tap to re-record". Owns its own
-// MediaRecorder/AnalyserNode; reports the finished take up as a plain
-// { kind: 'voice', url, ext, mime } attachment via onChange, same shape a
-// plain audio-file upload produces, so the caller's submit logic doesn't
-// need to know which path produced it. Used both for the question screen's
-// "Record it in your own voice" mode and the general attach row's inline
-// "Record a voice memo" option.
-function VoiceRecorder({ value, onChange, showToast }) {
-  const [recording, setRecording] = useState(false);
-  const [recordDuration, setRecordDuration] = useState(0);
-  const [analyser, setAnalyser] = useState(null);
-  const mediaRecorderRef = useRef(null);
-  const chunksRef = useRef([]);
-  const timerRef = useRef(null);
-  const maxTimerRef = useRef(null);
-  const audioCtxRef = useRef(null);
-  const streamRef = useRef(null);
-
-  const teardownAudio = () => {
-    audioCtxRef.current?.close();
-    audioCtxRef.current = null;
-    setAnalyser(null);
-  };
-
-  const stop = () => {
-    mediaRecorderRef.current?.stop();
-    setRecording(false);
-    clearInterval(timerRef.current);
-    clearTimeout(maxTimerRef.current);
-    teardownAudio();
-  };
-
-  // Stop the mic/recorder if the modal (or just this component) unmounts
-  // mid-recording — a shuffled question or a closed modal shouldn't leave
-  // the microphone running.
-  useEffect(() => () => {
-    if (mediaRecorderRef.current?.state === "recording") mediaRecorderRef.current.stop();
-    streamRef.current?.getTracks().forEach((t) => t.stop());
-    clearInterval(timerRef.current);
-    clearTimeout(maxTimerRef.current);
-    audioCtxRef.current?.close();
-  }, []);
-
-  const start = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      streamRef.current = stream;
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      if (AudioCtx) {
-        const audioCtx = new AudioCtx();
-        audioCtxRef.current = audioCtx;
-        const source = audioCtx.createMediaStreamSource(stream);
-        const node = audioCtx.createAnalyser();
-        node.fftSize = 64; // few bins — chunky bars suit this small a widget
-        source.connect(node);
-        setAnalyser(node);
-      }
-
-      const mr = new MediaRecorder(stream);
-      mediaRecorderRef.current = mr;
-      chunksRef.current = [];
-      mr.ondataavailable = (e) => chunksRef.current.push(e.data);
-      mr.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-        onChange({ kind: "voice", url: URL.createObjectURL(blob), ext: "webm", mime: "audio/webm", subtype: "recording" });
-        stream.getTracks().forEach((t) => t.stop());
-      };
-      mr.start();
-      setRecording(true);
-      setRecordDuration(0);
-      timerRef.current = setInterval(() => setRecordDuration((d) => Math.min(d + 1, SHARE_MAX_SECONDS)), 1000);
-      maxTimerRef.current = setTimeout(stop, SHARE_MAX_SECONDS * 1000);
-    } catch { showToast("Please allow microphone access to record.", "error"); }
-  };
-
-  const label = recording
-    ? "Recording... tap to stop"
-    : value?.kind === "voice" ? "Recorded — tap to re-record" : "Tap to start recording";
-
-  return (
-    <div className="voice-recorder share-voice-recorder">
-      <button
-        type="button"
-        className={`record-btn ${recording ? "record-btn-recording" : "record-btn-idle"}`}
-        onClick={recording ? stop : start}
-      >
-        {recording ? <>&#9209;</> : <>&#127908;</>}
-      </button>
-      {recording && <LiveWaveform analyser={analyser} />}
-      {recording && <div className="record-time">{fmtRecordDuration(recordDuration)}</div>}
-      <div className="record-sub">{label}</div>
-      {!recording && value?.kind === "voice" && (
-        <audio controls src={value.url} style={{ width: "100%", marginTop: 8 }} />
-      )}
-    </div>
-  );
-}
-
-// Reads the live mic input via AnalyserNode.getByteFrequencyData on every
-// animation frame and writes bar heights straight to the DOM through refs —
-// deliberately bypassing React state so a ~60fps visualization doesn't
-// trigger a full re-render per frame.
-function LiveWaveform({ analyser }) {
-  const barsRef = useRef([]);
-  const BAR_COUNT = 24;
-
-  useEffect(() => {
-    if (!analyser) return;
-    let raf;
-    const data = new Uint8Array(analyser.frequencyBinCount);
-    const step = Math.max(1, Math.floor(data.length / BAR_COUNT));
-    const draw = () => {
-      analyser.getByteFrequencyData(data);
-      barsRef.current.forEach((el, i) => {
-        if (!el) return;
-        const v = data[i * step] || 0;
-        el.style.height = `${4 + (v / 255) * 36}px`;
-      });
-      raf = requestAnimationFrame(draw);
-    };
-    raf = requestAnimationFrame(draw);
-    return () => cancelAnimationFrame(raf);
-  }, [analyser]);
-
-  return (
-    <div className="record-live-wave">
-      {Array.from({ length: BAR_COUNT }).map((_, i) => (
-        <span key={i} ref={(el) => (barsRef.current[i] = el)} />
-      ))}
-    </div>
-  );
-}
-
-// The attach row shown below the answer textarea in "type it out" mode.
-// What it offers depends on `kind` (the current question's derived media
-// kind, or null for a general question) — a media-specific
-// question narrows this to its one matching upload option; a general
-// question gets the full set. Once something's attached, its preview (and
-// a way to remove it) replaces the option buttons regardless of kind.
-function QuestionAttachOptions({
-  kind, attachment, isRecipe, onToggleRecipe, avRecording, setAvRecording, showToast,
-  onAttachmentChange, onPhotoClick, onVideoClick, onAudioClick, onAvClick,
-  onLinkClick, onLinkUrlChange, onLinkBlur,
-  onAdjustCrop, onRemove, compressingVideo, videoPreviewRef, onUseFrameAsPoster,
-}) {
-  if (compressingVideo) {
-    return (
-      <div className="share-attach-row">
-        <span className="spinner spinner-dark" /> Getting your video ready to upload&hellip;
-      </div>
-    );
-  }
-
-  if (avRecording) {
-    return (
-      <div className="share-attach-row">
-        <VoiceRecorder value={attachment} onChange={onAttachmentChange} showToast={showToast} />
-        <span className="share-back-link" style={{ marginTop: 0 }} onClick={() => { setAvRecording(false); onRemove(); }}>Cancel</span>
-      </div>
-    );
-  }
-
-  if (attachment?.kind === "photo") {
-    return (
-      <div className="form-group">
-        <div className="photo-preview-crop">
-          <img src={attachment.preview} alt="" style={{ objectPosition: `${attachment.cropPos.x}% ${attachment.cropPos.y}%` }} />
-          <button type="button" className="crop-adjust-btn" onClick={onAdjustCrop}>Adjust crop</button>
-        </div>
-        <label className="share-recipe-check">
-          <input type="checkbox" checked={isRecipe} onChange={(e) => onToggleRecipe(e.target.checked)} />
-          This is a recipe or document
-        </label>
-        <button type="button" className="btn btn-sm btn-ghost" style={{ marginTop: 8 }} onClick={onRemove}>Remove photo</button>
-      </div>
-    );
-  }
-
-  if (attachment?.kind === "video") {
-    return (
-      <div className="form-group">
-        <video ref={videoPreviewRef} src={attachment.preview} poster={attachment.posterPreview || undefined} controls style={{ width: "100%", maxHeight: 300, borderRadius: 4 }} />
-        {attachment.posterPreview && (
-          <div className="share-video-poster-row">
-            <img className="share-video-poster-thumb" src={attachment.posterPreview} alt="" />
-            <div>
-              <div className="share-video-poster-label">Thumbnail</div>
-              <button type="button" className="btn btn-sm btn-ghost" onClick={onUseFrameAsPoster}>Use this frame instead</button>
-            </div>
-          </div>
-        )}
-        <button type="button" className="btn btn-sm btn-ghost" style={{ marginTop: 8 }} onClick={onRemove}>Remove video</button>
-      </div>
-    );
-  }
-
-  if (attachment?.kind === "voice") {
-    return (
-      <div className="form-group">
-        <audio controls src={attachment.url} style={{ width: "100%" }} />
-        <button type="button" className="btn btn-sm btn-ghost" style={{ marginTop: 8 }} onClick={onRemove}>Remove recording</button>
-      </div>
-    );
-  }
-
-  if (attachment?.kind === "link") {
-    return (
-      <div className="form-group">
-        <label className="form-label">Link</label>
-        <input
-          className="form-input"
-          type="url"
-          autoFocus
-          placeholder="Paste a YouTube link, or any URL"
-          value={attachment.url}
-          onChange={(e) => onLinkUrlChange(e.target.value)}
-          onBlur={onLinkBlur}
-        />
-        {attachment.loading && <span className="form-hint">Loading preview&hellip;</span>}
-        {attachment.error && <span className="form-error">{attachment.error}</span>}
-        {attachment.preview && (
-          <div className="link-preview-card">
-            {attachment.preview.image ? (
-              <img src={attachment.preview.image} alt="" className="link-preview-thumb" />
-            ) : (
-              <div className="link-preview-thumb link-preview-thumb-fallback">🔗</div>
-            )}
-            <div>
-              <div className="link-preview-title">{attachment.preview.title || attachment.url.trim()}</div>
-              <div className="link-preview-provider">{attachment.preview.provider === "youtube" ? "YouTube" : attachment.preview.hostname}</div>
-            </div>
-          </div>
-        )}
-        <button type="button" className="btn btn-sm btn-ghost" style={{ marginTop: 8 }} onClick={onRemove}>Remove link</button>
-      </div>
-    );
-  }
-
-  if (kind === "voice") {
-    return (
-      <div className="share-attach-row">
-        <button type="button" className="share-attach-btn spotlight" onClick={onAudioClick}>Upload an audio file</button>
-      </div>
-    );
-  }
-  if (kind === "photo") {
-    return (
-      <div className="share-attach-row">
-        <button type="button" className="share-attach-btn spotlight" onClick={onPhotoClick}>Upload a photo</button>
-      </div>
-    );
-  }
-  if (kind === "video") {
-    return (
-      <div className="share-attach-row">
-        <button type="button" className="share-attach-btn spotlight" onClick={onVideoClick}>Upload a video</button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="share-attach-row">
-      <button type="button" className="share-attach-btn" onClick={onPhotoClick}>+ Add a photo</button>
-      <button type="button" className="share-attach-btn" onClick={() => setAvRecording(true)}>Record a voice memo</button>
-      <button type="button" className="share-attach-btn" onClick={onAvClick}>Upload audio or video</button>
-      <button type="button" className="share-attach-btn" onClick={onLinkClick}>+ Add a link</button>
     </div>
   );
 }

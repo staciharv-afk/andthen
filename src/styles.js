@@ -825,43 +825,56 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .share-question-text { font-family: 'Fraunces', serif; font-style: italic; font-size: 19px; line-height: 1.45; margin: 0; color: var(--mem-ink); }
 .share-shuffle-link { display: inline-block; font-size: 12px; color: var(--mem-rose); text-decoration: underline; cursor: pointer; margin-top: 12px; }
 
-.share-attach-row { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
-.share-attach-btn { font-size: 12px; color: var(--mem-ink-soft); border: 1px solid rgba(44,36,32,0.14); background: transparent; padding: 8px 12px; border-radius: 16px; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.15s ease; }
-.share-attach-btn:hover { border-color: var(--mem-rose); color: var(--mem-rose); }
-.share-attach-btn.spotlight { border-color: var(--mem-rose); color: var(--mem-rose); background: rgba(193,81,90,0.06); }
-.share-recipe-check { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--mem-ink-soft); cursor: pointer; user-select: none; }
-.share-recipe-check input { margin: 0; }
-.share-submit-btn { width: 100%; }
 .share-back-link { display: block; text-align: center; font-size: 12px; color: var(--mem-ink-soft); margin-top: 16px; cursor: pointer; }
+
+/* -- redesigned "share a memory" sheet — full-screen below the mobile
+   breakpoint (most contributors are on a phone), a centered card above it.
+   New class family (.share-sheet-*) rather than reusing .share-modal*,
+   which BulkUploadModal still renders with unchanged. -- */
+.share-sheet-overlay { position: fixed; inset: 0; z-index: 480; background: rgba(26,14,8,0.6); display: flex; align-items: center; justify-content: center; }
+.share-sheet { background: var(--mem-card); width: 100%; max-width: 480px; margin: auto; max-height: calc(100vh - 40px); max-height: calc(100dvh - 40px); border-radius: 12px; box-shadow: 0 20px 50px -12px rgba(44,36,32,0.35); display: flex; flex-direction: column; overflow: hidden; }
+@media (max-width: 600px) {
+  .share-sheet-overlay { align-items: stretch; justify-content: stretch; }
+  .share-sheet { max-width: none; max-height: none; height: 100%; height: 100dvh; border-radius: 0; }
+}
+.share-sheet-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 22px 24px 14px; flex-shrink: 0; }
+.share-sheet-header h2 { font-family: 'Fraunces', serif; font-weight: 500; font-size: 21px; line-height: 1.3; margin: 0; color: var(--mem-ink); }
+.share-sheet-close { background: none; border: none; font-size: 24px; line-height: 1; color: var(--mem-ink-soft); cursor: pointer; padding: 4px; flex-shrink: 0; }
+.share-sheet-body { flex: 1; overflow-y: auto; padding: 0 24px 24px; }
+.share-sheet-footer { flex-shrink: 0; padding: 14px 24px calc(14px + env(safe-area-inset-bottom)); border-top: 1px solid rgba(44,36,32,0.1); background: var(--mem-card); }
+
+.share-intro { font-size: 14.5px; line-height: 1.5; color: var(--mem-ink-soft); margin: 0 0 6px; }
+.share-see-shared-link { display: inline-block; font-size: 13px; color: var(--mem-rose); text-decoration: underline; cursor: pointer; margin-bottom: 20px; }
+
+.share-content-section, .share-field-section { margin-bottom: 22px; }
 
 /* Full-width, taller than the app's default textarea — this is the
    primary content of the screen, not a secondary form field. */
-.share-answer-textarea { width: 100%; box-sizing: border-box; min-height: 170px; margin-bottom: 4px; }
+.share-textarea { width: 100%; box-sizing: border-box; min-height: 160px; margin-bottom: 6px; }
+.share-nudge-link { display: inline-block; font-size: 13px; color: var(--mem-rose); text-decoration: underline; cursor: pointer; margin-bottom: 6px; }
 
-.share-reveal-hint { font-family: 'Fraunces', serif; font-style: italic; font-size: 13px; color: var(--mem-ink-soft); margin: 0 0 4px; }
+.share-attach-buttons { display: flex; gap: 10px; margin-top: 10px; }
+.share-attach-choice { flex: 1; font-family: 'DM Sans', sans-serif; font-size: 13.5px; font-weight: 500; color: var(--mem-ink-soft); border: 1px solid rgba(44,36,32,0.16); background: var(--mem-paper); padding: 12px; border-radius: 8px; cursor: pointer; transition: all 0.15s ease; }
+.share-attach-choice:hover { border-color: var(--mem-rose); color: var(--mem-rose); }
+.share-attach-preview { margin-top: 10px; position: relative; }
+.share-attach-remove { display: block; margin-top: 8px; font-size: 12px; color: var(--mem-ink-soft); text-decoration: underline; background: none; border: none; cursor: pointer; padding: 0; }
 
-/* Collapsed by default (0 height, invisible, not tabbable-looking) until
-   there's something typed in the textarea above — then eases open. A
-   generous max-height rather than "auto" is what makes the height side of
-   this transition animate at all; it just needs to comfortably clear the
-   tallest real content (a video preview + signature block + button). */
-.share-reveal-group { max-height: 0; opacity: 0; overflow: hidden; transition: max-height 0.35s ease, opacity 0.25s ease; }
-.share-reveal-group.revealed { max-height: 1400px; opacity: 1; margin-top: 4px; }
+.share-error { font-size: 12.5px; color: #c0392b; margin: 6px 0 0; }
+
+/* Reuses .mkt-btn / .mkt-btn-solid (the homepage CTA) exactly, just forced
+   to full-width and a fixed 52px so it reads identically wherever it
+   appears in this sheet — Share, Add another memory, and the quick-preview
+   "back" button all share this one modifier. */
+.share-cta-btn { width: 100%; height: 52px; justify-content: center; }
+
+.share-preview-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 4px 0 16px; }
+.share-preview-grid .mem-tile { aspect-ratio: 1; }
+.share-preview-grid-single { grid-template-columns: minmax(0, 200px); justify-content: center; margin: 0 0 20px; }
+.share-preview-see-all { display: block; text-align: center; font-size: 13.5px; font-weight: 500; color: var(--mem-rose); text-decoration: underline; cursor: pointer; margin-bottom: 8px; }
+
 @media (prefers-reduced-motion: reduce) {
-  .share-reveal-group { transition: none; }
+  .share-sheet-overlay.fade-in { animation: none; opacity: 1; }
 }
-
-.share-mode-toggle { display: flex; gap: 8px; margin: 4px 0 16px; }
-.share-mode-toggle button { flex: 1; font-size: 13px; font-family: 'DM Sans', sans-serif; padding: 9px 12px; border-radius: 6px; border: 1px solid rgba(44,36,32,0.14); background: var(--mem-paper); color: var(--mem-ink-soft); cursor: pointer; transition: all 0.15s ease; }
-.share-mode-toggle button:hover { border-color: var(--mem-rose); }
-.share-mode-toggle button.active { background: var(--mem-rose); border-color: var(--mem-rose); color: #fff; }
-
-/* Live recording widget — reuses .voice-recorder/.record-btn* (already
-   used by the general attach row's inline recorder), just adds the
-   waveform between the button and the timer. */
-.share-voice-recorder { margin-bottom: 16px; }
-.record-live-wave { display: flex; align-items: center; justify-content: center; gap: 3px; height: 40px; }
-.record-live-wave span { width: 4px; min-height: 4px; border-radius: 2px; background: var(--mem-rose); }
 
 /* Your name / email — moved to the bottom, deliberately quiet: no boxes,
    underline-only inputs, small label text, so this reads as a signature
