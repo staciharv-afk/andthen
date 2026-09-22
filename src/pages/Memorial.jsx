@@ -611,11 +611,6 @@ export function MemorialPage({ inviteCode, showToast, onNavigate, currentUser })
                     ? <>You've added the {FREE_MEMORY_LIMIT} memories included free. Upgrade to add more, and invite others to help gather memories too.</>
                     : <>This page isn't open to contributions yet.</>}
         </p>
-        {contributeState === "share" && (
-          <button type="button" className="bulk-upload-link" onClick={() => setShowBulkUpload(true)}>
-            Add multiple photos &amp; videos at once
-          </button>
-        )}
       </footer>
 
       <div className="mem-footer">
