@@ -317,6 +317,16 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
         <ShareMemoryModal
           memorial={activeMemorial}
           showToast={showToast}
+          open={addingMemory}
+          // Approved-only, same as what a real visitor's quick preview would
+          // show — `submissions` here also carries pending/rejected rows for
+          // the moderation queue below, which don't belong in that preview.
+          stories={submissions.filter((s) => s.status === "approved")}
+          onSubmitted={() => loadSubmissions(activeMemorial.id)}
+          // No separate grid to send them to from the dashboard — the
+          // moderation list right below already shows everything, so this
+          // just closes the sheet like the X does.
+          onViewAllMemories={() => setAddingMemory(false)}
           contributeToken={null}
           onClose={async () => {
             setAddingMemory(false);
