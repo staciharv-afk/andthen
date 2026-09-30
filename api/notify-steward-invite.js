@@ -39,7 +39,24 @@ export default async function handler(req, res) {
 
   const memorial = invite.memorials;
   const memorialName = memorial?.name || "their";
-  const link = `https://www.myandthen.com/?steward_invite=${invite.invite_token}`;
+  const redirectTo = `https://www.myandthen.com/?steward_invite=${invite.invite_token}`;
+
+  // A bare app link made the invitee do a second, separate sign-in (request
+  // their own magic link, then have to remember to use the exact invited
+  // address) before app.jsx would ever look at the stashed invite token —
+  // easy to fumble, and the likely cause of "that invite link isn't valid
+  // anymore" reports. generateLink produces a real Supabase auth link for
+  // this exact email that signs them in AND redirects to the same
+  // steward_invite URL, so clicking it does both steps at once. Falls back
+  // to the bare link (the old behavior) if generation fails for any reason,
+  // so a hiccup here never blocks the invite email from going out.
+  let link = redirectTo;
+  const { data: linkData, error: linkErr } = await admin.auth.admin.generateLink({
+    type: "magiclink",
+    email: invite.invited_email,
+    options: { redirectTo },
+  });
+  if (!linkErr && linkData?.properties?.action_link) link = linkData.properties.action_link;
 
   let inviterLine = "";
   if (invite.invited_by) {
