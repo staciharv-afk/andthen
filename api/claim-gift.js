@@ -48,9 +48,10 @@ export default async function handler(req, res) {
       .update({ status: "claimed", memorial_id: memorialId, responded_at: new Date().toISOString() })
       .eq("stripe_session_id", sessionId)
       .eq("status", "sent")
-      .select();
+      .select("id, gifter_name, gifter_email, gifter_wants_costeward")
+      .single();
     if (giftErr) return res.status(500).json({ error: giftErr.message });
-    if (!giftRows?.length) return res.status(200).json({ skipped: "gift already claimed or declined" });
+    if (!giftRows) return res.status(200).json({ skipped: "gift already claimed or declined" });
 
     const { error: memErr } = await admin
       .from("memorials")
@@ -58,7 +59,25 @@ export default async function handler(req, res) {
       .eq("id", memorialId);
     if (memErr) return res.status(500).json({ error: memErr.message });
 
-    return res.status(200).json({ claimed: memorialId });
+    // Link any suggested co-stewards to the memorial that now exists — this
+    // is the moment they go from "staged against a gift" to "visible to
+    // this memorial's stewards" (see is_memorial_steward(memorial_id) on
+    // gift_suggested_costewards' own SELECT policy). Still nobody's
+    // emailed — that only happens if the recipient reviews and sends.
+    const { data: suggested } = await admin
+      .from("gift_suggested_costewards")
+      .update({ memorial_id: memorialId })
+      .eq("gift_purchase_id", giftRows.id)
+      .eq("status", "pending")
+      .select("id, name, email");
+
+    return res.status(200).json({
+      claimed: memorialId,
+      suggestedCostewards: suggested || [],
+      gifterName: giftRows.gifter_name,
+      gifterEmail: giftRows.gifter_email,
+      gifterWantsCosteward: giftRows.gifter_wants_costeward,
+    });
   } catch (e) {
     return res.status(502).json({ error: "Could not claim gift", detail: e.message });
   }

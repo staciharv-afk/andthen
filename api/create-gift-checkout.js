@@ -21,6 +21,7 @@ import { buildCheckoutParams, stripeProductIdsConfigured } from "./_lib/stripeTi
 const MAX_NAME_LEN = 200;
 const MAX_MESSAGE_LEN = 2000;
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+const MAX_COSTEWARDS = 6; // keeps the JSON blob well inside Stripe metadata's per-value size limit
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
@@ -30,15 +31,35 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: "Payments are not configured on the server." });
   }
 
-  const { recipientName, recipientEmail, giftMessage, gifterName, gifterEmail } = req.body || {};
+  const { subjectName, recipientName, recipientEmail, giftMessage, gifterName, gifterEmail, costewards, gifterWantsCosteward } = req.body || {};
+  const subject = (subjectName || "").trim().slice(0, MAX_NAME_LEN);
   const name = (recipientName || "").trim().slice(0, MAX_NAME_LEN);
   const email = (recipientEmail || "").trim().toLowerCase();
+  if (!subject) return res.status(400).json({ error: "Please enter who this page is for." });
   if (!name) return res.status(400).json({ error: "Please enter the recipient's name." });
   if (!EMAIL_RE.test(email)) return res.status(400).json({ error: "Please enter a valid recipient email." });
 
   const message = (giftMessage || "").trim().slice(0, MAX_MESSAGE_LEN);
   const fromName = (gifterName || "").trim().slice(0, MAX_NAME_LEN);
   const fromEmail = (gifterEmail || "").trim().toLowerCase();
+
+  // De-dupe by email (case-insensitive) and drop anyone matching the
+  // recipient — they're about to own the page, adding them as a co-steward
+  // suggestion too would be meaningless. Server-side re-validation of the
+  // same rules the form already applies, same reasoning as the recipient
+  // fields above: never trust the client alone.
+  const seenEmails = new Set([email]);
+  const cleanCostewards = [];
+  for (const row of Array.isArray(costewards) ? costewards : []) {
+    const rowName = (row?.name || "").trim().slice(0, MAX_NAME_LEN);
+    const rowEmail = (row?.email || "").trim().toLowerCase();
+    if (!rowName && !rowEmail) continue; // empty row, skip
+    if (!rowName || !EMAIL_RE.test(rowEmail)) return res.status(400).json({ error: "Please fix the co-steward name or email." });
+    if (seenEmails.has(rowEmail)) continue;
+    seenEmails.add(rowEmail);
+    cleanCostewards.push({ name: rowName, email: rowEmail });
+    if (cleanCostewards.length >= MAX_COSTEWARDS) break;
+  }
 
   const origin = req.headers.origin || `https://${req.headers.host}`;
   const stripe = new Stripe(STRIPE_SECRET_KEY);
@@ -48,11 +69,14 @@ export default async function handler(req, res) {
       metadata: {
         tier: "build",
         is_gift: "true",
+        subject_name: subject,
         recipient_name: name,
         recipient_email: email,
         gift_message: message,
         gifter_name: fromName,
         gifter_email: fromEmail,
+        gifter_wants_costeward: gifterWantsCosteward ? "true" : "false",
+        costewards: JSON.stringify(cleanCostewards),
       },
       ...(fromEmail && EMAIL_RE.test(fromEmail) ? { customer_email: fromEmail } : {}),
       success_url: `${origin}/?view=pricing&gift_sent=1`,

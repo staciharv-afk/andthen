@@ -24,6 +24,8 @@ import { OurPromisePage } from "./pages/OurPromise";
 import { PrivacyPage } from "./pages/Privacy";
 import { HowItWorksPage } from "./pages/HowItWorks";
 import { ClaimGiftPage } from "./pages/ClaimGift";
+import { GiftCostewardReviewPage } from "./pages/GiftCostewardReview";
+import { CoStewardWelcomePage } from "./pages/CoStewardWelcome";
 
 // Routes that get the brand-refreshed Nav — the marketing surface
 // (homepage + the four informational pages). Everything else (dashboard,
@@ -148,13 +150,18 @@ export default function App() {
   // policy — that kept failing on real invites for reasons that didn't
   // reproduce cleanly, so the actual write now happens server-side (see
   // api/accept-steward-invite.js), with the session's access token proving
-  // who's asking. Returns true on success so callers can decide how to
-  // route afterward.
+  // who's asking. On success, routes straight to the co-steward welcome
+  // screen (every new co-steward's first stop, gift-sourced or not — see
+  // CoStewardWelcome.jsx) rather than the plain dashboard, so the caller
+  // doesn't need its own post-accept routing. Returns true/false only so
+  // finishSignIn knows whether it already handled navigation.
   const tryAcceptPendingStewardInvite = async (session) => {
     const token = readPendingStewardInvite();
     if (!token) return false;
     clearPendingStewardInvite();
     let accepted = false;
+    let memorial = null;
+    let stewardNames = [];
     try {
       const res = await fetch("/api/accept-steward-invite", {
         method: "POST",
@@ -163,9 +170,12 @@ export default function App() {
       });
       const data = await res.json();
       accepted = res.ok && data?.accepted;
+      memorial = data?.memorial || null;
+      stewardNames = data?.stewardNames || [];
     } catch { /* accepted stays false — network hiccup reads the same as an invalid invite below */ }
     if (!accepted) { showToast("That invite link isn't valid anymore — ask them to send you a fresh one, and make sure you sign in with the exact email it was sent to.", "error"); return false; }
-    showToast("You're in — you can now help steward this page.");
+    if (memorial) navigate("costeward-welcome", { memorial, stewardNames });
+    else { showToast("You're in — you can now help steward this page."); navigate("dashboard"); }
     return true;
   };
 
@@ -179,7 +189,7 @@ export default function App() {
   const finishSignIn = async (session) => {
     if (session?.user) {
       const accepted = await tryAcceptPendingStewardInvite(session);
-      if (accepted) { navigate("dashboard"); return; }
+      if (accepted) return; // tryAcceptPendingStewardInvite already routed (dashboard or the welcome screen)
     }
     const draft = readDraft();
     if (draft?.name && session?.user) {
@@ -192,9 +202,16 @@ export default function App() {
         invite_code: uid(),
       }).select();
       if (!error && data?.[0]) {
-        await attachPendingUnlockIfAny(data[0].id);
+        const unlock = await attachPendingUnlockIfAny(data[0].id);
         showToast("You're signed in — your page is ready to finish.");
-        navigate("edit", data[0]);
+        // A gift with suggested co-stewards gets one extra stop before the
+        // usual "finish editing details" screen — everything else (a plain
+        // signup, or a gift with no suggestions) is completely unchanged.
+        if (unlock?.isGift && unlock.suggestedCostewards?.length) {
+          navigate("gift-costeward-review", data[0]);
+        } else {
+          navigate("edit", data[0]);
+        }
         return;
       }
       showToast("You're signed in — let's finish setting up your page.");
@@ -249,13 +266,16 @@ export default function App() {
         const data = await res.json();
         if (!res.ok || data?.skipped) {
           showToast("We couldn't confirm the gift automatically — contact us and we'll sort it out.", "error");
+          return { isGift: true, suggestedCostewards: [] };
         }
+        return { isGift: true, suggestedCostewards: data.suggestedCostewards || [] };
       } catch {
         showToast("We couldn't confirm the gift automatically — contact us and we'll sort it out.", "error");
+        return { isGift: true, suggestedCostewards: [] };
       }
-      return;
     }
     await attachPendingPaymentIfAny(memorialId);
+    return { isGift: false };
   };
 
   const handleSignOut = async () => {
@@ -271,8 +291,14 @@ export default function App() {
   // finishSignIn — it attaches that payment to the memorial that was just
   // created for it.
   const handleMemorialCreated = async (memorial) => {
-    await attachPendingUnlockIfAny(memorial.id);
-    navigate("dashboard");
+    const unlock = await attachPendingUnlockIfAny(memorial.id);
+    // Same branch finishSignIn takes for a signed-out gift claim — this is
+    // the signed-in equivalent (CreateMemorialPage reached via onNavigate("create")).
+    if (unlock?.isGift && unlock.suggestedCostewards?.length) {
+      navigate("gift-costeward-review", memorial);
+    } else {
+      navigate("dashboard");
+    }
   };
 
   return (
@@ -285,7 +311,7 @@ export default function App() {
         </div>
       )}
 
-      {route !== "login" && route !== "memorial" && route !== "onboarding" && route !== "claim-gift" && route !== "dashboard" && (
+      {route !== "login" && route !== "memorial" && route !== "onboarding" && route !== "claim-gift" && route !== "dashboard" && route !== "gift-costeward-review" && route !== "costeward-welcome" && (
         <Nav currentUser={currentUser} onSignOut={handleSignOut} onNavigate={navigate} currentRoute={route} brand={MARKETING_ROUTES.has(route)} />
       )}
 
@@ -362,6 +388,29 @@ export default function App() {
 
       {route === "claim-gift" && (
         <ClaimGiftPage currentUser={currentUser} onNavigate={navigate} showToast={showToast} />
+      )}
+
+      {/* routeParam is the memorial (finishSignIn) or {memorial, suggestions} (dashboard's Review button) —
+          both shapes carry a `memorial` field, which is all this page needs. A reload straight onto this
+          URL with no history (routeParam null) falls back to the dashboard, same as edit/page-settings do. */}
+      {route === "gift-costeward-review" && currentUser && routeParam && (
+        <GiftCostewardReviewPage memorial={routeParam.memorial || routeParam} onNavigate={navigate} showToast={showToast} />
+      )}
+      {route === "gift-costeward-review" && currentUser && !routeParam && (
+        <DashboardPage currentUser={currentUser} onNavigate={navigate} showToast={showToast} onSignOut={handleSignOut} />
+      )}
+      {route === "gift-costeward-review" && !currentUser && (
+        <AuthPage showToast={showToast} />
+      )}
+
+      {route === "costeward-welcome" && currentUser && routeParam && (
+        <CoStewardWelcomePage currentUser={currentUser} memorial={routeParam.memorial} stewardNames={routeParam.stewardNames} onNavigate={navigate} showToast={showToast} />
+      )}
+      {route === "costeward-welcome" && currentUser && !routeParam && (
+        <DashboardPage currentUser={currentUser} onNavigate={navigate} showToast={showToast} onSignOut={handleSignOut} />
+      )}
+      {route === "costeward-welcome" && !currentUser && (
+        <AuthPage showToast={showToast} />
       )}
 
       {route === "admin" && currentUser && (

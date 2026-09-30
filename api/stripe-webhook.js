@@ -68,9 +68,13 @@ async function handleGiftCheckout(session, admin) {
   const m = session.metadata || {};
   const gifterEmail = (m.gifter_email || session.customer_details?.email || "").trim() || null;
   const gifterName = (m.gifter_name || "").trim() || null;
+  const subjectName = (m.subject_name || "").trim() || null;
   const recipientName = (m.recipient_name || "").trim();
   const recipientEmail = (m.recipient_email || "").trim();
   const giftMessage = (m.gift_message || "").trim() || null;
+  const gifterWantsCosteward = m.gifter_wants_costeward === "true";
+  let suggestedCostewards = [];
+  try { suggestedCostewards = JSON.parse(m.costewards || "[]"); } catch { /* malformed — treat as none */ }
   if (!recipientName || !recipientEmail) return { skipped: "gift metadata missing" };
 
   const { data: inserted, error } = await admin
@@ -79,9 +83,11 @@ async function handleGiftCheckout(session, admin) {
       stripe_session_id: session.id,
       gifter_email: gifterEmail,
       gifter_name: gifterName,
+      subject_name: subjectName,
       recipient_email: recipientEmail,
       recipient_name: recipientName,
       gift_message: giftMessage,
+      gifter_wants_costeward: gifterWantsCosteward,
       status: "sent",
     })
     .select()
@@ -93,6 +99,15 @@ async function handleGiftCheckout(session, admin) {
     // rather than sending a duplicate claim email.
     if (error.code === "23505") return { skipped: "already recorded" };
     return { error: error.message };
+  }
+
+  // Staged, not live yet — see gift_suggested_costewards' own migration
+  // comment. Nobody on this list is emailed until the recipient claims the
+  // gift and reviews it themselves (api/send-gift-costeward-invites.js).
+  if (suggestedCostewards.length) {
+    await admin.from("gift_suggested_costewards").insert(
+      suggestedCostewards.map((c) => ({ gift_purchase_id: inserted.id, name: c.name, email: c.email }))
+    );
   }
 
   const claimUrl = `https://www.myandthen.com/?view=claim-gift&session=${encodeURIComponent(session.id)}`;

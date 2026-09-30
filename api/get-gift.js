@@ -26,7 +26,7 @@ export default async function handler(req, res) {
   });
   const { data: rows, error } = await admin
     .from("gift_purchases")
-    .select("recipient_name, gifter_name, gift_message, status")
+    .select("recipient_name, gifter_name, subject_name, gift_message, status")
     .eq("stripe_session_id", sessionId)
     .limit(1);
   if (error) return res.status(500).json({ error: error.message });

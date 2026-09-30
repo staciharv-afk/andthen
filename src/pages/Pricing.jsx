@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { PRICING_PLANS } from "../lib/pricingPlans";
 import { EmbeddedCheckoutModal } from "../components/EmbeddedCheckoutModal";
 import { GiftModal } from "../components/GiftModal";
+import { readPendingGiftConfirmation, clearPendingGiftConfirmation } from "../lib/pendingGiftConfirmation";
 
 const BUILD = PRICING_PLANS.find((p) => p.tier === "build");
 
@@ -30,9 +31,14 @@ export function PricingPage({ onNavigate, intent }) {
   const [giftSent, setGiftSent] = useState(
     () => new URLSearchParams(window.location.search).get("gift_sent") === "1"
   );
+  // Read once, same moment as giftSent — GiftModal stashed this right
+  // before redirecting to Stripe (see pendingGiftConfirmation.js), since
+  // Stripe redirects the whole tab and there's no other way to carry it.
+  const [giftConfirmation] = useState(() => (giftSent ? readPendingGiftConfirmation() : null));
 
   useEffect(() => {
     if (!giftSent) return;
+    clearPendingGiftConfirmation();
     const url = new URL(window.location.href);
     url.searchParams.delete("gift_sent");
     window.history.replaceState({}, "", url);
@@ -42,11 +48,23 @@ export function PricingPage({ onNavigate, intent }) {
     <div className="mkt-page">
       {giftSent && (
         <div className="mkt-gift-banner page-wrap" role="status" style={{ marginTop: 24 }}>
-          <h2 className="mkt-gift-banner-title">Your gift is on its way.</h2>
+          <h2 className="mkt-gift-banner-title">
+            {giftConfirmation?.recipientName ? `${giftConfirmation.recipientName}'s gift is on its way.` : "Your gift is on its way."}
+          </h2>
           <p className="mkt-gift-banner-body">
-            We've emailed them a link to open it whenever they're ready — the page is paid for and waiting, with nothing for you to forward or track. If you added your email, there's a confirmation in your inbox too.
+            We've emailed them a link to open it whenever they're ready — the page is paid for and waiting, with nothing for you to forward or track. Nobody else hears anything until they open it and say yes. If you added your email, there's a confirmation in your inbox too.
           </p>
-          <button type="button" className="mkt-btn mkt-btn-ghost" onClick={() => setGiftSent(false)}>
+          {giftConfirmation?.costewards?.length > 0 && (
+            <div className="gift-confirm-costewards">
+              <div className="gift-confirm-costewards-title">
+                {giftConfirmation.recipientName || "They"} will be asked to approve these co-stewards
+              </div>
+              <ul className="gift-confirm-costewards-list">
+                {giftConfirmation.costewards.map((c) => <li key={c.email}>{c.name}</li>)}
+              </ul>
+            </div>
+          )}
+          <button type="button" className="mkt-btn mkt-btn-ghost" onClick={() => setGiftSent(false)} style={{ marginTop: 14 }}>
             Close
           </button>
         </div>

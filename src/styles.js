@@ -1660,4 +1660,77 @@ body.has-dash-bottom-bar .toast-wrap { bottom: 84px; }
 @media (prefers-reduced-motion: reduce) {
   .dash-sheet-overlay.fade-in, .dash-page-card, .dash-quick-tile { transition: none; }
 }
+
+/* ============================================================
+   Gift co-stewards — the GiftModal section, the post-payment
+   confirmation banner, the recipient review screen, and the
+   co-steward welcome screen. Reuses .dash-* button/card classes
+   from the dashboard redesign rather than inventing new ones.
+   ============================================================ */
+.gift-costeward-section { border-top: 1px solid var(--warm-faint); margin-top: 6px; padding-top: 18px; }
+.gift-costeward-heading { font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 14px; color: var(--bark); margin-bottom: 6px; }
+.gift-costeward-tag { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; background: var(--cream-dark); border-radius: 999px; padding: 2px 8px; margin-left: 6px; }
+.gift-costeward-helper { font-size: 12.5px; line-height: 1.55; color: var(--warm-light); margin: 0 0 14px; }
+.gift-costeward-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+.gift-costeward-row .form-input { margin: 0; }
+.gift-costeward-remove { flex-shrink: 0; width: 32px; height: 32px; border-radius: 50%; border: none; background: var(--cream-dark); color: var(--warm-light); font-size: 16px; cursor: pointer; min-height: 32px; }
+.gift-costeward-remove:hover { background: var(--warm-faint); color: var(--bark); }
+.gift-costeward-add { display: flex; align-items: center; gap: 8px; background: none; border: none; color: var(--rust); font-family: 'DM Sans', sans-serif; font-size: 13.5px; font-weight: 500; cursor: pointer; padding: 6px 0; min-height: 44px; }
+.gift-costeward-check { display: flex; align-items: flex-start; gap: 10px; margin-top: 10px; font-size: 13.5px; color: var(--bark); cursor: pointer; }
+.gift-costeward-check input { margin-top: 3px; flex-shrink: 0; }
+.gift-costeward-check-helper { display: block; font-size: 12px; color: var(--warm-light); font-weight: 400; margin-top: 2px; }
+
+.gift-price-summary { background: var(--cream-dark); border-radius: 12px; padding: 14px 16px; margin: 18px 0 4px; }
+.gift-price-summary-line { font-family: 'Lora', serif; font-size: 16px; color: var(--bark); }
+.gift-price-summary-line span { color: var(--warm-light); font-family: 'DM Sans', sans-serif; font-size: 14px; }
+.gift-price-summary-sub { font-size: 12px; color: var(--warm-light); margin-top: 2px; }
+
+@media (max-width: 600px) {
+  .gift-modal-card { display: flex; flex-direction: column; max-height: 92vh; max-height: 92dvh; padding-bottom: 0; }
+  .gift-modal-card .create-form { overflow-y: auto; padding-bottom: 16px; }
+  .gift-modal-actions { position: sticky; bottom: 0; background: var(--cream); margin: 0 -28px; padding: 14px 28px calc(14px + env(safe-area-inset-bottom)); border-top: 1px solid var(--warm-faint); }
+  .gift-modal-actions .btn { flex: 1; justify-content: center; }
+}
+
+/* -- gift-sent confirmation banner (Pricing.jsx) -- */
+.gift-confirm-costewards { margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(var(--charcoal-rgb),0.12); }
+.gift-confirm-costewards-title { font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 13.5px; color: var(--charcoal); margin-bottom: 8px; }
+.gift-confirm-costewards-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.gift-confirm-costewards-list li { font-size: 13.5px; color: var(--charcoal-muted); }
+
+/* -- gift co-steward review screen + co-steward welcome screen -- */
+.gift-review-page, .costeward-welcome-page { min-height: 100vh; background: var(--cream); padding: 40px 16px 60px; }
+.gift-review-inner, .costeward-welcome-inner { max-width: 560px; margin: 0 auto; }
+.gift-review-eyebrow { font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--rust); margin-bottom: 8px; text-align: center; }
+.gift-review-heading { font-family: 'Lora', serif; font-size: 26px; color: var(--bark); text-align: center; margin: 0 0 10px; line-height: 1.25; }
+.gift-review-helper { font-size: 14.5px; line-height: 1.6; color: var(--bark-light); text-align: center; margin: 0 0 24px; }
+.gift-review-note { font-family: 'Lora', serif; font-style: italic; font-size: 15px; color: var(--bark-light); text-align: center; margin: 0 0 24px; }
+
+.gift-costeward-check-row { display: flex; align-items: center; gap: 12px; padding: 14px 16px; }
+.gift-costeward-check-row .dash-init-avatar { flex-shrink: 0; }
+.gift-costeward-check-info { flex: 1; min-width: 0; }
+.gift-costeward-check-name { font-weight: 600; font-size: 14.5px; color: var(--bark); }
+.gift-costeward-check-status { font-size: 12.5px; color: var(--warm-light); margin-top: 1px; }
+.gift-costeward-check-row .toggle-switch { flex-shrink: 0; }
+
+.gift-review-email-preview { margin-top: 4px; }
+.gift-review-email-toggle { font-size: 13px; color: var(--rust); text-decoration: underline; cursor: pointer; background: none; border: none; padding: 8px 0; }
+.gift-review-email-body { background: var(--cream-dark); border-radius: 12px; padding: 16px; font-size: 13px; line-height: 1.6; color: var(--bark-light); white-space: pre-wrap; margin-top: 8px; }
+
+.gift-review-footer-note { font-size: 12.5px; color: var(--warm-light); text-align: center; line-height: 1.6; margin: 20px 0 16px; }
+
+/* -- co-steward welcome screen -- */
+.costeward-welcome-avatars { display: flex; justify-content: center; margin-bottom: 18px; }
+.costeward-step-card { background: var(--white); border: 1px solid var(--warm-faint); border-radius: 16px; padding: 20px; margin-bottom: 16px; }
+.costeward-step-label { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--rust); margin-bottom: 8px; }
+.costeward-step-title { font-family: 'Lora', serif; font-size: 18px; color: var(--bark); margin: 0 0 8px; }
+.costeward-step-body { font-size: 14px; line-height: 1.6; color: var(--bark-light); margin: 0 0 14px; }
+.costeward-step-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.costeward-can-list { list-style: none; margin: 20px 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.costeward-can-list li { font-size: 13.5px; color: var(--bark-light); padding-left: 22px; position: relative; }
+.costeward-can-list li::before { content: '✓'; position: absolute; left: 0; color: #1e7d42; font-weight: 700; }
+
+@media (min-width: 640px) {
+  .gift-costeward-check-row-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+}
 `;

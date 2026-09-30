@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { supabase, CONFIG_OK } from "../lib/supabase";
 import { saveDraft } from "../lib/onboardingDraft";
+import { readPendingGiftClaim } from "../lib/pendingGiftClaim";
 
 export function OnboardingPage({ showToast }) {
   const [step, setStep] = useState("orientation"); // orientation | email | intro
@@ -8,7 +9,9 @@ export function OnboardingPage({ showToast }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [linkSent, setLinkSent] = useState(false);
-  const [name, setName] = useState("");
+  // A gift claim in progress (ClaimGift.jsx's "Get started") already knows
+  // who the page is for — no reason to make the recipient type it again.
+  const [name, setName] = useState(() => readPendingGiftClaim()?.subjectName || "");
   const [relation, setRelation] = useState("");
   const [description, setDescription] = useState("");
 

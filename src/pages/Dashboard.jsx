@@ -37,6 +37,8 @@ export function DashboardPage({ currentUser, onNavigate, showToast, onSignOut })
   const [accessRequestBusyIds, setAccessRequestBusyIds] = useState(new Set());
   const [stewards, setStewards] = useState([]);
   const [stewardBusyIds, setStewardBusyIds] = useState(new Set());
+  const [giftSuggestions, setGiftSuggestions] = useState([]);
+  const [giftGifterName, setGiftGifterName] = useState(null);
   const [exporting, setExporting] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null); // memorial pending delete confirmation, or null
   const [upgrading, setUpgrading] = useState(false); // true while a checkout redirect is starting
@@ -101,6 +103,7 @@ export function DashboardPage({ currentUser, onNavigate, showToast, onSignOut })
     loadSubmissions(m.id);
     loadAccessRequests(m.id);
     loadStewards(m.id);
+    loadGiftSuggestions(m.id);
   };
 
   const loadSubmissions = async (memorialId) => {
@@ -128,6 +131,28 @@ export function DashboardPage({ currentUser, onNavigate, showToast, onSignOut })
       .eq("memorial_id", memorialId)
       .order("created_at", { ascending: false });
     setStewards(data || []);
+  };
+
+  // gift_purchases (where the gifter's name lives) has no client-facing
+  // grants at all — reuses the same service-role endpoint the review
+  // screen itself calls, rather than trying to read it directly under RLS.
+  // Best-effort and silent: this only drives an optional dashboard prompt,
+  // not something worth a toast if it fails to load.
+  const loadGiftSuggestions = async (memorialId) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch("/api/get-gift-costeward-suggestions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ memorialId }),
+      });
+      const data = await res.json();
+      setGiftSuggestions(data.suggestedCostewards || []);
+      setGiftGifterName(data.gifterName || null);
+    } catch {
+      setGiftSuggestions([]);
+      setGiftGifterName(null);
+    }
   };
 
   const updateActiveMemorial = (patch) => {
@@ -327,7 +352,7 @@ export function DashboardPage({ currentUser, onNavigate, showToast, onSignOut })
   const approved = submissions.filter((s) => s.status === "approved");
   const contributorCount = new Set(approved.map((s) => s.contributor_name).filter(Boolean)).size;
   const contributionGated = activeMemorial.visibility === "private" || activeMemorial.contribution_access === "code_required";
-  const waitingCount = pending.length + (contributionGated ? accessRequests.length : 0);
+  const waitingCount = pending.length + (contributionGated ? accessRequests.length : 0) + giftSuggestions.length;
   const atFreeLimit = !activeMemorial.is_paid && submissions.filter((s) => s.status !== "rejected").length >= FREE_MEMORY_LIMIT;
 
   const filteredAll = submissions.filter((s) => {
@@ -389,6 +414,18 @@ export function DashboardPage({ currentUser, onNavigate, showToast, onSignOut })
                         onDecline={() => declineAccessRequest(r)}
                       />
                     ))}
+                  </div>
+                </div>
+              )}
+
+              {giftSuggestions.length > 0 && (
+                <div className="dash-card dash-pending-card">
+                  <div className="dash-pending-name">Suggested by {giftGifterName || "whoever gave this page"}</div>
+                  <p className="dash-pending-text" style={{ fontStyle: "normal", fontFamily: "'DM Sans', sans-serif", fontSize: 13.5 }}>
+                    {giftSuggestions.length} {giftSuggestions.length === 1 ? "person" : "people"} suggested as co-stewards — {giftSuggestions.map((s) => s.name).join(", ")}.
+                  </p>
+                  <div className="dash-pending-actions">
+                    <button type="button" className="btn-dash-primary" onClick={() => onNavigate("gift-costeward-review", { memorial: activeMemorial })}>Review</button>
                   </div>
                 </div>
               )}
