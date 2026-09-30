@@ -285,7 +285,7 @@ export default function App() {
         </div>
       )}
 
-      {route !== "login" && route !== "memorial" && route !== "onboarding" && route !== "claim-gift" && (
+      {route !== "login" && route !== "memorial" && route !== "onboarding" && route !== "claim-gift" && route !== "dashboard" && (
         <Nav currentUser={currentUser} onSignOut={handleSignOut} onNavigate={navigate} currentRoute={route} brand={MARKETING_ROUTES.has(route)} />
       )}
 
@@ -317,7 +317,7 @@ export default function App() {
       )}
 
       {route === "dashboard" && currentUser && (
-        <DashboardPage currentUser={currentUser} onNavigate={navigate} showToast={showToast} />
+        <DashboardPage currentUser={currentUser} onNavigate={navigate} showToast={showToast} onSignOut={handleSignOut} />
       )}
       {route === "dashboard" && !currentUser && (
         <AuthPage showToast={showToast} />
@@ -334,7 +334,7 @@ export default function App() {
       )}
       {/* Reloaded straight onto /?view=edit with no memorial in history — fall back to the dashboard. */}
       {route === "edit" && currentUser && !routeParam && (
-        <DashboardPage currentUser={currentUser} onNavigate={navigate} showToast={showToast} />
+        <DashboardPage currentUser={currentUser} onNavigate={navigate} showToast={showToast} onSignOut={handleSignOut} />
       )}
       {route === "edit" && !currentUser && (
         <AuthPage showToast={showToast} />
