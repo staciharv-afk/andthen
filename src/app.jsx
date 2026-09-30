@@ -63,12 +63,19 @@ export default function App() {
     const params = new URLSearchParams(window.location.search);
     const paidSession = params.get("paid_session");
     const paidTier = params.get("tier");
+    // Keeps window.location.hash intact when rewriting the query string —
+    // the invite link below is now a real magic link (see
+    // api/notify-steward-invite.js), which arrives with the session tokens
+    // in the URL hash. Dropping the hash here (a plain replaceState(url)
+    // with no hash on the new url does exactly that) would only matter if
+    // supabase-js hadn't already read it by this point, but there's no
+    // reason to depend on that race either way.
     if (paidSession && paidTier) {
       savePendingPayment({ sessionId: paidSession, tier: paidTier });
       params.delete("paid_session");
       params.delete("tier");
       const qs = params.toString();
-      window.history.replaceState({ page, param }, "", window.location.pathname + (qs ? `?${qs}` : ""));
+      window.history.replaceState({ page, param }, "", window.location.pathname + (qs ? `?${qs}` : "") + window.location.hash);
     }
 
     // Landing from an emailed co-steward invite (see api/notify-steward-invite.js)
@@ -80,7 +87,7 @@ export default function App() {
       savePendingStewardInvite(stewardInviteToken);
       params.delete("steward_invite");
       const qs2 = params.toString();
-      window.history.replaceState({ page, param }, "", window.location.pathname + (qs2 ? `?${qs2}` : ""));
+      window.history.replaceState({ page, param }, "", window.location.pathname + (qs2 ? `?${qs2}` : "") + window.location.hash);
     }
 
     const onPopState = (e) => {
@@ -96,7 +103,7 @@ export default function App() {
       supabase.auth.getSession().then(({ data }) => {
         if (data.session?.user) {
           setCurrentUser(data.session.user);
-          if (stewardInviteToken) tryAcceptPendingStewardInvite(data.session.user.id);
+          if (stewardInviteToken) tryAcceptPendingStewardInvite(data.session);
         } else if (stewardInviteToken) {
           navigate("login");
         }
@@ -136,27 +143,28 @@ export default function App() {
   };
 
   // Accepts a stashed co-steward invite token (see the mount effect and
-  // pendingStewardInvite.js) against the now-signed-in user. A plain client
-  // update under RLS — the "invitee accepts their invite" policy only lets
-  // this succeed if the invite's email matches the signed-in JWT's email, so
-  // there's no bespoke accept endpoint to build or trust. Returns true on
-  // success so callers can decide how to route afterward.
-  const tryAcceptPendingStewardInvite = async (userId) => {
+  // pendingStewardInvite.js) against the now-signed-in session. Used to be a
+  // plain client update() gated by the "invitee accepts their invite" RLS
+  // policy — that kept failing on real invites for reasons that didn't
+  // reproduce cleanly, so the actual write now happens server-side (see
+  // api/accept-steward-invite.js), with the session's access token proving
+  // who's asking. Returns true on success so callers can decide how to
+  // route afterward.
+  const tryAcceptPendingStewardInvite = async (session) => {
     const token = readPendingStewardInvite();
     if (!token) return false;
     clearPendingStewardInvite();
-    // A failed RLS check on an UPDATE (wrong token, or signed in with a
-    // different email than the invite was sent to) isn't an error — it's
-    // just zero rows matched, and Supabase reports that as a plain success.
-    // Without asking for the row back and checking it actually came back,
-    // this would show "You're in" even when nothing changed.
-    const { data, error } = await supabase
-      .from("memorial_stewards")
-      .update({ status: "accepted", user_id: userId, accepted_at: new Date().toISOString() })
-      .eq("invite_token", token)
-      .eq("status", "pending")
-      .select();
-    if (error || !data?.length) { showToast("That invite link isn't valid anymore — ask them to send you a fresh one, and make sure you sign in with the exact email it was sent to.", "error"); return false; }
+    let accepted = false;
+    try {
+      const res = await fetch("/api/accept-steward-invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ token }),
+      });
+      const data = await res.json();
+      accepted = res.ok && data?.accepted;
+    } catch { /* accepted stays false — network hiccup reads the same as an invalid invite below */ }
+    if (!accepted) { showToast("That invite link isn't valid anymore — ask them to send you a fresh one, and make sure you sign in with the exact email it was sent to.", "error"); return false; }
     showToast("You're in — you can now help steward this page.");
     return true;
   };
@@ -170,7 +178,7 @@ export default function App() {
   // INSERT policy — and land them on it instead of the dashboard.
   const finishSignIn = async (session) => {
     if (session?.user) {
-      const accepted = await tryAcceptPendingStewardInvite(session.user.id);
+      const accepted = await tryAcceptPendingStewardInvite(session);
       if (accepted) { navigate("dashboard"); return; }
     }
     const draft = readDraft();
