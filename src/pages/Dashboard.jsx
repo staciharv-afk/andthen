@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
-import { fmtDate, timeAgo, sendThankYou, FREE_MEMORY_LIMIT, memorialUrl } from "../lib/utils";
+import { uid, fmtDate, fmtTime, timeAgo, genAccessCode, sendThankYou, notifyStewardInvite, notifyAccessApproved, FREE_MEMORY_LIMIT, memorialUrl } from "../lib/utils";
 import { trackEvent } from "../lib/analytics";
 import { exportMemorial } from "../lib/export";
 import { PRICING_PLANS } from "../lib/pricingPlans";
-import { ShareMemoryModal, CONTENT_TAGS } from "./Memorial";
+import { ShareMemoryModal, CONTENT_TAGS, colorForContributor, initialsFor } from "./Memorial";
 import { EmbeddedCheckoutModal } from "../components/EmbeddedCheckoutModal";
 import { MemoryLimitModal } from "../components/MemoryLimitModal";
 import { SharePagePanel } from "../components/SharePagePanel";
@@ -12,20 +12,53 @@ import { useScrollLock } from "../lib/useScrollLock";
 
 const BUILD = PRICING_PLANS.find((p) => p.tier === "build");
 
-export function DashboardPage({ currentUser, onNavigate, showToast }) {
+// The label a pending-memory card and a recent-memory tile both show —
+// combines type + "did they also write something" into one chip, per the
+// redesign spec ("Written story", "Photo + story", "Voice memo", ...).
+// Deliberately its own thing, not a reuse of Memorial.jsx's
+// contentTypeLabel() — that one answers "what badge does a public grid
+// tile show", which doesn't distinguish "photo alone" from "photo + text".
+function dashContentLabel(s) {
+  const hasText = !!s.text?.trim();
+  if (s.type === "photo") return hasText ? "Photo + story" : "Photo";
+  if (s.type === "video") return hasText ? "Video + story" : "Video";
+  if (s.type === "voice") return "Voice memo";
+  if (s.type === "url") return "Link";
+  return "Written story";
+}
+
+export function DashboardPage({ currentUser, onNavigate, showToast, onSignOut }) {
   const [memorials, setMemorials] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeMemorial, setActiveMemorial] = useState(null);
   const [submissions, setSubmissions] = useState([]);
-  const [activeTab, setActiveTab] = useState("pending");
   const [submissionsLoading, setSubmissionsLoading] = useState(false);
+  const [accessRequests, setAccessRequests] = useState([]);
+  const [accessRequestBusyIds, setAccessRequestBusyIds] = useState(new Set());
+  const [stewards, setStewards] = useState([]);
+  const [stewardBusyIds, setStewardBusyIds] = useState(new Set());
   const [exporting, setExporting] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null); // memorial pending delete confirmation, or null
   const [upgrading, setUpgrading] = useState(false); // true while a checkout redirect is starting
   const [addingMemory, setAddingMemory] = useState(false);
   const [showMemoryLimit, setShowMemoryLimit] = useState(false);
   const [showPagePaywall, setShowPagePaywall] = useState(false);
-  const [showShare, setShowShare] = useState(false);
+  const [showShareSheet, setShowShareSheet] = useState(false);
+  const [showFullSharePanel, setShowFullSharePanel] = useState(false); // the older, richer QR/printable-card panel — reachable from the new sheet, not replaced by it
+  const [showCoStewardSheet, setShowCoStewardSheet] = useState(false);
+  const [showStorySwitcher, setShowStorySwitcher] = useState(false);
+  const [showAccountMenu, setShowAccountMenu] = useState(false);
+  const [showAllMemories, setShowAllMemories] = useState(false); // expands Recent memories into the full Pending/Approved/All list
+  const [allMemoriesTab, setAllMemoriesTab] = useState("pending");
+  const [savingModeration, setSavingModeration] = useState(false);
+  const [savingAccess, setSavingAccess] = useState(false);
+
+  // The sticky bottom bar (mobile only) would otherwise sit right under a
+  // toast — see ".has-dash-bottom-bar .toast-wrap" in styles.js.
+  useEffect(() => {
+    document.body.classList.add("has-dash-bottom-bar");
+    return () => document.body.classList.remove("has-dash-bottom-bar");
+  }, []);
 
   useEffect(() => {
     loadMemorials();
@@ -58,9 +91,16 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
     setLoading(false);
     if (data?.length) {
       setMemorials(data);
-      setActiveMemorial(data[0]);
-      loadSubmissions(data[0].id);
+      selectMemorial(data[0]);
     }
+  };
+
+  const selectMemorial = (m) => {
+    setActiveMemorial(m);
+    setShowAllMemories(false);
+    loadSubmissions(m.id);
+    loadAccessRequests(m.id);
+    loadStewards(m.id);
   };
 
   const loadSubmissions = async (memorialId) => {
@@ -71,17 +111,52 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
     return data || [];
   };
 
+  const loadAccessRequests = async (memorialId) => {
+    const { data } = await supabase
+      .from("access_requests")
+      .select("id, requester_name, requester_email, relationship, note, created_at")
+      .eq("memorial_id", memorialId)
+      .eq("status", "pending")
+      .order("created_at", { ascending: false });
+    setAccessRequests(data || []);
+  };
+
+  const loadStewards = async (memorialId) => {
+    const { data } = await supabase
+      .from("memorial_stewards")
+      .select("id, invited_email, invited_name, status, created_at")
+      .eq("memorial_id", memorialId)
+      .order("created_at", { ascending: false });
+    setStewards(data || []);
+  };
+
+  const updateActiveMemorial = (patch) => {
+    setActiveMemorial((m) => ({ ...m, ...patch }));
+    setMemorials((list) => list.map((m) => (m.id === activeMemorial.id ? { ...m, ...patch } : m)));
+  };
+
+  const firstName = activeMemorial?.name.split(" ")[0];
+
   const handleApprove = async (submissionId) => {
     await supabase.from("contributions").update({ status: "approved" }).eq("id", submissionId);
-    setSubmissions((s) => s.map((x) => x.id === submissionId ? { ...x, status: "approved" } : x));
+    setSubmissions((s) => s.map((x) => (x.id === submissionId ? { ...x, status: "approved" } : x)));
     sendThankYou(submissionId); // emails the contributor if they left an address
-    showToast("Story approved and now visible on the page.");
+    showToast(`Approved. It's on ${firstName}'s page now.`);
+  };
+
+  const handleApproveAll = async () => {
+    const ids = submissions.filter((s) => s.status === "pending").map((s) => s.id);
+    if (!ids.length) return;
+    await Promise.all(ids.map((id) => supabase.from("contributions").update({ status: "approved" }).eq("id", id)));
+    setSubmissions((s) => s.map((x) => (ids.includes(x.id) ? { ...x, status: "approved" } : x)));
+    ids.forEach((id) => sendThankYou(id));
+    showToast(`Approved ${ids.length}. They're on ${firstName}'s page now.`);
   };
 
   // Descriptive tags are independent of a submission's type and can be
-  // changed any time — during moderation or later from the Approved tab.
+  // changed any time — during moderation or later from the full list.
   const handleSetTags = async (submissionId, tags) => {
-    setSubmissions((s) => s.map((x) => x.id === submissionId ? { ...x, tags } : x));
+    setSubmissions((s) => s.map((x) => (x.id === submissionId ? { ...x, tags } : x)));
     const { error } = await supabase.from("contributions").update({ tags }).eq("id", submissionId);
     if (error) {
       showToast("Couldn't update tags — please try again.", "error");
@@ -91,7 +166,7 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
 
   const handleReject = async (submissionId) => {
     await supabase.from("contributions").update({ status: "rejected" }).eq("id", submissionId);
-    setSubmissions((s) => s.map((x) => x.id === submissionId ? { ...x, status: "rejected" } : x));
+    setSubmissions((s) => s.map((x) => (x.id === submissionId ? { ...x, status: "rejected" } : x)));
     showToast("Submission removed.");
   };
 
@@ -110,6 +185,79 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
     });
     if (error) { showToast(error.code === "23505" ? "Already blocked." : "Couldn't block — please try again.", "error"); return; }
     showToast(`${submission.contributor_name || "They"} won't be able to add another memory.`);
+  };
+
+  const approveAccessRequest = async (req) => {
+    setAccessRequestBusyIds((s) => new Set(s).add(req.id));
+    const token = uid() + uid(); // same doubled-generator idiom contribute_token uses elsewhere
+    const { error } = await supabase
+      .from("access_requests")
+      .update({ status: "approved", contribute_token: token, approved_at: new Date().toISOString() })
+      .eq("id", req.id);
+    setAccessRequestBusyIds((s) => { const n = new Set(s); n.delete(req.id); return n; });
+    if (error) { showToast("Couldn't approve — please try again.", "error"); return; }
+    setAccessRequests((rs) => rs.filter((r) => r.id !== req.id));
+    notifyAccessApproved(req.id); // server re-derives the token/email and sends it — client never sees or sends the email itself
+    showToast(`Approved — ${req.requester_name || "they"}'ll get an email with their link.`);
+  };
+
+  const declineAccessRequest = async (req) => {
+    setAccessRequestBusyIds((s) => new Set(s).add(req.id));
+    const { error } = await supabase.from("access_requests").update({ status: "declined" }).eq("id", req.id);
+    setAccessRequestBusyIds((s) => { const n = new Set(s); n.delete(req.id); return n; });
+    if (error) { showToast("Couldn't decline — please try again.", "error"); return; }
+    setAccessRequests((rs) => rs.filter((r) => r.id !== req.id));
+  };
+
+  const inviteCoSteward = async ({ name, email }) => {
+    const token = uid() + uid();
+    const { data, error } = await supabase
+      .from("memorial_stewards")
+      .insert({ memorial_id: activeMemorial.id, invited_email: email, invited_name: name || null, invite_token: token, invited_by: currentUser.id })
+      .select()
+      .single();
+    if (error) {
+      showToast(error.code === "23505" ? "That person already has a pending invite." : "Couldn't send the invite — please try again.", "error");
+      return false;
+    }
+    setStewards((s) => [data, ...s]);
+    notifyStewardInvite(data.id);
+    showToast(`Invite sent to ${email}.`);
+    return true;
+  };
+
+  const removeSteward = async (row) => {
+    setStewardBusyIds((s) => new Set(s).add(row.id));
+    const { error } = await supabase.from("memorial_stewards").delete().eq("id", row.id);
+    setStewardBusyIds((s) => { const n = new Set(s); n.delete(row.id); return n; });
+    if (error) { showToast("Couldn't remove — please try again.", "error"); return; }
+    setStewards((s) => s.filter((r) => r.id !== row.id));
+    showToast(row.status === "accepted" ? "Removed as a co-steward." : "Invite canceled.");
+  };
+
+  const saveModeration = async (value) => {
+    setSavingModeration(true);
+    const { error } = await supabase.from("memorials").update({ require_approval: value }).eq("id", activeMemorial.id);
+    setSavingModeration(false);
+    if (error) { showToast("Couldn't save — please try again.", "error"); return; }
+    updateActiveMemorial({ require_approval: value });
+    showToast(value ? "New memories will need your approval." : "New memories will publish automatically.");
+  };
+
+  // The dashboard's simplified two-way control — Invite only / Anyone —
+  // maps onto the existing contribution_access field (open/code_required).
+  // A fully private page (visibility='private') is a separate, bigger lock
+  // still only reachable from Settings — this control just answers "does a
+  // visitor who can already see the page need a code to add a memory too."
+  const saveContributionAccess = async (value) => {
+    setSavingAccess(true);
+    const patch = { contribution_access: value };
+    if (value === "code_required" && !activeMemorial.access_code) patch.access_code = genAccessCode();
+    const { error } = await supabase.from("memorials").update(patch).eq("id", activeMemorial.id);
+    setSavingAccess(false);
+    if (error) { showToast("Couldn't save — please try again.", "error"); return; }
+    updateActiveMemorial(patch);
+    showToast(value === "open" ? "Anyone who can view the page can now add a memory." : "Adding a memory now needs an invite or the access code.");
   };
 
   const handleExport = async () => {
@@ -148,23 +296,12 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
     setMemorials((list) => {
       const remaining = list.filter((m) => m.id !== memorialId);
       if (activeMemorial?.id === memorialId) {
-        if (remaining.length) { setActiveMemorial(remaining[0]); loadSubmissions(remaining[0].id); }
-        else { setActiveMemorial(null); setSubmissions([]); }
+        if (remaining.length) selectMemorial(remaining[0]);
+        else { setActiveMemorial(null); setSubmissions([]); setAccessRequests([]); setStewards([]); }
       }
       return remaining;
     });
   };
-
-  const filtered = submissions.filter((s) => {
-    if (activeTab === "pending") return s.status === "pending";
-    if (activeTab === "approved") return s.status === "approved";
-    return true;
-  });
-
-  // Mirrors can_insert_contribution()'s own count (status <> 'rejected') —
-  // submissions is already loaded unfiltered, so no extra query needed.
-  const atFreeLimit = !!activeMemorial && !activeMemorial.is_paid
-    && submissions.filter((s) => s.status !== "rejected").length >= FREE_MEMORY_LIMIT;
 
   if (loading) return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "60vh" }}>
@@ -173,8 +310,9 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
   );
 
   if (!memorials.length) return (
-    <div className="dashboard-page">
-      <div className="dashboard-inner">
+    <div className="dash-page">
+      <DashTopBar currentUser={currentUser} onNavigate={onNavigate} onSignOut={onSignOut} showAccountMenu={showAccountMenu} setShowAccountMenu={setShowAccountMenu} />
+      <div className="dash-inner">
         <div className="empty-state fade-up">
           <div className="empty-state-icon">📖</div>
           <div className="empty-state-title">No pages yet</div>
@@ -185,128 +323,226 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
     </div>
   );
 
-  return (
-    <div className="dashboard-page">
-      <div className="dashboard-inner">
-        <div className="dashboard-header fade-up">
-          <div>
-            <div className="dashboard-title">Your People</div>
-            <div className="dashboard-sub">Manage memories and submissions</div>
-          </div>
-          <button className="btn btn-rust btn-sm" onClick={() => setShowPagePaywall(true)}>+ Start another page</button>
-        </div>
+  const pending = submissions.filter((s) => s.status === "pending");
+  const approved = submissions.filter((s) => s.status === "approved");
+  const contributorCount = new Set(approved.map((s) => s.contributor_name).filter(Boolean)).size;
+  const contributionGated = activeMemorial.visibility === "private" || activeMemorial.contribution_access === "code_required";
+  const waitingCount = pending.length + (contributionGated ? accessRequests.length : 0);
+  const atFreeLimit = !activeMemorial.is_paid && submissions.filter((s) => s.status !== "rejected").length >= FREE_MEMORY_LIMIT;
 
+  const filteredAll = submissions.filter((s) => {
+    if (allMemoriesTab === "pending") return s.status === "pending";
+    if (allMemoriesTab === "approved") return s.status === "approved";
+    return true;
+  });
+
+  return (
+    <div className="dash-page">
+      <DashTopBar currentUser={currentUser} onNavigate={onNavigate} onSignOut={onSignOut} showAccountMenu={showAccountMenu} setShowAccountMenu={setShowAccountMenu} />
+
+      <div className="dash-inner">
         {memorials.length > 1 && (
-          <div style={{ display: "flex", gap: 10, marginBottom: 24, flexWrap: "wrap" }}>
-            {memorials.map((m) => (
-              <button
-                key={m.id}
-                className={`btn btn-sm ${activeMemorial?.id === m.id ? "btn-rust" : "btn-ghost"}`}
-                onClick={() => { setActiveMemorial(m); loadSubmissions(m.id); }}
-              >{m.name}</button>
-            ))}
-          </div>
+          <StorySwitcher memorials={memorials} active={activeMemorial} onSelect={selectMemorial} open={showStorySwitcher} setOpen={setShowStorySwitcher} />
         )}
 
-        {activeMemorial && (
-          <>
-            <div className="memorial-banner fade-up-2">
-              {activeMemorial.photo_url && (
-                <img
-                  className="memorial-banner-img"
-                  src={activeMemorial.photo_url}
-                  alt={activeMemorial.name}
-                  style={{ objectPosition: `${activeMemorial.crop_x ?? 50}% ${activeMemorial.crop_y ?? 50}%` }}
-                />
+        <PageCard
+          memorial={activeMemorial}
+          submissions={approved}
+          contributorCount={contributorCount}
+          contributionGated={contributionGated}
+          onAddMemory={() => (atFreeLimit ? setShowMemoryLimit(true) : setAddingMemory(true))}
+          onShare={() => setShowShareSheet(true)}
+          onView={() => onNavigate("memorial", activeMemorial.invite_code)}
+          onEdit={() => onNavigate("edit", activeMemorial)}
+        />
+
+        <div className="dash-main-col">
+        <section className="dash-section fade-up-2">
+          <div className="dash-section-header">
+            <h2>Waiting on you{waitingCount > 0 && <span className="dash-count-badge">{waitingCount}</span>}</h2>
+            {pending.length >= 2 && (
+              <button type="button" className="dash-text-btn" onClick={handleApproveAll}>Approve all {pending.length}</button>
+            )}
+          </div>
+
+          {submissionsLoading ? (
+            <div style={{ display: "flex", justifyContent: "center", padding: "30px 0" }}><span className="spinner spinner-dark" /></div>
+          ) : waitingCount === 0 ? (
+            <div className="dash-card dash-empty-waiting">You're all caught up. New memories and requests show up here first.</div>
+          ) : (
+            <>
+              {pending.map((s) => (
+                <PendingMemoryCard key={s.id} submission={s} onApprove={handleApprove} onDecline={handleReject} />
+              ))}
+
+              {contributionGated && accessRequests.length > 0 && (
+                <div className="dash-access-requests">
+                  <div className="dash-access-requests-title">Asking to add a memory</div>
+                  <p className="dash-access-requests-helper">Approving emails them a personal link. Declining is quiet. They aren't told.</p>
+                  <div className="dash-access-requests-grid">
+                    {accessRequests.map((r) => (
+                      <AccessRequestCard
+                        key={r.id}
+                        request={r}
+                        busy={accessRequestBusyIds.has(r.id)}
+                        onApprove={() => approveAccessRequest(r)}
+                        onDecline={() => declineAccessRequest(r)}
+                      />
+                    ))}
+                  </div>
+                </div>
               )}
-              <div className="memorial-banner-body">
-                <div className="memorial-name">{activeMemorial.name}</div>
-                {(activeMemorial.born || activeMemorial.passed) && (
-                  <div className="memorial-dates">
-                    {fmtDate(activeMemorial.born)}{activeMemorial.born && activeMemorial.passed && " — "}{fmtDate(activeMemorial.passed)}
-                  </div>
-                )}
-                {activeMemorial.description && <div className="memorial-desc">{activeMemorial.description}</div>}
+            </>
+          )}
+        </section>
 
-                <div className="invite-box">
-                  <span className="invite-url">{memorialUrl(activeMemorial)}</span>
-                </div>
+        <section className="dash-quick-actions fade-up-2">
+          <button type="button" className="dash-quick-tile" onClick={() => setShowCoStewardSheet(true)}>
+            <span className="dash-quick-tile-icon" aria-hidden="true">+</span>
+            <span>Add a co-steward</span>
+          </button>
+          <button type="button" className="dash-quick-tile" onClick={() => onNavigate("memorial", activeMemorial.invite_code)}>
+            <span className="dash-quick-tile-icon" aria-hidden="true">↗</span>
+            <span>View page</span>
+          </button>
+          <button type="button" className="dash-quick-tile" onClick={() => onNavigate("edit", activeMemorial)}>
+            <span className="dash-quick-tile-icon" aria-hidden="true">✎</span>
+            <span>Edit details</span>
+          </button>
+        </section>
 
-                <div className="dashboard-actions">
-                  <div className="dashboard-actions-row">
-                    <button className="btn btn-sm btn-rust" onClick={() => (atFreeLimit ? setShowMemoryLimit(true) : setAddingMemory(true))}>+ Add a memory</button>
-                    <button className="btn btn-sm btn-ghost" onClick={() => setShowShare(true)}>Share this page</button>
-                    <button className="btn btn-sm btn-ghost" onClick={() => onNavigate("memorial", activeMemorial.invite_code)}>View page</button>
-                    <button className="btn btn-sm btn-ghost" onClick={() => onNavigate("edit", activeMemorial)}>Edit</button>
-                    <button className="btn btn-sm btn-ghost" onClick={() => onNavigate("page-settings", activeMemorial)}>
-                      Settings
-                    </button>
-                  </div>
-                  <div className="dashboard-actions-divider" />
-                  <div className="dashboard-actions-row">
-                    {activeMemorial.is_paid && (
-                      <button className="btn btn-sm btn-ghost" onClick={handleExport} disabled={exporting}>
-                        {exporting ? "Exporting…" : "Export"}
-                      </button>
-                    )}
-                    <button type="button" className="link-danger" onClick={() => setDeleteTarget(activeMemorial)}>Delete</button>
-                  </div>
-                </div>
+        <section className="dash-section fade-up-3">
+          <div className="dash-section-header">
+            <h2>Recent memories</h2>
+            {approved.length > 0 && (
+              <button type="button" className="dash-text-btn" onClick={() => setShowAllMemories((v) => !v)}>
+                {showAllMemories ? "Hide" : `See all ${submissions.length}`}
+              </button>
+            )}
+          </div>
 
-                {activeMemorial.is_paid ? (
-                  <div className="invite-box" style={{ background: "rgba(39,174,96,0.08)", border: "1px solid rgba(39,174,96,0.25)" }}>
-                    <span className="invite-url" style={{ color: "#27ae60" }}>✓ Upgraded — photo, video &amp; voice memories are unlocked.</span>
-                  </div>
-                ) : (
-                  <div className="invite-box" style={{ flexWrap: "wrap" }}>
-                    <span className="invite-url" style={{ whiteSpace: "normal" }}>
-                      <strong>Free plan</strong> — written memories only. Unlock photo, video &amp; voice contributions (and exports, coming soon) — same one-time fee as the Pricing page.
-                    </span>
-                    <div style={{ display: "flex", gap: 8 }}>
-                      <button className="btn btn-sm btn-rust" onClick={() => handleUpgrade(activeMemorial.id)} disabled={upgrading}>
-                        {upgrading ? "Starting…" : `${BUILD.label} — ${BUILD.price}`}
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                <button type="button" className="promise-callout-link" onClick={() => onNavigate("our-promise")}>
-                  Wondering what happens to this page over time? Read our promise →
-                </button>
+          {!showAllMemories ? (
+            approved.length === 0 ? (
+              <div className="dash-card dash-empty-waiting">Nothing approved yet — once you do, it'll show up here.</div>
+            ) : (
+              <div className="dash-recent-scroll">
+                {approved.slice(0, 12).map((s) => <RecentMemoryTile key={s.id} story={s} />)}
               </div>
-            </div>
-
-            <div className="fade-up-3">
+            )
+          ) : (
+            <div className="dash-all-memories">
               <div className="tab-bar">
                 {[
-                  { key: "pending", label: `Pending (${submissions.filter(s => s.status === "pending").length})` },
-                  { key: "approved", label: `Approved (${submissions.filter(s => s.status === "approved").length})` },
+                  { key: "pending", label: `Pending (${pending.length})` },
+                  { key: "approved", label: `Approved (${approved.length})` },
                   { key: "all", label: "All" },
                 ].map((t) => (
-                  <button key={t.key} className={`tab ${activeTab === t.key ? "active" : ""}`} onClick={() => setActiveTab(t.key)}>{t.label}</button>
+                  <button key={t.key} className={`tab ${allMemoriesTab === t.key ? "active" : ""}`} onClick={() => setAllMemoriesTab(t.key)}>{t.label}</button>
                 ))}
               </div>
-
-              {submissionsLoading ? (
-                <div style={{ display: "flex", justifyContent: "center", padding: "40px 0" }}>
-                  <span className="spinner spinner-dark" />
-                </div>
-              ) : filtered.length === 0 ? (
-                <div className="empty-state">
-                  <div className="empty-state-icon">✉️</div>
-                  <div className="empty-state-title">{activeTab === "pending" ? "No pending submissions" : "No memories yet"}</div>
-                  <p className="empty-state-sub">
-                    {activeTab === "pending"
-                      ? "You're all caught up. Share the invite link to get more memories coming in."
-                      : "Share the link below to invite friends and family to contribute."}
-                  </p>
-                </div>
+              {filteredAll.length === 0 ? (
+                <div className="empty-state"><p className="empty-state-sub">Nothing here yet.</p></div>
               ) : (
-                filtered.map((s) => <SubmissionCard key={s.id} submission={s} requireApproval={activeMemorial.require_approval} onApprove={handleApprove} onReject={handleReject} onSetTags={handleSetTags} onBlock={activeMemorial.is_paid ? handleBlock : null} />)
+                filteredAll.map((s) => (
+                  <SubmissionCard key={s.id} submission={s} requireApproval={activeMemorial.require_approval} onApprove={handleApprove} onReject={handleReject} onSetTags={handleSetTags} onBlock={activeMemorial.is_paid ? handleBlock : null} />
+                ))
               )}
             </div>
-          </>
-        )}
+          )}
+        </section>
+        </div>
+
+        <div className="dash-rail-col">
+        <section className="dash-section fade-up-3">
+          <div className="dash-section-header"><h2>Stewards</h2></div>
+          <div className="dash-card dash-stewards-card">
+            <StewardRow
+              label={activeMemorial.steward_id === currentUser.id ? (currentUser.email || "You") : "Page owner"}
+              chip="Owner"
+            />
+            {stewards.map((s) => (
+              <StewardRow
+                key={s.id}
+                label={s.invited_name || s.invited_email}
+                chip={s.status === "pending" ? "Invite sent" : null}
+                onRemove={() => removeSteward(s)}
+                busy={stewardBusyIds.has(s.id)}
+              />
+            ))}
+            <button type="button" className="dash-add-steward-row" onClick={() => setShowCoStewardSheet(true)}>
+              <span className="dash-dashed-plus" aria-hidden="true">+</span> Add a co-steward
+            </button>
+          </div>
+          <p className="dash-helper-text">Co-stewards can approve memories and invite people. Only you can delete the page.</p>
+        </section>
+
+        <section className="dash-section fade-up-3">
+          <div className="dash-section-header"><h2>Page settings</h2></div>
+          <div className="dash-card dash-settings-card">
+            {activeMemorial.is_paid && (
+              <div className="dash-settings-row">
+                <div className="dash-settings-label">Who can add memories</div>
+                <div className="dash-segmented">
+                  <button type="button" className={activeMemorial.contribution_access !== "code_required" ? "active" : ""} disabled={savingAccess} onClick={() => saveContributionAccess("open")}>Anyone</button>
+                  <button type="button" className={activeMemorial.contribution_access === "code_required" ? "active" : ""} disabled={savingAccess} onClick={() => saveContributionAccess("code_required")}>Invite only</button>
+                </div>
+                <p className="dash-settings-helper">
+                  {activeMemorial.contribution_access === "code_required"
+                    ? "Only people with your invite link or access code can add a memory."
+                    : "Anyone who can view the page can add a memory."}
+                </p>
+              </div>
+            )}
+            <div className="dash-settings-row">
+              <div className="dash-settings-row-header">
+                <div className="dash-settings-label">Review before memories go live</div>
+                <label className="toggle-switch">
+                  <input type="checkbox" checked={!!activeMemorial.require_approval} disabled={savingModeration} onChange={(e) => saveModeration(e.target.checked)} />
+                  <span className="toggle-slider" />
+                </label>
+              </div>
+              <p className="dash-settings-helper">
+                {activeMemorial.require_approval
+                  ? "On. You approve each memory before anyone else sees it."
+                  : "Off. New memories appear on the page right away."}
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section className="dash-section fade-up-3">
+          <div className="dash-section-header"><h2>Page tools</h2></div>
+          <div className="dash-card dash-tools-card">
+            {activeMemorial.is_paid ? (
+              <div className="dash-tools-row dash-tools-upgraded">✓ Upgraded — photo, video &amp; voice memories are unlocked.</div>
+            ) : (
+              <div className="dash-tools-row dash-tools-free">
+                <span><strong>Free plan</strong> — written memories only.</span>
+                <button className="btn btn-sm btn-rust" onClick={() => handleUpgrade(activeMemorial.id)} disabled={upgrading}>
+                  {upgrading ? "Starting…" : `${BUILD.label} — ${BUILD.price}`}
+                </button>
+              </div>
+            )}
+            {activeMemorial.is_paid && (
+              <button type="button" className="dash-tools-row dash-tools-action" onClick={handleExport} disabled={exporting}>
+                {exporting ? "Exporting…" : "Export everything"}
+              </button>
+            )}
+            <button type="button" className="dash-tools-row dash-tools-action" onClick={() => onNavigate("our-promise")}>
+              What happens to this page over time
+            </button>
+            <button type="button" className="dash-tools-row dash-tools-action" onClick={() => onNavigate("page-settings", activeMemorial)}>
+              More settings
+            </button>
+            <button type="button" className="link-danger dash-delete-link" onClick={() => setDeleteTarget(activeMemorial)}>Delete this page</button>
+          </div>
+        </section>
+        </div>
+      </div>
+
+      <div className="dash-bottom-bar">
+        <button type="button" className="btn-dash-outline" onClick={() => setShowShareSheet(true)}>Share</button>
+        <button type="button" className="btn-dash-primary dash-bottom-add" onClick={() => (atFreeLimit ? setShowMemoryLimit(true) : setAddingMemory(true))}>+ Add a memory</button>
       </div>
 
       {deleteTarget && (
@@ -318,21 +554,13 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
           memorial={activeMemorial}
           showToast={showToast}
           open={addingMemory}
-          // Approved-only, same as what a real visitor's quick preview would
-          // show — `submissions` here also carries pending/rejected rows for
-          // the moderation queue below, which don't belong in that preview.
           stories={submissions.filter((s) => s.status === "approved")}
           onSubmitted={() => loadSubmissions(activeMemorial.id)}
-          // No separate grid to send them to from the dashboard — the
-          // moderation list right below already shows everything, so this
-          // just closes the sheet like the X does.
           onViewAllMemories={() => setAddingMemory(false)}
           contributeToken={null}
           onClose={async () => {
             setAddingMemory(false);
             const rows = await loadSubmissions(activeMemorial.id);
-            // Just used their last free memory — surface the upgrade
-            // prompt now rather than waiting for their next add attempt.
             if (!activeMemorial.is_paid && rows.filter((s) => s.status !== "rejected").length >= FREE_MEMORY_LIMIT) {
               setShowMemoryLimit(true);
             }
@@ -354,14 +582,298 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
         />
       )}
 
-      {showShare && activeMemorial && (
+      {showShareSheet && activeMemorial && (
+        <DashShareSheet
+          memorial={activeMemorial}
+          showToast={showToast}
+          onClose={() => setShowShareSheet(false)}
+          onMoreOptions={() => { setShowShareSheet(false); setShowFullSharePanel(true); }}
+        />
+      )}
+
+      {showFullSharePanel && activeMemorial && (
         <SharePagePanel
           memorial={activeMemorial}
           link={memorialUrl(activeMemorial)}
           showToast={showToast}
-          onClose={() => setShowShare(false)}
+          onClose={() => setShowFullSharePanel(false)}
         />
       )}
+
+      {showCoStewardSheet && activeMemorial && (
+        <CoStewardSheet
+          memorial={activeMemorial}
+          onClose={() => setShowCoStewardSheet(false)}
+          onInvite={inviteCoSteward}
+        />
+      )}
+    </div>
+  );
+}
+
+function DashTopBar({ currentUser, onNavigate, onSignOut, showAccountMenu, setShowAccountMenu }) {
+  return (
+    <div className="dash-topbar">
+      <button type="button" className="dash-wordmark" onClick={() => onNavigate("home")}>And Then</button>
+      <div className="dash-account">
+        <button type="button" className="dash-avatar-btn" aria-label="Account" onClick={() => setShowAccountMenu((v) => !v)}>
+          {initialsFor(currentUser.email || "?")}
+        </button>
+        {showAccountMenu && (
+          <>
+            <div className="dash-menu-scrim" onClick={() => setShowAccountMenu(false)} />
+            <div className="dash-account-menu">
+              <div className="dash-account-email">{currentUser.email}</div>
+              <button type="button" onClick={() => { setShowAccountMenu(false); onNavigate("pricing"); }}>Pricing</button>
+              <button type="button" onClick={() => { setShowAccountMenu(false); onNavigate("how-it-works"); }}>How it works</button>
+              <button type="button" onClick={() => { setShowAccountMenu(false); onNavigate("our-promise"); }}>Our Promise</button>
+              <button type="button" onClick={() => { setShowAccountMenu(false); onSignOut?.(); }}>Sign out</button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function StorySwitcher({ memorials, active, onSelect, open, setOpen }) {
+  return (
+    <div className="dash-story-switcher">
+      <button type="button" className="dash-story-switcher-btn" onClick={() => setOpen((v) => !v)}>
+        Your stories <span aria-hidden="true">▾</span>
+      </button>
+      {open && (
+        <>
+          <div className="dash-menu-scrim" onClick={() => setOpen(false)} />
+          <div className="dash-story-switcher-menu">
+            {memorials.map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                className={active?.id === m.id ? "active" : ""}
+                onClick={() => { onSelect(m); setOpen(false); }}
+              >
+                {m.name}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function PageCard({ memorial, submissions, contributorCount, contributionGated, onAddMemory, onShare, onView, onEdit }) {
+  return (
+    <div className="dash-page-card fade-up">
+      <div className="dash-page-card-top">
+        <div className="dash-page-thumb">
+          {memorial.photo_url ? (
+            <img src={memorial.photo_url} alt="" style={{ objectPosition: `${memorial.crop_x ?? 50}% ${memorial.crop_y ?? 50}%` }} />
+          ) : (
+            <span aria-hidden="true">🕊️</span>
+          )}
+        </div>
+        <div className="dash-page-card-info">
+          <div className="dash-page-name">{memorial.name}</div>
+          {(memorial.born || memorial.passed) && (
+            <div className="dash-page-dates">{fmtDate(memorial.born)}{memorial.born && memorial.passed && " – "}{fmtDate(memorial.passed)}</div>
+          )}
+          <div className="dash-chip-row">
+            <span className={`dash-chip${memorial.paused ? " dash-chip-warn" : " dash-chip-live"}`}>{memorial.paused ? "Paused" : "Live"}</span>
+            <span className="dash-chip">{contributionGated ? "Invite only" : "Open to anyone"}</span>
+            {memorial.is_paid && <span className="dash-chip dash-chip-gold">Upgraded</span>}
+          </div>
+        </div>
+        <div className="dash-page-card-actions">
+          <button type="button" className="btn-dash-outline" onClick={onView}>View page</button>
+          <button type="button" className="btn-dash-outline" onClick={onShare}>Share</button>
+          <button type="button" className="btn-dash-primary" onClick={onAddMemory}>+ Add a memory</button>
+        </div>
+      </div>
+
+      {submissions.length > 0 && (
+        <div className="dash-page-card-stats">
+          <div className="dash-avatar-stack">
+            {[...new Set(submissions.map((s) => s.contributor_name).filter(Boolean))].slice(0, 5).map((name) => (
+              <span key={name} className="dash-stack-avatar" style={{ background: colorForContributor(name) }} title={name}>{initialsFor(name)}</span>
+            ))}
+          </div>
+          <span className="dash-stats-text">
+            <strong>{contributorCount}</strong> {contributorCount === 1 ? "person has" : "people have"} shared <strong>{submissions.length}</strong> {submissions.length === 1 ? "memory" : "memories"}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PendingMemoryCard({ submission: s, onApprove, onDecline }) {
+  return (
+    <div className="dash-card dash-pending-card">
+      <div className="dash-pending-header">
+        <span className="dash-init-avatar" style={{ background: colorForContributor(s.contributor_name || "?") }}>{initialsFor(s.contributor_name || "?")}</span>
+        <div className="dash-pending-who">
+          <div className="dash-pending-name">{s.contributor_name || "Someone"}</div>
+          <div className="dash-pending-meta">{s.contributor_relation ? `${s.contributor_relation} · ` : ""}{timeAgo(s.created_at)}</div>
+        </div>
+        <span className="dash-type-chip">{dashContentLabel(s)}</span>
+      </div>
+
+      <div className="dash-pending-body">
+        {s.media_url && s.type === "photo" && (
+          <img className="dash-pending-media" src={s.media_url} alt="" style={{ objectPosition: `${s.crop_x ?? 50}% ${s.crop_y ?? 50}%` }} />
+        )}
+        {s.media_url && s.type === "video" && (
+          <video className="dash-pending-media" controls src={s.media_url} poster={s.secondary_media_url || undefined} />
+        )}
+        {s.media_url && s.type === "voice" && <PendingAudioRow src={s.media_url} />}
+
+        {s.text && <p className="dash-pending-text">"{s.text}"</p>}
+      </div>
+
+      <div className="dash-pending-actions">
+        <button type="button" className="btn-dash-primary" onClick={() => onApprove(s.id)}>Approve</button>
+        <button type="button" className="btn-dash-outline" onClick={() => onDecline(s.id)}>Decline</button>
+      </div>
+    </div>
+  );
+}
+
+function PendingAudioRow({ src }) {
+  const [duration, setDuration] = useState(null);
+  return (
+    <div className="dash-audio-row">
+      <audio controls src={src} onLoadedMetadata={(e) => setDuration(e.target.duration)} style={{ width: "100%" }} />
+      {duration != null && <span className="dash-audio-duration">{fmtTime(duration)}</span>}
+    </div>
+  );
+}
+
+function AccessRequestCard({ request: r, busy, onApprove, onDecline }) {
+  return (
+    <div className="dash-card dash-access-request-card">
+      <div className="dash-pending-name">{r.requester_name || "Someone"}</div>
+      {r.relationship && <div className="dash-pending-meta">{r.relationship}</div>}
+      {r.note && <p className="dash-pending-text">"{r.note}"</p>}
+      <div className="dash-pending-actions">
+        <button type="button" className="btn-dash-primary" disabled={busy} onClick={onApprove}>Let them add</button>
+        <button type="button" className="btn-dash-outline" disabled={busy} onClick={onDecline}>Not now</button>
+      </div>
+    </div>
+  );
+}
+
+function RecentMemoryTile({ story: s }) {
+  const caption = s.text?.trim() || (s.contributor_name ? `From ${s.contributor_name}` : "");
+  return (
+    <div className="dash-recent-tile">
+      <div className="dash-recent-tile-media">
+        {s.type === "photo" && s.media_url && <img src={s.media_url} alt="" style={{ objectPosition: `${s.crop_x ?? 50}% ${s.crop_y ?? 50}%` }} />}
+        {s.type === "video" && s.media_url && <video src={s.media_url} poster={s.secondary_media_url || undefined} muted />}
+        {(s.type === "voice" || s.type === "story" || s.type === "url") && (
+          <span className="dash-recent-tile-fallback" aria-hidden="true">{s.type === "voice" ? "🎙️" : s.type === "url" ? "🔗" : "✎"}</span>
+        )}
+        <span className="dash-recent-tile-type">{dashContentLabel(s)}</span>
+      </div>
+      <div className="dash-recent-tile-caption">{caption}</div>
+      <div className="dash-recent-tile-name">{s.contributor_name || "Someone"}</div>
+    </div>
+  );
+}
+
+function StewardRow({ label, chip, onRemove, busy }) {
+  return (
+    <div className="dash-steward-row">
+      <span className="dash-init-avatar" style={{ background: colorForContributor(label) }}>{initialsFor(label)}</span>
+      <span className="dash-steward-label">{label}</span>
+      {chip && <span className="dash-chip">{chip}</span>}
+      {onRemove && (
+        <button type="button" className="dash-steward-remove" disabled={busy} onClick={onRemove} aria-label="Remove">&times;</button>
+      )}
+    </div>
+  );
+}
+
+function CoStewardSheet({ memorial, onClose, onInvite }) {
+  useScrollLock();
+  const firstName = memorial.name.split(" ")[0];
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [inviting, setInviting] = useState(false);
+
+  const submit = async () => {
+    setInviting(true);
+    const ok = await onInvite({ name: name.trim(), email: email.trim() });
+    setInviting(false);
+    if (ok) onClose();
+  };
+
+  return (
+    <div className="dash-sheet-overlay fade-in" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="dash-sheet" role="dialog" aria-label="Add a co-steward">
+        <div className="dash-sheet-header">
+          <h2>Add a co-steward</h2>
+          <button type="button" className="dash-sheet-close" aria-label="Close" onClick={onClose}>&times;</button>
+        </div>
+        <div className="dash-sheet-body">
+          <p className="dash-sheet-helper">Someone to help you look after {firstName}'s page. They can approve memories and invite people. Only you can delete it.</p>
+          <div className="form-group">
+            <label className="form-label">Their name</label>
+            <input className="form-input" value={name} onChange={(e) => setName(e.target.value)} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Their email</label>
+            <input className="form-input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+          </div>
+        </div>
+        <div className="dash-sheet-footer">
+          <button type="button" className="btn-dash-primary" onClick={submit} disabled={inviting} style={{ width: "100%" }}>
+            {inviting ? <><span className="spinner" /> Sending…</> : "Send invite"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DashShareSheet({ memorial, showToast, onClose, onMoreOptions }) {
+  useScrollLock();
+  const firstName = memorial.name.split(" ")[0];
+  const pageLink = memorialUrl(memorial);
+  const needsCode = memorial.visibility === "private" || memorial.contribution_access === "code_required";
+  const inviteLink = needsCode && memorial.access_code
+    ? `${pageLink}${pageLink.includes("?") ? "&" : "?"}code=${memorial.access_code}`
+    : pageLink;
+
+  const copy = (text, label) => {
+    trackEvent("share_clicked", { share_option: "copy_link", page_label: memorial.name });
+    navigator.clipboard.writeText(text).then(() => showToast(label));
+  };
+
+  return (
+    <div className="dash-sheet-overlay fade-in" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="dash-sheet" role="dialog" aria-label={`Share ${memorial.name}'s page`}>
+        <div className="dash-sheet-header">
+          <h2>Share {firstName}'s page</h2>
+          <button type="button" className="dash-sheet-close" aria-label="Close" onClick={onClose}>&times;</button>
+        </div>
+        <div className="dash-sheet-body">
+          <div className="dash-share-card">
+            <div className="dash-share-card-title">Invite people to add memories</div>
+            <div className="dash-share-card-sub">{needsCode ? "This link includes the access code, so it works on its own." : "Anyone with this link can view the page and add a memory."}</div>
+            <div className="dash-share-link">{inviteLink}</div>
+            <button type="button" className="btn-dash-primary" onClick={() => copy(inviteLink, "Invite link copied.")} style={{ width: "100%" }}>Copy invite link</button>
+          </div>
+          <div className="dash-share-card">
+            <div className="dash-share-card-title">Share the page to view</div>
+            <div className="dash-share-card-sub">The plain page link.</div>
+            <div className="dash-share-link">{pageLink}</div>
+            <button type="button" className="btn-dash-outline" onClick={() => copy(pageLink, "Page link copied.")} style={{ width: "100%" }}>Copy page link</button>
+          </div>
+          <span className="dash-share-more" onClick={onMoreOptions}>More sharing options (QR code, printable card) →</span>
+        </div>
+      </div>
     </div>
   );
 }
@@ -411,6 +923,10 @@ function DeleteMemorialModal({ memorial, onCancel, onDeleted, showToast }) {
   );
 }
 
+// The full Pending/Approved/All list — unchanged from before the redesign,
+// just now reached via "Recent memories" → "See all N" instead of being the
+// page's default view. Still the only place tags/block live, so it isn't
+// going away, just no longer first.
 function SubmissionCard({ submission: s, requireApproval, onApprove, onReject, onSetTags, onBlock }) {
   const typeLabel = { story: "Story", photo: "Photo", video: "Video", voice: "Voice memo" }[s.type] || "Story";
   const typeBadge = { story: "badge-story", photo: "badge-photo", video: "badge-video", voice: "badge-voice" }[s.type] || "badge-story";

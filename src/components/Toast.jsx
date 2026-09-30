@@ -6,7 +6,7 @@ export function useToast() {
   const show = useCallback((msg, type = "success") => {
     const id = uid();
     setToasts((t) => [...t, { id, msg, type }]);
-    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 3500);
+    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 2500);
   }, []);
   return { toasts, show };
 }

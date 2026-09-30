@@ -1463,4 +1463,201 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 @media (prefers-reduced-motion: reduce) {
   .mkt-pay-card { transition: none; }
 }
+
+/* ============================================================
+   Redesigned creator dashboard — mobile-first (see Dashboard.jsx).
+   Reuses the site's existing cream/rust/bark tokens (not a new
+   palette) but a softer 16px card radius throughout, scoped to
+   .dash-page only — the rest of the app keeps its sharp --radius.
+   ============================================================ */
+.dash-page { --dash-radius: 16px; min-height: 100vh; background: var(--cream); padding-bottom: 96px; }
+@media (min-width: 1024px) { .dash-page { padding-bottom: 40px; } }
+
+.dash-topbar { position: sticky; top: 0; z-index: 60; display: flex; align-items: center; justify-content: space-between; height: 56px; padding: 0 20px; background: rgba(253,250,245,0.92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--warm-faint); }
+.dash-wordmark { font-family: 'Lora', serif; font-style: italic; font-size: 19px; color: var(--bark); background: none; border: none; cursor: pointer; padding: 0; }
+.dash-account { position: relative; }
+.dash-avatar-btn { width: 36px; height: 36px; border-radius: 50%; background: var(--rust); color: #fff; border: none; font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.dash-menu-scrim { position: fixed; inset: 0; z-index: 65; background: transparent; }
+.dash-account-menu, .dash-story-switcher-menu { position: absolute; right: 0; top: calc(100% + 8px); z-index: 70; background: var(--white); border: 1px solid var(--warm-faint); border-radius: 12px; box-shadow: 0 12px 30px -10px rgba(45,33,24,0.25); min-width: 200px; padding: 6px; display: flex; flex-direction: column; }
+.dash-account-email { font-size: 12px; color: var(--warm-light); padding: 8px 10px 4px; border-bottom: 1px solid var(--warm-faint); margin-bottom: 4px; word-break: break-all; }
+.dash-account-menu button, .dash-story-switcher-menu button { text-align: left; background: none; border: none; font-family: 'DM Sans', sans-serif; font-size: 14px; color: var(--bark); padding: 10px; border-radius: 8px; cursor: pointer; }
+.dash-account-menu button:hover, .dash-story-switcher-menu button:hover { background: var(--cream-dark); }
+.dash-story-switcher-menu button.active { color: var(--rust); font-weight: 600; }
+
+.dash-inner { max-width: 1280px; margin: 0 auto; padding: 16px 16px 24px; }
+@media (min-width: 1024px) { .dash-inner { padding: 28px 40px 40px; } }
+
+.dash-story-switcher { position: relative; margin-bottom: 12px; }
+.dash-story-switcher-btn { font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; color: var(--bark-light); background: var(--white); border: 1px solid var(--warm-faint); border-radius: 999px; padding: 8px 14px; cursor: pointer; }
+
+/* -- page card -- */
+.dash-page-card { background: var(--white); border: 1px solid var(--warm-faint); border-radius: var(--dash-radius); padding: 16px; margin-bottom: 20px; }
+.dash-page-card-top { display: flex; gap: 14px; align-items: flex-start; }
+.dash-page-thumb { width: 64px; height: 64px; flex-shrink: 0; border-radius: 12px; overflow: hidden; background: var(--cream-dark); display: flex; align-items: center; justify-content: center; font-size: 26px; }
+.dash-page-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.dash-page-card-info { flex: 1; min-width: 0; }
+.dash-page-name { font-family: 'Lora', serif; font-size: 20px; color: var(--bark); line-height: 1.2; }
+.dash-page-dates { font-size: 12px; color: var(--warm-light); margin-top: 2px; }
+.dash-chip-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.dash-chip { display: inline-block; font-size: 11px; font-weight: 600; letter-spacing: 0.02em; color: var(--bark-light); background: var(--cream-dark); border-radius: 999px; padding: 4px 10px; }
+.dash-chip-live { color: #1e7d42; background: rgba(39,174,96,0.12); }
+.dash-chip-warn { color: #a9552f; background: rgba(184,92,44,0.12); }
+.dash-chip-gold { color: #93691d; background: rgba(184,146,32,0.14); }
+.dash-page-card-actions { display: none; }
+@media (min-width: 1024px) {
+  .dash-page-card-top { align-items: center; }
+  .dash-page-card-actions { display: flex; gap: 10px; flex-shrink: 0; }
+}
+.dash-page-card-stats { display: flex; align-items: center; gap: 12px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--warm-faint); }
+.dash-avatar-stack { display: flex; }
+.dash-stack-avatar { width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--white); margin-left: -8px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; color: #fff; font-family: 'DM Sans', sans-serif; }
+.dash-stack-avatar:first-child { margin-left: 0; }
+.dash-stats-text { font-size: 13px; color: var(--bark-light); }
+
+/* -- sections -- */
+.dash-section { margin-bottom: 24px; }
+.dash-section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; gap: 10px; }
+.dash-section-header h2 { font-family: 'Lora', serif; font-size: 17px; font-weight: 500; color: var(--bark); margin: 0; display: flex; align-items: center; gap: 8px; }
+.dash-count-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; background: var(--rust); color: #fff; font-size: 11px; font-weight: 700; font-family: 'DM Sans', sans-serif; }
+.dash-text-btn { background: none; border: none; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; color: var(--rust); cursor: pointer; padding: 4px; flex-shrink: 0; }
+.dash-text-btn:hover { color: var(--rust-light); }
+
+.dash-card { background: var(--white); border: 1px solid var(--warm-faint); border-radius: var(--dash-radius); padding: 16px; }
+.dash-empty-waiting { font-size: 14px; color: var(--warm-light); text-align: center; padding: 26px 16px; }
+
+/* -- pending memory card -- */
+.dash-pending-card { margin-bottom: 12px; }
+.dash-pending-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+.dash-init-avatar { width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; color: #fff; font-family: 'DM Sans', sans-serif; }
+.dash-pending-who { flex: 1; min-width: 0; }
+.dash-pending-name { font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 14px; color: var(--bark); }
+.dash-pending-meta { font-size: 12px; color: var(--warm-light); }
+.dash-type-chip { font-size: 11px; font-weight: 600; color: var(--bark-light); background: var(--cream-dark); border-radius: 999px; padding: 4px 10px; flex-shrink: 0; }
+.dash-pending-media { display: block; width: 100%; max-height: 280px; object-fit: cover; border-radius: 10px; margin-bottom: 10px; background: var(--cream-dark); }
+.dash-audio-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.dash-audio-duration { font-size: 12px; color: var(--warm-light); flex-shrink: 0; }
+.dash-pending-text { font-family: 'Lora', serif; font-style: italic; font-size: 15px; line-height: 1.5; color: var(--bark); margin: 0 0 12px; }
+.dash-pending-actions { display: flex; gap: 10px; }
+.dash-pending-actions .btn-dash-primary, .dash-pending-actions .btn-dash-outline { flex: 1; }
+
+/* -- access requests -- */
+.dash-access-requests { margin-top: 6px; }
+.dash-access-requests-title { font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 13px; color: var(--bark); margin-bottom: 2px; }
+.dash-access-requests-helper { font-size: 12px; color: var(--warm-light); margin: 0 0 10px; }
+.dash-access-requests-grid { display: grid; gap: 12px; }
+@media (min-width: 640px) { .dash-access-requests-grid { grid-template-columns: 1fr 1fr; } }
+.dash-access-request-card { margin: 0; }
+
+/* -- buttons -- */
+.btn-dash-primary, .btn-dash-outline { font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 14px; border-radius: 999px; min-height: 44px; padding: 0 20px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.15s ease; white-space: nowrap; }
+.btn-dash-primary { background: var(--rust); border: 1.5px solid var(--rust); color: #fff; }
+.btn-dash-primary:hover { background: var(--rust-light); border-color: var(--rust-light); }
+.btn-dash-primary:disabled { opacity: 0.6; cursor: default; }
+.btn-dash-outline { background: transparent; border: 1.5px solid var(--warm-faint); color: var(--bark); }
+.btn-dash-outline:hover { border-color: var(--rust); color: var(--rust); }
+.btn-dash-outline:disabled { opacity: 0.6; cursor: default; }
+
+/* -- quick actions -- */
+.dash-quick-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 24px; }
+.dash-quick-tile { background: var(--white); border: 1px solid var(--warm-faint); border-radius: var(--dash-radius); padding: 16px 8px; display: flex; flex-direction: column; align-items: center; gap: 8px; font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 500; color: var(--bark); cursor: pointer; text-align: center; min-height: 44px; }
+.dash-quick-tile-icon { width: 34px; height: 34px; border-radius: 50%; background: var(--cream-dark); display: flex; align-items: center; justify-content: center; font-size: 16px; color: var(--rust); }
+@media (min-width: 1024px) { .dash-quick-actions { display: none; } }
+
+/* -- recent memories -- */
+.dash-recent-scroll { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 4px; -webkit-overflow-scrolling: touch; }
+.dash-recent-tile { flex: 0 0 132px; width: 132px; }
+.dash-recent-tile-media { position: relative; width: 132px; height: 132px; border-radius: 12px; overflow: hidden; background: var(--cream-dark); display: flex; align-items: center; justify-content: center; }
+.dash-recent-tile-media img, .dash-recent-tile-media video { width: 100%; height: 100%; object-fit: cover; }
+.dash-recent-tile-fallback { font-size: 28px; }
+.dash-recent-tile-type { position: absolute; left: 6px; bottom: 6px; font-size: 9px; font-weight: 700; letter-spacing: 0.02em; text-transform: uppercase; color: #fff; background: rgba(45,33,24,0.65); border-radius: 999px; padding: 3px 8px; }
+.dash-recent-tile-caption { font-size: 12px; color: var(--bark); margin-top: 6px; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.dash-recent-tile-name { font-size: 11px; color: var(--warm-light); margin-top: 2px; }
+@media (min-width: 1024px) {
+  .dash-recent-scroll { display: grid; grid-template-columns: repeat(4, 1fr); overflow: visible; }
+  .dash-recent-tile { width: auto; }
+  .dash-recent-tile-media { width: 100%; height: auto; aspect-ratio: 1; }
+}
+
+.dash-all-memories { margin-top: 12px; }
+
+/* -- stewards -- */
+.dash-stewards-card { display: flex; flex-direction: column; gap: 2px; }
+.dash-steward-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--warm-faint); }
+.dash-stewards-card .dash-steward-row:last-of-type { border-bottom: none; }
+.dash-steward-label { flex: 1; min-width: 0; font-size: 14px; color: var(--bark); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dash-steward-remove { width: 28px; height: 28px; border-radius: 50%; border: none; background: none; color: var(--warm-light); font-size: 18px; cursor: pointer; flex-shrink: 0; }
+.dash-steward-remove:hover { background: var(--cream-dark); color: var(--bark); }
+.dash-add-steward-row { display: flex; align-items: center; gap: 10px; padding: 10px 0 2px; background: none; border: none; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 14px; color: var(--rust); min-height: 44px; }
+.dash-dashed-plus { width: 28px; height: 28px; border-radius: 50%; border: 1.5px dashed var(--rust); display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
+.dash-helper-text { font-size: 12px; color: var(--warm-light); margin: 10px 2px 0; }
+
+/* -- inline page settings -- */
+.dash-settings-card { display: flex; flex-direction: column; gap: 18px; }
+.dash-settings-row-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.dash-settings-label { font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 14px; color: var(--bark); }
+.dash-settings-helper { font-size: 12.5px; color: var(--warm-light); margin: 6px 0 0; }
+.dash-segmented { display: flex; border: 1px solid var(--warm-faint); border-radius: 999px; padding: 3px; margin-top: 8px; width: fit-content; }
+.dash-segmented button { font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; color: var(--bark-light); background: none; border: none; border-radius: 999px; padding: 7px 16px; cursor: pointer; min-height: 32px; }
+.dash-segmented button.active { background: var(--rust); color: #fff; font-weight: 600; }
+
+/* -- page tools -- */
+.dash-tools-card { display: flex; flex-direction: column; }
+/* border-top (not -bottom) so "which row is last" never matters — only
+   the genuinely first child, reliably selectable via :first-child,
+   needs a rule at all. A :last-of-type fix here doesn't work: it matches
+   by tag name only, not class, so it was pairing with the delete button
+   (also a <button>) instead of the last .dash-tools-action. */
+.dash-tools-row, .dash-tools-action { padding: 12px 0; border-top: 1px solid var(--warm-faint); font-size: 13.5px; }
+.dash-tools-card > *:first-child { border-top: none; }
+.dash-tools-upgraded { color: #1e7d42; font-weight: 500; }
+.dash-tools-free { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; color: var(--bark-light); }
+.dash-tools-action { width: 100%; text-align: left; background: none; border-left: none; border-right: none; border-bottom: none; color: var(--bark); cursor: pointer; font-family: 'DM Sans', sans-serif; min-height: 44px; display: flex; align-items: center; }
+.dash-delete-link { display: block; width: 100%; text-align: center; padding: 16px 0 4px; font-size: 13px; }
+
+/* -- sticky bottom bar (mobile only) -- */
+.dash-bottom-bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 55; display: flex; gap: 10px; padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); background: rgba(253,250,245,0.97); backdrop-filter: blur(8px); border-top: 1px solid var(--warm-faint); }
+.dash-bottom-bar .btn-dash-outline { flex: 0 0 auto; }
+.dash-bottom-add { flex: 1; }
+@media (min-width: 1024px) { .dash-bottom-bar { display: none; } }
+/* Lets toasts clear the bottom bar on mobile, where it's fixed and ~64px tall. */
+body.has-dash-bottom-bar .toast-wrap { bottom: 84px; }
+@media (min-width: 1024px) { body.has-dash-bottom-bar .toast-wrap { bottom: 24px; } }
+
+/* -- bottom sheets (co-steward, share) -- */
+.dash-sheet-overlay { position: fixed; inset: 0; z-index: 480; background: rgba(26,14,8,0.55); display: flex; align-items: flex-end; justify-content: center; }
+.dash-sheet { background: var(--white); width: 100%; max-width: 480px; max-height: 88vh; overflow-y: auto; border-radius: 20px 20px 0 0; }
+@media (min-width: 640px) { .dash-sheet-overlay { align-items: center; } .dash-sheet { border-radius: var(--dash-radius); max-height: 85vh; } }
+.dash-sheet-header { display: flex; align-items: center; justify-content: space-between; padding: 20px 20px 8px; }
+.dash-sheet-header h2 { font-family: 'Lora', serif; font-size: 19px; font-weight: 500; color: var(--bark); margin: 0; }
+.dash-sheet-close { background: none; border: none; font-size: 22px; color: var(--warm-light); cursor: pointer; padding: 4px; }
+.dash-sheet-body { padding: 8px 20px 20px; }
+.dash-sheet-helper { font-size: 13.5px; color: var(--bark-light); line-height: 1.5; margin: 0 0 16px; }
+.dash-sheet-footer { padding: 0 20px 20px; }
+
+.dash-share-card { border: 1px solid var(--warm-faint); border-radius: 12px; padding: 14px; margin-bottom: 14px; }
+.dash-share-card-title { font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 14px; color: var(--bark); }
+.dash-share-card-sub { font-size: 12.5px; color: var(--warm-light); margin: 3px 0 10px; }
+.dash-share-link { font-size: 12.5px; color: var(--bark-light); background: var(--cream-dark); border-radius: 8px; padding: 8px 10px; margin-bottom: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dash-share-more { display: block; text-align: center; font-size: 13px; color: var(--rust); text-decoration: underline; cursor: pointer; margin-top: 6px; }
+
+/* -- desktop two-column layout: main column + right rail -- */
+@media (min-width: 1024px) {
+  .dash-inner { display: grid; grid-template-columns: 1fr 360px; gap: 28px; align-items: start; }
+  .dash-page-card, .dash-story-switcher { grid-column: 1 / -1; }
+  .dash-main-col { grid-column: 1; display: flex; flex-direction: column; }
+  .dash-rail-col { grid-column: 2; display: flex; flex-direction: column; }
+
+  /* Pending memory cards become horizontal rows; access-request cards stay
+     as vertically-stacked cards, just 2-across (see .dash-access-requests-grid) —
+     spec asks for a grid there, not rows. */
+  .dash-pending-card { display: flex; align-items: flex-start; gap: 16px; }
+  .dash-pending-header { flex: 0 0 200px; flex-wrap: nowrap; margin-bottom: 0; }
+  .dash-pending-body { flex: 1; min-width: 0; }
+  .dash-pending-body .dash-pending-media:last-child, .dash-pending-body .dash-pending-text:last-child { margin-bottom: 0; }
+  .dash-pending-actions { flex: 0 0 140px; flex-direction: column; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dash-sheet-overlay.fade-in, .dash-page-card, .dash-quick-tile { transition: none; }
+}
 `;
