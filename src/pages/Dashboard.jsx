@@ -27,7 +27,7 @@ function dashContentLabel(s) {
   return "Written story";
 }
 
-export function DashboardPage({ currentUser, onNavigate, showToast, onSignOut }) {
+export function DashboardPage({ currentUser, onNavigate, showToast }) {
   const [memorials, setMemorials] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeMemorial, setActiveMemorial] = useState(null);
@@ -49,7 +49,6 @@ export function DashboardPage({ currentUser, onNavigate, showToast, onSignOut })
   const [showFullSharePanel, setShowFullSharePanel] = useState(false); // the older, richer QR/printable-card panel — reachable from the new sheet, not replaced by it
   const [showCoStewardSheet, setShowCoStewardSheet] = useState(false);
   const [showStorySwitcher, setShowStorySwitcher] = useState(false);
-  const [showAccountMenu, setShowAccountMenu] = useState(false);
   const [showAllMemories, setShowAllMemories] = useState(false); // expands Recent memories into the full Pending/Approved/All list
   const [allMemoriesTab, setAllMemoriesTab] = useState("pending");
   const [savingModeration, setSavingModeration] = useState(false);
@@ -336,7 +335,6 @@ export function DashboardPage({ currentUser, onNavigate, showToast, onSignOut })
 
   if (!memorials.length) return (
     <div className="dash-page">
-      <DashTopBar currentUser={currentUser} onNavigate={onNavigate} onSignOut={onSignOut} showAccountMenu={showAccountMenu} setShowAccountMenu={setShowAccountMenu} />
       <div className="dash-inner">
         <div className="empty-state fade-up">
           <div className="empty-state-icon">📖</div>
@@ -363,8 +361,6 @@ export function DashboardPage({ currentUser, onNavigate, showToast, onSignOut })
 
   return (
     <div className="dash-page">
-      <DashTopBar currentUser={currentUser} onNavigate={onNavigate} onSignOut={onSignOut} showAccountMenu={showAccountMenu} setShowAccountMenu={setShowAccountMenu} />
-
       <div className="dash-inner">
         {memorials.length > 1 && (
           <StorySwitcher memorials={memorials} active={activeMemorial} onSelect={selectMemorial} open={showStorySwitcher} setOpen={setShowStorySwitcher} />
@@ -644,31 +640,6 @@ export function DashboardPage({ currentUser, onNavigate, showToast, onSignOut })
           onInvite={inviteCoSteward}
         />
       )}
-    </div>
-  );
-}
-
-function DashTopBar({ currentUser, onNavigate, onSignOut, showAccountMenu, setShowAccountMenu }) {
-  return (
-    <div className="dash-topbar">
-      <button type="button" className="dash-wordmark" onClick={() => onNavigate("home")}>And Then</button>
-      <div className="dash-account">
-        <button type="button" className="dash-avatar-btn" aria-label="Account" onClick={() => setShowAccountMenu((v) => !v)}>
-          {initialsFor(currentUser.email || "?")}
-        </button>
-        {showAccountMenu && (
-          <>
-            <div className="dash-menu-scrim" onClick={() => setShowAccountMenu(false)} />
-            <div className="dash-account-menu">
-              <div className="dash-account-email">{currentUser.email}</div>
-              <button type="button" onClick={() => { setShowAccountMenu(false); onNavigate("pricing"); }}>Pricing</button>
-              <button type="button" onClick={() => { setShowAccountMenu(false); onNavigate("how-it-works"); }}>How it works</button>
-              <button type="button" onClick={() => { setShowAccountMenu(false); onNavigate("our-promise"); }}>Our Promise</button>
-              <button type="button" onClick={() => { setShowAccountMenu(false); onSignOut?.(); }}>Sign out</button>
-            </div>
-          </>
-        )}
-      </div>
     </div>
   );
 }

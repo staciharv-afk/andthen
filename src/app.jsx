@@ -311,7 +311,7 @@ export default function App() {
         </div>
       )}
 
-      {route !== "login" && route !== "memorial" && route !== "onboarding" && route !== "claim-gift" && route !== "dashboard" && route !== "gift-costeward-review" && route !== "costeward-welcome" && (
+      {route !== "login" && route !== "memorial" && route !== "onboarding" && route !== "claim-gift" && route !== "gift-costeward-review" && route !== "costeward-welcome" && (
         <Nav currentUser={currentUser} onSignOut={handleSignOut} onNavigate={navigate} currentRoute={route} brand={MARKETING_ROUTES.has(route)} />
       )}
 
@@ -343,7 +343,7 @@ export default function App() {
       )}
 
       {route === "dashboard" && currentUser && (
-        <DashboardPage currentUser={currentUser} onNavigate={navigate} showToast={showToast} onSignOut={handleSignOut} />
+        <DashboardPage currentUser={currentUser} onNavigate={navigate} showToast={showToast} />
       )}
       {route === "dashboard" && !currentUser && (
         <AuthPage showToast={showToast} />
@@ -360,7 +360,7 @@ export default function App() {
       )}
       {/* Reloaded straight onto /?view=edit with no memorial in history — fall back to the dashboard. */}
       {route === "edit" && currentUser && !routeParam && (
-        <DashboardPage currentUser={currentUser} onNavigate={navigate} showToast={showToast} onSignOut={handleSignOut} />
+        <DashboardPage currentUser={currentUser} onNavigate={navigate} showToast={showToast} />
       )}
       {route === "edit" && !currentUser && (
         <AuthPage showToast={showToast} />
@@ -397,7 +397,7 @@ export default function App() {
         <GiftCostewardReviewPage memorial={routeParam.memorial || routeParam} onNavigate={navigate} showToast={showToast} />
       )}
       {route === "gift-costeward-review" && currentUser && !routeParam && (
-        <DashboardPage currentUser={currentUser} onNavigate={navigate} showToast={showToast} onSignOut={handleSignOut} />
+        <DashboardPage currentUser={currentUser} onNavigate={navigate} showToast={showToast} />
       )}
       {route === "gift-costeward-review" && !currentUser && (
         <AuthPage showToast={showToast} />
@@ -407,7 +407,7 @@ export default function App() {
         <CoStewardWelcomePage currentUser={currentUser} memorial={routeParam.memorial} stewardNames={routeParam.stewardNames} onNavigate={navigate} showToast={showToast} />
       )}
       {route === "costeward-welcome" && currentUser && !routeParam && (
-        <DashboardPage currentUser={currentUser} onNavigate={navigate} showToast={showToast} onSignOut={handleSignOut} />
+        <DashboardPage currentUser={currentUser} onNavigate={navigate} showToast={showToast} />
       )}
       {route === "costeward-welcome" && !currentUser && (
         <AuthPage showToast={showToast} />

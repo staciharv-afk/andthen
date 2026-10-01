@@ -1473,15 +1473,10 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .dash-page { --dash-radius: 16px; min-height: 100vh; background: var(--cream); padding-bottom: 96px; }
 @media (min-width: 1024px) { .dash-page { padding-bottom: 40px; } }
 
-.dash-topbar { position: sticky; top: 0; z-index: 60; display: flex; align-items: center; justify-content: space-between; height: 56px; padding: 0 20px; background: rgba(253,250,245,0.92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--warm-faint); }
-.dash-wordmark { font-family: 'Lora', serif; font-style: italic; font-size: 19px; color: var(--bark); background: none; border: none; cursor: pointer; padding: 0; }
-.dash-account { position: relative; }
-.dash-avatar-btn { width: 36px; height: 36px; border-radius: 50%; background: var(--rust); color: #fff; border: none; font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 .dash-menu-scrim { position: fixed; inset: 0; z-index: 65; background: transparent; }
-.dash-account-menu, .dash-story-switcher-menu { position: absolute; right: 0; top: calc(100% + 8px); z-index: 70; background: var(--white); border: 1px solid var(--warm-faint); border-radius: 12px; box-shadow: 0 12px 30px -10px rgba(45,33,24,0.25); min-width: 200px; padding: 6px; display: flex; flex-direction: column; }
-.dash-account-email { font-size: 12px; color: var(--warm-light); padding: 8px 10px 4px; border-bottom: 1px solid var(--warm-faint); margin-bottom: 4px; word-break: break-all; }
-.dash-account-menu button, .dash-story-switcher-menu button { text-align: left; background: none; border: none; font-family: 'DM Sans', sans-serif; font-size: 14px; color: var(--bark); padding: 10px; border-radius: 8px; cursor: pointer; }
-.dash-account-menu button:hover, .dash-story-switcher-menu button:hover { background: var(--cream-dark); }
+.dash-story-switcher-menu { position: absolute; right: 0; top: calc(100% + 8px); z-index: 70; background: var(--white); border: 1px solid var(--warm-faint); border-radius: 12px; box-shadow: 0 12px 30px -10px rgba(45,33,24,0.25); min-width: 200px; padding: 6px; display: flex; flex-direction: column; }
+.dash-story-switcher-menu button { text-align: left; background: none; border: none; font-family: 'DM Sans', sans-serif; font-size: 14px; color: var(--bark); padding: 10px; border-radius: 8px; cursor: pointer; }
+.dash-story-switcher-menu button:hover { background: var(--cream-dark); }
 .dash-story-switcher-menu button.active { color: var(--rust); font-weight: 600; }
 
 .dash-inner { max-width: 1280px; margin: 0 auto; padding: 16px 16px 24px; }
