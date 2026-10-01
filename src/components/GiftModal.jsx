@@ -132,7 +132,7 @@ export function GiftModal({ onClose }) {
           <div className="gift-costeward-section">
             <div className="gift-costeward-heading">Add co-stewards <span className="form-label-optional gift-costeward-tag">Optional</span></div>
             <p className="gift-costeward-helper">
-              Co-stewards share the page with {recipientFirst}. They can add memories, invite people and approve what comes in. {recipientName.trim() || "They"} stay{recipientName.trim() ? "s" : ""} the owner. Their siblings are a good place to start. Nobody hears anything until {recipientFirst} opens their gift and says yes.
+              Co-stewards share the page with {recipientFirst}. They can add memories, invite people and approve what comes in. The person you're gifting this to stays the owner. Their siblings are a good place to start. Nobody hears anything until {recipientFirst} opens their gift and says yes.
             </p>
 
             {costewards.map((row) => (
@@ -152,14 +152,15 @@ export function GiftModal({ onClose }) {
               <input type="checkbox" checked={gifterWantsCosteward} onChange={(e) => setGifterWantsCosteward(e.target.checked)} />
               <span>
                 Make me a co-steward too.
-                <span className="gift-costeward-check-helper">{recipientFirst} sees this as a suggestion and decides.</span>
+                <span className="gift-costeward-check-helper">The person you're gifting this to sees this as a suggestion and decides.</span>
               </span>
             </label>
           </div>
 
           <div className="gift-price-summary">
-            <div className="gift-price-summary-line">{(subjectName.trim() || "Their")}'s page, forever <span>· $49</span></div>
-            <div className="gift-price-summary-sub">One payment from you. Nobody else ever pays anything.</div>
+            <div className="gift-price-summary-line">
+              {subjectName.trim() ? `${subjectName.trim()}'s page, forever` : "Their page, forever"} <span>· $49</span>
+            </div>
           </div>
 
           {error && <div className="form-error">{error}</div>}

@@ -1678,7 +1678,6 @@ body.has-dash-bottom-bar .toast-wrap { bottom: 84px; }
 .gift-price-summary { background: var(--cream-dark); border-radius: 12px; padding: 14px 16px; margin: 18px 0 4px; }
 .gift-price-summary-line { font-family: 'Lora', serif; font-size: 16px; color: var(--bark); }
 .gift-price-summary-line span { color: var(--warm-light); font-family: 'DM Sans', sans-serif; font-size: 14px; }
-.gift-price-summary-sub { font-size: 12px; color: var(--warm-light); margin-top: 2px; }
 
 @media (max-width: 600px) {
   .gift-modal-card { display: flex; flex-direction: column; max-height: 92vh; max-height: 92dvh; padding-bottom: 0; }
