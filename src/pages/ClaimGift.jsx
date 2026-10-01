@@ -40,7 +40,10 @@ export function ClaimGiftPage({ currentUser, onNavigate, showToast }) {
   }, [sessionId]);
 
   const handleGetStarted = () => {
-    savePendingGiftClaim({ sessionId });
+    // Carries the subject's name through to the memorial-creation form, the
+    // same handoff sessionId already uses — see Onboarding.jsx/CreateMemorial.jsx,
+    // which read this back to pre-fill the name field.
+    savePendingGiftClaim({ sessionId, subjectName: gift?.subject_name || null });
     onNavigate(currentUser ? "create" : "onboarding");
   };
 

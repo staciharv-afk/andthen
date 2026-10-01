@@ -2,6 +2,10 @@
 // person's birth or passing. Paid feature: only runs for is_paid memorials.
 // Goes to the steward (consented — it's their memorial), not contributors.
 //
+// Also does one unrelated cleanup pass at the end: expiring old, never-sent
+// gift co-steward suggestions (see the bottom of this file) — small enough
+// not to warrant its own cron entry.
+//
 // Scheduled in vercel.json. Vercel adds `Authorization: Bearer <CRON_SECRET>`
 // to cron invocations when CRON_SECRET is set — we verify it so the endpoint
 // can't be triggered by anyone.
@@ -73,5 +77,18 @@ export default async function handler(req, res) {
     if (emailRes.ok) sent++;
   }
 
-  return res.status(200).json({ checked: memorials?.length || 0, sent });
+  // Piggybacks on this same daily run rather than a whole new cron entry —
+  // it's a small, unrelated cleanup: gift co-steward suggestions nobody
+  // reviewed (still pending) or explicitly excluded (declined) more than 60
+  // days ago. Anything actually sent is deleted immediately at send time
+  // (api/send-gift-costeward-invites.js), so only these two statuses ever
+  // reach this age. Never touches rows still linked to an active review.
+  const cutoffISO = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000).toISOString();
+  const { count: expired } = await admin
+    .from("gift_suggested_costewards")
+    .delete({ count: "exact" })
+    .in("status", ["pending", "declined"])
+    .lt("created_at", cutoffISO);
+
+  return res.status(200).json({ checked: memorials?.length || 0, sent, expiredGiftCostewards: expired || 0 });
 }

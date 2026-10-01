@@ -4,6 +4,7 @@ import { uid, fileToDataURL, slugify } from "../lib/utils";
 import { RESERVED_SLUGS } from "../lib/router";
 import { trackEvent } from "../lib/analytics";
 import { CropAdjuster, detectCropPosition } from "../components/CropAdjuster";
+import { readPendingGiftClaim } from "../lib/pendingGiftClaim";
 
 // The header banner isn't a fixed shape — its height is a fluid clamp()
 // that runs from ~220px tall on mobile up to 420px on desktop, and its
@@ -19,7 +20,10 @@ const HEADER_MOBILE_RATIO = 1.8;
 
 export function CreateMemorialPage({ currentUser, existing, onCreated, onUpdated, onCancel, showToast }) {
   const isEdit = Boolean(existing);
-  const [name, setName] = useState(existing?.name || "");
+  // A signed-in gift recipient lands here directly (ClaimGift.jsx's "Get
+  // started" skips onboarding when already signed in) — the gift already
+  // says who the page is for, no reason to make them type it again.
+  const [name, setName] = useState(existing?.name || (!existing ? readPendingGiftClaim()?.subjectName : null) || "");
   const [born, setBorn] = useState(existing?.born || "");
   const [passed, setPassed] = useState(existing?.passed || "");
   // Defaults to "living" rather than surfacing a Passed field up front —

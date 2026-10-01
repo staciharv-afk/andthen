@@ -39,7 +39,7 @@ export default async function handler(req, res) {
 
   const { data: rows, error } = await admin
     .from("memorial_stewards")
-    .select("id, invited_email, status")
+    .select("id, invited_email, status, memorial_id, memorials(id, name, invite_code, photo_url, crop_x, crop_y, born, passed, steward_id)")
     .eq("invite_token", token)
     .limit(1);
   if (error) return res.status(500).json({ error: error.message });
@@ -58,5 +58,21 @@ export default async function handler(req, res) {
     .eq("id", invite.id);
   if (updateErr) return res.status(500).json({ error: updateErr.message });
 
-  return res.status(200).json({ accepted: true });
+  // For the co-steward welcome screen's avatar stack — first names only,
+  // owner first. Best-effort: a failure here shouldn't undo the accept
+  // that already succeeded above.
+  const memorial = invite.memorials;
+  let stewardNames = [];
+  try {
+    const { data: ownerData } = memorial?.steward_id ? await admin.auth.admin.getUserById(memorial.steward_id) : { data: null };
+    const ownerName = ownerData?.user?.email?.split("@")[0];
+    const { data: coStewards } = await admin
+      .from("memorial_stewards")
+      .select("invited_name, invited_email")
+      .eq("memorial_id", invite.memorial_id)
+      .eq("status", "accepted");
+    stewardNames = [ownerName, ...(coStewards || []).map((s) => s.invited_name || s.invited_email?.split("@")[0])].filter(Boolean);
+  } catch { /* welcome screen just shows fewer avatars — not worth failing the accept over */ }
+
+  return res.status(200).json({ accepted: true, memorial, stewardNames });
 }
