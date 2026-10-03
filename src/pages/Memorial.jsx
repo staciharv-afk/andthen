@@ -5,6 +5,7 @@ import { trackEvent } from "../lib/analytics";
 import { detectCropPosition } from "../components/CropAdjuster";
 import { MemoryLimitModal } from "../components/MemoryLimitModal";
 import { useScrollLock } from "../lib/useScrollLock";
+import { useDotTruncation } from "../lib/useDotTruncation";
 
 // Reshuffled on every load (see loadMemorial/refreshStories) so a memorial
 // with no new activity still feels alive — visitors see the memories in a
@@ -1746,11 +1747,15 @@ function MemoryTile({ story: s, hidden, onOpen }) {
   // "card" treatment — Clay border, Playfair quote mark, Caveat signature
   // — instead of the dark media caption bar photo/video/voicemail tiles use.
   const isCard = s.type === "url" || (s.type === "story" && !s.media_url);
+  // A text tile may be showing a truncated preview (see TileStory), so give
+  // screen readers the whole memory rather than the visible excerpt.
+  const fullTextLabel = isTextTile(s) && s.text ? `${tileLabel} from ${relLabel}: ${s.text}` : undefined;
 
   return (
     <button
       type="button"
       data-memory-id={s.id}
+      aria-label={fullTextLabel}
       className={`mem-tile${isCard ? " mem-tile-card" : ""}${hidden ? " hidden-card" : ""}`}
       onClick={onOpen}
     >
@@ -1765,6 +1770,14 @@ function MemoryTile({ story: s, hidden, onOpen }) {
       </div>
     </button>
   );
+}
+
+// True when TileBody falls through to the plain text render — i.e. none of
+// its media branches below apply.
+function isTextTile(s) {
+  if (s.type === "url") return !s.link_meta;
+  if (["photo", "story", "video", "voice"].includes(s.type)) return !s.media_url;
+  return true;
 }
 
 // Guarded by media_url, not just type — a handful of real entries on
@@ -1790,13 +1803,20 @@ function TileBody({ story: s }) {
   }
   if (s.type === "voice" && s.media_url) return <TileVoice story={s} />;
   if (s.type === "url" && s.link_meta) return <TileUrl story={s} />;
+  return <TileStory story={s} />;
+}
 
+// Text preview. A memory too long for the tile ends on a whole word plus
+// the brand dots rather than clipping mid-line — useDotTruncation fills the
+// blockquote itself, which is why it's rendered with no children.
+function TileStory({ story: s }) {
+  const textRef = useDotTruncation(s.text);
   return (
     <div className="mem-tile-body mem-tile-story">
       {s.text ? (
         <>
           <span className="mem-tile-quote-mark" aria-hidden="true">&ldquo;</span>
-          <blockquote>{s.text}</blockquote>
+          <blockquote ref={textRef} />
         </>
       ) : null}
     </div>

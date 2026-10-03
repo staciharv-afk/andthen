@@ -619,7 +619,13 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
    bar rendered in Caveat — see .mem-tile-card below. */
 .mem-tile-story { background: var(--sand); padding: 20px 18px 16px; align-items: flex-start; border-left: 3px solid var(--clay); }
 .mem-tile-quote-mark { font-family: 'Playfair Display', serif; font-style: italic; color: var(--clay); font-size: 2.4rem; line-height: 0.6; margin-bottom: 8px; display: block; }
-.mem-tile-story blockquote { margin: 0; font-family: 'Inter', sans-serif; font-style: normal; font-size: 0.85rem; line-height: 1.55; color: var(--charcoal); text-align: left; }
+.mem-tile-story blockquote { margin: 0; font-family: 'Inter', sans-serif; font-style: normal; font-size: 0.85rem; line-height: 1.55; color: var(--charcoal); text-align: left; align-self: stretch; overflow: hidden; }
+/* The blockquote above is stretched to the tile's text area and clipped so
+   useDotTruncation can measure against it. .brand-dots is the ellipsis that
+   hook appends: the three clay dots from the logo, centered on the last
+   line. Not scoped to story tiles — any text tile can reuse it. */
+.brand-dots { display: inline-flex; align-items: center; gap: 4px; margin-left: 5px; vertical-align: middle; }
+.brand-dots i { width: 5px; height: 5px; border-radius: 50%; background: var(--clay); flex-shrink: 0; }
 
 /* Caption reveal for a media entry with attached text — visible on
    :hover (desktop) or via the .revealed class MemoryTile toggles on
