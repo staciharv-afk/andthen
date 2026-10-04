@@ -7,7 +7,7 @@ export function OurStoryPage({ onNavigate }) {
         <header>
           <div className="mkt-eyebrow fade-up"><span className="mkt-eyebrow-line" aria-hidden="true" />Our Story</div>
           <h1 className="mkt-h1 fade-up-2">Why I built <em>And Then</em></h1>
-          <p className="mkt-byline fade-up-3">A note from our founder, Staci Harvey</p>
+          <p className="mkt-byline fade-up-3">A note from our founder, Staci</p>
         </header>
 
         {/* Real <img> so a photo dropped in later at this exact path shows
