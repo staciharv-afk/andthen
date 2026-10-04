@@ -467,13 +467,23 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .empty-state-sub { font-size: 14px; color: var(--warm-light); }
 
 /* ── PUBLIC MEMORIAL PAGE — scrapbook design ── */
-.memorial-page {
+/* The --mem-* tokens are also declared on the share-a-memory overlays, not
+   just .memorial-page — Dashboard.jsx mounts ShareMemoryModal outside
+   .memorial-page ("+ Add a memory" in My Pages), and without the tokens the
+   sheet has no background and the dashboard shows straight through it. */
+.memorial-page, .share-sheet-overlay, .share-modal-overlay {
   --mem-paper: #F5EFE1; --mem-paper-deep: #ECE3CE; --mem-card: #FFFCF5;
   --mem-ink: #2C2420; --mem-ink-soft: #5C5248;
   --mem-rose: #C1515A; --mem-rose-soft: #E8C6C4;
   --mem-gold: #B8863B; --mem-gold-soft: #EAD9AE;
   --mem-sage: #6E7F5C; --mem-sage-soft: #D6DEC7;
   --mem-shadow: 0 10px 30px -12px rgba(46,46,46,0.16);
+}
+/* Same reason: the type the sheet otherwise inherits from .memorial-page,
+   so it reads identically wherever it's opened. */
+.share-sheet-overlay, .share-modal-overlay { font-family: 'Inter', sans-serif; color: var(--charcoal); }
+.share-sheet-overlay h2, .share-modal-overlay h2 { font-style: italic; }
+.memorial-page {
   /* --mem-* above is left as-is (values unchanged) — the share-a-memory
      modal (.share-*, .record-btn-idle, .btn-rust override, form-input
      focus) still reads these directly and that form isn't part of this
@@ -801,13 +811,13 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .record-time { font-size: 24px; font-family: monospace; color: var(--bark); }
 .record-sub { font-size: 13px; color: var(--warm-light); }
 
-.memorial-page .form-label { color: var(--mem-ink); }
-.memorial-page .form-input { border-color: rgba(44,36,32,0.14); }
-.memorial-page .form-input:focus { border-color: var(--mem-rose); }
-.memorial-page .record-btn-idle { background: var(--mem-rose); }
-.memorial-page .record-btn-idle:hover { background: #a8434b; }
-.memorial-page .btn-rust { background: var(--mem-rose); }
-.memorial-page .btn-rust:hover { background: #a8434b; }
+.memorial-page .form-label, .share-sheet-overlay .form-label, .share-modal-overlay .form-label { color: var(--mem-ink); }
+.memorial-page .form-input, .share-sheet-overlay .form-input, .share-modal-overlay .form-input { border-color: rgba(44,36,32,0.14); }
+.memorial-page .form-input:focus, .share-sheet-overlay .form-input:focus, .share-modal-overlay .form-input:focus { border-color: var(--mem-rose); }
+.memorial-page .record-btn-idle, .share-sheet-overlay .record-btn-idle, .share-modal-overlay .record-btn-idle { background: var(--mem-rose); }
+.memorial-page .record-btn-idle:hover, .share-sheet-overlay .record-btn-idle:hover, .share-modal-overlay .record-btn-idle:hover { background: #a8434b; }
+.memorial-page .btn-rust, .share-sheet-overlay .btn-rust, .share-modal-overlay .btn-rust { background: var(--mem-rose); }
+.memorial-page .btn-rust:hover, .share-sheet-overlay .btn-rust:hover, .share-modal-overlay .btn-rust:hover { background: #a8434b; }
 
 /* Overlay sits below .crop-adjust-overlay's z-index (500) so the crop
    adjuster — opened from a photo attached inside this modal — stacks on
