@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { PRICING_PLANS } from "../lib/pricingPlans";
-import { FREE_MEMORY_LIMIT } from "../lib/utils";
+import { FREE_MEMORY_LIMIT, startPageCheckout } from "../lib/utils";
 import { useScrollLock } from "../lib/useScrollLock";
 
 const BUILD = PRICING_PLANS.find((p) => p.tier === "build");
@@ -24,20 +24,8 @@ export function MemoryLimitModal({ memorial, onClose }) {
   const handleUpgrade = async () => {
     setUpgrading(true);
     setError("");
-    try {
-      const res = await fetch("/api/create-checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ memorialId: memorial.id, tier: BUILD.tier }),
-      });
-      const data = await res.json();
-      if (data.url) { window.location.href = data.url; return; } // off to Stripe Checkout
-      setError(data.error || "Couldn't start checkout. Please try again.");
-    } catch {
-      setError("Couldn't start checkout. Please try again.");
-    } finally {
-      setUpgrading(false);
-    }
+    const message = await startPageCheckout(memorial.id, BUILD.tier); // null = off to Stripe Checkout
+    if (message) { setError(message); setUpgrading(false); }
   };
 
   return (

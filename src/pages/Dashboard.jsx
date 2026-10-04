@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { uid, fmtDate, fmtTime, timeAgo, genAccessCode, sendThankYou, notifyStewardInvite, notifyAccessApproved, FREE_MEMORY_LIMIT, memorialUrl } from "../lib/utils";
 import { trackEvent } from "../lib/analytics";
@@ -7,6 +7,7 @@ import { PRICING_PLANS } from "../lib/pricingPlans";
 import { ShareMemoryModal, CONTENT_TAGS, colorForContributor, initialsFor } from "./Memorial";
 import { EmbeddedCheckoutModal } from "../components/EmbeddedCheckoutModal";
 import { MemoryLimitModal } from "../components/MemoryLimitModal";
+import { MediaBatchUploader, ADD_MEDIA_LABEL } from "../components/MediaBatchUploader";
 import { SharePagePanel } from "../components/SharePagePanel";
 import { useScrollLock } from "../lib/useScrollLock";
 
@@ -53,6 +54,7 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
   const [allMemoriesTab, setAllMemoriesTab] = useState("pending");
   const [savingModeration, setSavingModeration] = useState(false);
   const [savingAccess, setSavingAccess] = useState(false);
+  const batchUploaderRef = useRef();
 
   // The sticky bottom bar (mobile only) would otherwise sit right under a
   // toast — see ".has-dash-bottom-bar .toast-wrap" in styles.js.
@@ -351,12 +353,16 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
   const contributorCount = new Set(approved.map((s) => s.contributor_name).filter(Boolean)).size;
   const contributionGated = activeMemorial.visibility === "private" || activeMemorial.contribution_access === "code_required";
   const waitingCount = pending.length + (contributionGated ? accessRequests.length : 0) + giftSuggestions.length;
-  const atFreeLimit = !activeMemorial.is_paid && submissions.filter((s) => s.status !== "rejected").length >= FREE_MEMORY_LIMIT;
+  // 'held' = photos/videos a batch upload saved past the free limit. They
+  // aren't on the page and don't count toward it; the database releases
+  // them the moment the page is paid for.
+  const held = submissions.filter((s) => s.status === "held");
+  const atFreeLimit = !activeMemorial.is_paid && submissions.filter((s) => s.status !== "rejected" && s.status !== "held").length >= FREE_MEMORY_LIMIT;
 
   const filteredAll = submissions.filter((s) => {
     if (allMemoriesTab === "pending") return s.status === "pending";
     if (allMemoriesTab === "approved") return s.status === "approved";
-    return true;
+    return s.status !== "held";
   });
 
   return (
@@ -372,10 +378,22 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
           contributorCount={contributorCount}
           contributionGated={contributionGated}
           onAddMemory={() => (atFreeLimit ? setShowMemoryLimit(true) : setAddingMemory(true))}
+          onAddMedia={activeMemorial.closed_to_submissions ? null : () => batchUploaderRef.current?.openPicker()}
           onShare={() => setShowShareSheet(true)}
           onView={() => onNavigate("memorial", activeMemorial.invite_code)}
           onEdit={() => onNavigate("edit", activeMemorial)}
         />
+
+        {held.length > 0 && !activeMemorial.is_paid && (
+          <div className="dash-card dash-held-note">
+            <span>
+              {held.length} {held.length === 1 ? "photo or video is" : "photos and videos are"} saved and waiting. Your free page holds {FREE_MEMORY_LIMIT} memories. Unlock the rest for {BUILD.price}, one time, forever.
+            </span>
+            <button className="btn btn-sm btn-rust" onClick={() => handleUpgrade(activeMemorial.id)} disabled={upgrading}>
+              {upgrading ? "Starting…" : "Unlock the rest"}
+            </button>
+          </div>
+        )}
 
         <div className="dash-main-col">
         <section className="dash-section fade-up-2">
@@ -588,16 +606,31 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
           showToast={showToast}
           open={addingMemory}
           stories={submissions.filter((s) => s.status === "approved")}
+          isCreator
           onSubmitted={() => loadSubmissions(activeMemorial.id)}
           onViewAllMemories={() => setAddingMemory(false)}
           contributeToken={null}
           onClose={async () => {
             setAddingMemory(false);
             const rows = await loadSubmissions(activeMemorial.id);
-            if (!activeMemorial.is_paid && rows.filter((s) => s.status !== "rejected").length >= FREE_MEMORY_LIMIT) {
+            if (!activeMemorial.is_paid && rows.filter((s) => s.status !== "rejected" && s.status !== "held").length >= FREE_MEMORY_LIMIT) {
               setShowMemoryLimit(true);
             }
           }}
+        />
+      )}
+
+      {activeMemorial && (
+        <MediaBatchUploader
+          key={activeMemorial.id}
+          ref={batchUploaderRef}
+          memorial={activeMemorial}
+          mode="creator"
+          showToast={showToast}
+          // Only the page's creator has a stated relationship on file; a
+          // co-steward's uploads go in without one.
+          creatorRelation={activeMemorial.steward_id === currentUser.id ? activeMemorial.steward_relation || null : null}
+          onPublished={() => loadSubmissions(activeMemorial.id)}
         />
       )}
 
@@ -671,7 +704,7 @@ function StorySwitcher({ memorials, active, onSelect, open, setOpen }) {
   );
 }
 
-function PageCard({ memorial, submissions, contributorCount, contributionGated, onAddMemory, onShare, onView, onEdit }) {
+function PageCard({ memorial, submissions, contributorCount, contributionGated, onAddMemory, onAddMedia, onShare, onView, onEdit }) {
   return (
     <div className="dash-page-card fade-up">
       <div className="dash-page-card-top">
@@ -699,6 +732,14 @@ function PageCard({ memorial, submissions, contributorCount, contributionGated, 
           <button type="button" className="btn-dash-primary" onClick={onAddMemory}>+ Add a memory</button>
         </div>
       </div>
+
+      {/* Outside .dash-page-card-actions (desktop-only) on purpose — this one
+          has to be reachable on a phone without opening anything. */}
+      {onAddMedia && (
+        <div className="dash-page-card-media">
+          <button type="button" className="btn-dash-outline" onClick={onAddMedia}>{ADD_MEDIA_LABEL}</button>
+        </div>
+      )}
 
       {submissions.length > 0 && (
         <div className="dash-page-card-stats">

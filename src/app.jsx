@@ -13,6 +13,7 @@ import { Nav } from "./components/Nav";
 import { HomePage } from "./pages/Home";
 import { AuthPage } from "./pages/Auth";
 import { OnboardingPage } from "./pages/Onboarding";
+import { FirstPhotosPage } from "./pages/FirstPhotos";
 import { CreateMemorialPage } from "./pages/CreateMemorial";
 import { DashboardPage } from "./pages/Dashboard";
 import { MemorialPage } from "./pages/Memorial";
@@ -210,7 +211,9 @@ export default function App() {
         if (unlock?.isGift && unlock.suggestedCostewards?.length) {
           navigate("gift-costeward-review", data[0]);
         } else {
-          navigate("edit", data[0]);
+          // Straight from the intro step into "start with a few photos",
+          // which then lands them on the page itself.
+          navigate("first-photos", data[0]);
         }
         return;
       }
@@ -311,7 +314,7 @@ export default function App() {
         </div>
       )}
 
-      {route !== "login" && route !== "memorial" && route !== "onboarding" && route !== "claim-gift" && route !== "gift-costeward-review" && route !== "costeward-welcome" && (
+      {route !== "login" && route !== "memorial" && route !== "onboarding" && route !== "claim-gift" && route !== "gift-costeward-review" && route !== "costeward-welcome" && route !== "first-photos" && (
         <Nav currentUser={currentUser} onSignOut={handleSignOut} onNavigate={navigate} currentRoute={route} brand={MARKETING_ROUTES.has(route)} />
       )}
 
@@ -332,6 +335,17 @@ export default function App() {
       )}
 
       {route === "login" && (
+        <AuthPage showToast={showToast} />
+      )}
+
+      {route === "first-photos" && currentUser && routeParam && (
+        <FirstPhotosPage memorial={routeParam} showToast={showToast} onContinue={() => navigate("memorial", routeParam.invite_code)} />
+      )}
+      {/* Reloaded straight onto /?view=first-photos with no memorial in history — fall back to the dashboard. */}
+      {route === "first-photos" && currentUser && !routeParam && (
+        <DashboardPage currentUser={currentUser} onNavigate={navigate} showToast={showToast} />
+      )}
+      {route === "first-photos" && !currentUser && (
         <AuthPage showToast={showToast} />
       )}
 
