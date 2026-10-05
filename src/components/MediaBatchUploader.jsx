@@ -1,6 +1,7 @@
 import { forwardRef, useImperativeHandle, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { FREE_MEMORY_LIMIT, sendThankYou, notifyCreator, startPageCheckout } from "../lib/utils";
+import { publishContributions } from "../lib/contributions";
 import { trackEvent } from "../lib/analytics";
 import { PRICING_PLANS } from "../lib/pricingPlans";
 import { useScrollLock } from "../lib/useScrollLock";
@@ -22,11 +23,12 @@ const mediaCount = (list) => {
   return [photos && plural(photos, "photo", "photos"), videos && plural(videos, "video", "videos")].filter(Boolean).join(", ");
 };
 
-// Add many photos and videos at once — the one uploader behind all three
-// entry points: the first-photos step after a page is created
-// (FirstPhotos.jsx), the creator's "Add photos and videos" buttons
-// (Memorial.jsx, Dashboard.jsx), and "Share photos or videos" in the
-// share-a-memory sheet (ShareMemoryModal).
+// Add many photos and videos at once — the creator's fast path, behind
+// the first-photos step after a page is created (FirstPhotos.jsx) and the
+// "Add photos and videos" buttons (Memorial.jsx, Dashboard.jsx). Contributors
+// add photos through the share-a-memory sheet instead (ShareMemoryModal),
+// which runs on the same upload queue; the "contributor" mode here is kept
+// for any future standalone use.
 //
 // Mount it once next to whatever button opens it and keep a ref:
 //   ref.current.openPicker()    — opens the phone's/computer's file picker
@@ -52,7 +54,7 @@ export const MediaBatchUploader = forwardRef(function MediaBatchUploader(
   const isCreator = mode === "creator";
   const limit = BATCH_LIMIT[mode];
   const firstName = memorial.name.split(" ")[0];
-  const batch = useBatchUpload({ pathPrefix: `contributions/${memorial.invite_code}`, limit });
+  const batch = useBatchUpload({ pathPrefix: `contributions/${memorial.invite_code}` });
   const { items } = batch;
 
   const [screen, setScreen] = useState("review"); // review | done
@@ -86,7 +88,8 @@ export const MediaBatchUploader = forwardRef(function MediaBatchUploader(
       setRelationship(defaultContact?.relationship || null);
       setOtherRelationshipText(defaultContact?.otherRelationshipText || "");
     }
-    const { added, overLimit, unsupported } = batch.addFiles(fileList);
+    const { ids, overLimit, unsupported } = batch.addFiles(fileList, { max: limit - batch.current().length });
+    const added = ids.length;
     if (overLimit > 0) setNotice(`You can add ${limit} at a time. We kept the first ${limit} and left out the other ${overLimit}.`);
     else if (!added && unsupported > 0) showToast("Only photos and videos can be added here.", "error");
     else setNotice("");
@@ -128,16 +131,6 @@ export const MediaBatchUploader = forwardRef(function MediaBatchUploader(
     return !Object.keys(next).length;
   };
 
-  // `taken_on` arrives with the batch-upload migration. If the app is ever
-  // ahead of the database, save the memories without it rather than not at all.
-  const insertRows = async (rows, wantIds) => {
-    const run = (rs) => (wantIds ? supabase.from("contributions").insert(rs).select("id") : supabase.from("contributions").insert(rs));
-    let res = await run(rows);
-    if (res.error && /taken_on/.test(res.error.message || "")) res = await run(rows.map(({ taken_on, ...rest }) => rest));
-    if (res.error) throw res.error;
-    return res.data || [];
-  };
-
   const publish = async () => {
     if (!validate()) return;
     setPublishing(true);
@@ -149,11 +142,7 @@ export const MediaBatchUploader = forwardRef(function MediaBatchUploader(
       const relLabel = isCreator
         ? creatorRelation
         : relationship === "other" ? otherRelationshipText.trim() : relationships.find((r) => r.id === relationship)?.label || null;
-      // The insert policy only accepts the status the page's moderation
-      // setting calls for (can_insert_contribution), creators included — a
-      // creator's own rows are approved in a second step below.
-      const pageStatus = memorial.require_approval ? "pending" : "approved";
-      const toRow = (it, status) => ({
+      const toRow = (it) => ({
         memorial_id: memorial.id,
         contributor_name: name.trim(),
         contributor_relation: relLabel,
@@ -164,7 +153,6 @@ export const MediaBatchUploader = forwardRef(function MediaBatchUploader(
         text: it.text.trim() || null,
         media_url: it.mediaUrl,
         secondary_media_url: it.posterUrl,
-        status,
         crop_x: it.cropPos?.x ?? null,
         crop_y: it.cropPos?.y ?? null,
         link_meta: null,
@@ -172,34 +160,11 @@ export const MediaBatchUploader = forwardRef(function MediaBatchUploader(
         taken_on: it.takenOn || null,
       });
 
-      // Free page: publish up to the limit in the order shown, hold the rest.
-      let live = ready, extra = [];
-      if (!memorial.is_paid) {
-        const { count } = await supabase.from("contributions").select("id", { count: "exact", head: true })
-          .eq("memorial_id", memorial.id).not("status", "in", "(rejected,held)");
-        const slots = Math.max(0, FREE_MEMORY_LIMIT - (count || 0));
-        live = ready.slice(0, slots);
-        extra = ready.slice(slots);
-      }
-
-      let lastId = null;
-      if (live.length) {
-        // A moderated page hides pending rows from the contributor who just
-        // sent them, so only ask for ids back when they'll be readable.
-        const wantIds = isCreator || !memorial.require_approval;
-        const inserted = await insertRows(live.map((it) => toRow(it, pageStatus)), wantIds);
-        lastId = inserted[inserted.length - 1]?.id || null;
-        if (isCreator && memorial.require_approval && inserted.length) {
-          const { error } = await supabase.from("contributions").update({ status: "approved" }).in("id", inserted.map((r) => r.id));
-          if (error) throw error;
-        }
-      }
-
-      let held = [], unsaved = 0;
-      if (extra.length) {
-        try { await insertRows(extra.map((it) => toRow(it, "held")), false); held = extra; }
-        catch { unsaved = extra.length; }
-      }
+      // Free page: published up to the limit in the order shown, the rest held.
+      const saved = await publishContributions({ memorial, rows: ready.map(toRow), isCreator });
+      const live = ready.slice(0, saved.added);
+      const held = ready.slice(saved.added, saved.added + saved.held);
+      const { unsaved, lastId } = saved;
 
       if (isCreator) saveCreatorName(name.trim());
       else if (live.length) {
@@ -213,7 +178,7 @@ export const MediaBatchUploader = forwardRef(function MediaBatchUploader(
       trackEvent("memory_submitted", { content_type: "bulk_upload", count: live.length + held.length });
       onContactUsed?.({ name: name.trim(), relationship, otherRelationshipText });
 
-      const outcome = { added: live, held, unsaved, moderated: !isCreator && !!memorial.require_approval };
+      const outcome = { added: live, held, unsaved, moderated: saved.moderated };
       batch.removeMany([...live, ...held].map((it) => it.id));
       setResult(outcome);
       setScreen("done");
