@@ -24,10 +24,17 @@ One page per file. Don't put everything back in `app.jsx`.
 - `src/lib/router.js` — `APP_VIEWS`, `parseLocation`, `routeToUrl`.
 - `src/lib/media.js` — browser-side media helpers: video cap/compress/poster,
   photo resize + HEIC→JPEG, EXIF date, plain and resumable storage uploads.
-- `src/components/MediaBatchUploader.jsx` + `src/lib/useBatchUpload.js` — the
-  one multi-photo uploader (review grid + background upload queue). Used by
-  `FirstPhotos`, `Dashboard`, `Memorial` and the share-a-memory sheet; mount it
-  and call `ref.openPicker()` rather than building another uploader.
+- `src/lib/useBatchUpload.js` — the one background upload queue (photos,
+  videos, audio; 3 at a time, one auto-retry). Don't write another.
+- `src/components/ShareMemoryModal.jsx` — the two-step share-a-memory flow
+  (type grid + tray, then "about you"). Design reference:
+  `design/share-a-memory-mobile.html`. Questions come from
+  `src/lib/shareQuestions.js`; saving goes through `publishContributions` in
+  `src/lib/contributions.js` (moderation status, creator auto-approve, free
+  limit). `src/lib/useAudioRecorder.js` is the "Tell it out loud" recorder.
+- `src/components/MediaBatchUploader.jsx` — the creator's "Add photos and
+  videos" review grid (`FirstPhotos`, `Dashboard`, `Memorial`); mount it and
+  call `ref.openPicker()`.
 - `src/styles.js` — the single `STYLES` string. All CSS + brand tokens live here.
 - `src/components/` — `Toast` (`useToast` + `ToastContainer`), `Nav`.
 - `src/pages/` — `Home`, `Auth`, `CreateMemorial` (create + edit), `Dashboard`,
@@ -47,6 +54,11 @@ One page per file. Don't put everything back in `app.jsx`.
 - **Routing:** to add a view, add it to `APP_VIEWS` in `router.js`, handle it in
   `app.jsx`, and use `navigate(page, param)` (it does `pushState`, so Back works).
   Contributor deep-links are `?memorial=<code>`; app views are `?view=<name>`.
+- **How memory types are stored:** written story = `type: story`; photo/video
+  = `photo`/`video`; link = `url` + `link_meta`; recorded here = `voice` +
+  `subtype: recording` ("Spoken story"); uploaded audio = `voice` +
+  `subtype: voicemail`; a recipe is the tag `Recipe` in `tags` on a `photo`
+  (card) or `story` (typed) row, not a type of its own.
 - **Copy is the product, not a placeholder.** The brand voice is plain, specific,
   present-tense, never grief-coded. Don't rewrite user-facing copy casually.
 

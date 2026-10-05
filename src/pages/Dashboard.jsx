@@ -4,7 +4,8 @@ import { uid, fmtDate, fmtTime, timeAgo, genAccessCode, sendThankYou, notifyStew
 import { trackEvent } from "../lib/analytics";
 import { exportMemorial } from "../lib/export";
 import { PRICING_PLANS } from "../lib/pricingPlans";
-import { ShareMemoryModal, CONTENT_TAGS, colorForContributor, initialsFor } from "./Memorial";
+import { CONTENT_TAGS, colorForContributor, initialsFor } from "./Memorial";
+import { ShareMemoryModal } from "../components/ShareMemoryModal";
 import { EmbeddedCheckoutModal } from "../components/EmbeddedCheckoutModal";
 import { MemoryLimitModal } from "../components/MemoryLimitModal";
 import { MediaBatchUploader, ADD_MEDIA_LABEL } from "../components/MediaBatchUploader";
@@ -44,6 +45,9 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
   const [deleteTarget, setDeleteTarget] = useState(null); // memorial pending delete confirmation, or null
   const [upgrading, setUpgrading] = useState(false); // true while a checkout redirect is starting
   const [addingMemory, setAddingMemory] = useState(false);
+  // Once opened, the share sheet stays mounted (hidden when closed) so a
+  // tray or an upload in progress survives closing it — same as Memorial.jsx.
+  const [shareMounted, setShareMounted] = useState(false);
   const [showMemoryLimit, setShowMemoryLimit] = useState(false);
   const [showPagePaywall, setShowPagePaywall] = useState(false);
   const [showShareSheet, setShowShareSheet] = useState(false);
@@ -55,6 +59,7 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
   const [savingModeration, setSavingModeration] = useState(false);
   const [savingAccess, setSavingAccess] = useState(false);
   const batchUploaderRef = useRef();
+  const openShare = () => { setShareMounted(true); setAddingMemory(true); };
 
   // The sticky bottom bar (mobile only) would otherwise sit right under a
   // toast — see ".has-dash-bottom-bar .toast-wrap" in styles.js.
@@ -377,7 +382,7 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
           submissions={approved}
           contributorCount={contributorCount}
           contributionGated={contributionGated}
-          onAddMemory={() => (atFreeLimit ? setShowMemoryLimit(true) : setAddingMemory(true))}
+          onAddMemory={() => (atFreeLimit ? setShowMemoryLimit(true) : openShare())}
           onAddMedia={activeMemorial.closed_to_submissions ? null : () => batchUploaderRef.current?.openPicker()}
           onShare={() => setShowShareSheet(true)}
           onView={() => onNavigate("memorial", activeMemorial.invite_code)}
@@ -593,22 +598,23 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
 
       <div className="dash-bottom-bar">
         <button type="button" className="btn-dash-outline" onClick={() => setShowShareSheet(true)}>Share</button>
-        <button type="button" className="btn-dash-primary dash-bottom-add" onClick={() => (atFreeLimit ? setShowMemoryLimit(true) : setAddingMemory(true))}>+ Add a memory</button>
+        <button type="button" className="btn-dash-primary dash-bottom-add" onClick={() => (atFreeLimit ? setShowMemoryLimit(true) : openShare())}>+ Add a memory</button>
       </div>
 
       {deleteTarget && (
         <DeleteMemorialModal memorial={deleteTarget} onCancel={() => setDeleteTarget(null)} onDeleted={handleDeleted} showToast={showToast} />
       )}
 
-      {addingMemory && activeMemorial && (
+      {shareMounted && activeMemorial && (
         <ShareMemoryModal
+          // Keyed per page so switching pages starts a fresh sheet. Prefixed
+          // because the uploader below is a sibling keyed on the same id.
+          key={`share-${activeMemorial.id}`}
           memorial={activeMemorial}
           showToast={showToast}
           open={addingMemory}
-          stories={submissions.filter((s) => s.status === "approved")}
           isCreator
           onSubmitted={() => loadSubmissions(activeMemorial.id)}
-          onViewAllMemories={() => setAddingMemory(false)}
           contributeToken={null}
           onClose={async () => {
             setAddingMemory(false);
@@ -622,7 +628,7 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
 
       {activeMemorial && (
         <MediaBatchUploader
-          key={activeMemorial.id}
+          key={`batch-${activeMemorial.id}`}
           ref={batchUploaderRef}
           memorial={activeMemorial}
           mode="creator"

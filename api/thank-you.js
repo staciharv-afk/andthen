@@ -37,7 +37,7 @@ export default async function handler(req, res) {
 
   const { data: rows, error } = await admin
     .from("contributions")
-    .select("id, status, contributor_name, contributor_email, thanked_at, memorials(name, invite_code)")
+    .select("id, memorial_id, status, contributor_name, contributor_email, thanked_at, memorials(name, invite_code)")
     .eq("id", contributionId)
     .limit(1);
   if (error) return res.status(500).json({ error: error.message });
@@ -48,6 +48,24 @@ export default async function handler(req, res) {
   if (c.status !== "approved") return res.status(200).json({ skipped: "not approved" });
   if (!c.contributor_email) return res.status(200).json({ skipped: "no email" });
   if (c.thanked_at) return res.status(200).json({ skipped: "already thanked" });
+
+  // One submission can be several memories (the share flow writes one row
+  // per photo, story, recording...), and a family approving them one after
+  // another would otherwise send this person the same email each time. If
+  // they've already been thanked for this page in the last day, mark this
+  // memory as thanked too and send nothing.
+  const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const { data: recent } = await admin
+    .from("contributions")
+    .select("id")
+    .eq("memorial_id", c.memorial_id)
+    .eq("contributor_email", c.contributor_email)
+    .gt("thanked_at", dayAgo)
+    .limit(1);
+  if (recent?.length) {
+    await admin.from("contributions").update({ thanked_at: new Date().toISOString() }).eq("id", c.id);
+    return res.status(200).json({ skipped: "already thanked for this page today" });
+  }
 
   const memorialName = c.memorials?.name || "your loved one";
   const firstName = (c.contributor_name || "there").trim().split(" ")[0];

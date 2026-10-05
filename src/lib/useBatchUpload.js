@@ -3,17 +3,22 @@ import { supabase } from "./supabase";
 import { uid } from "./utils";
 import { detectCropPosition } from "../components/CropAdjuster";
 import {
-  isMediaFile, isVideoFile, prepareImage, readTakenOn, shareVideoWithinCap, compressVideo,
+  isMediaFile, isVideoFile, isAudioFile, prepareImage, readTakenOn, shareVideoWithinCap, compressVideo,
   generateVideoPoster, uploadFileWithProgress, uploadResumable,
 } from "./media";
 
 const BUCKET = "memorial-media";
+const ACCEPTS = {
+  media: isMediaFile,
+  image: (f) => isMediaFile(f) && !isVideoFile(f),
+  audio: isAudioFile,
+};
 const UPLOADS_AT_ONCE = 3;
 const AUTO_RETRY_DELAY_MS = 1500;
 
-// The upload queue behind MediaBatchUploader. Files start uploading the
-// moment they're picked, so by the time someone has looked over the review
-// grid most of the work is already done.
+// The upload queue behind MediaBatchUploader and ShareMemoryModal. Files
+// start uploading the moment they're picked, so by the time someone has
+// looked them over (or filled in their name) most of the work is done.
 //
 // Two stages per file:
 //   prepare — one at a time, in pick order: read the EXIF date, resize the
@@ -22,13 +27,16 @@ const AUTO_RETRY_DELAY_MS = 1500;
 //   upload  — three at a time. A failed upload is retried once on its own;
 //             after that the item is marked "error" and waits for retry().
 //
-// Item shape: { id, kind: 'photo'|'video', name, status, progress, error,
+// Audio (a recording, a saved voicemail) skips prepare's work and uploads
+// as it is.
+//
+// Item shape: { id, kind: 'photo'|'video'|'audio', name, status, progress, error,
 // canRetry, thumbUrl, takenOn, text, cropPos, mediaUrl, posterUrl }.
 // status: preparing → queued → uploading → uploaded, or error.
 //
 // The queue's working state lives in a ref (uploads outlive any one render)
 // and is mirrored into React state for display.
-export function useBatchUpload({ pathPrefix, limit }) {
+export function useBatchUpload({ pathPrefix }) {
   const [items, setItems] = useState([]);
   const q = useRef({ items: [], files: new Map(), active: 0, preparing: false, seq: 0, waiters: [], alive: true }).current;
 
@@ -62,7 +70,10 @@ export function useBatchUpload({ pathPrefix, limit }) {
     const src = q.files.get(item.id)?.src;
     if (!src) return;
     try {
-      if (item.kind === "video") {
+      if (item.kind === "audio") {
+        q.files.set(item.id, { src, upload: src });
+        patch(item.id, { status: "queued" });
+      } else if (item.kind === "video") {
         if (!(await shareVideoWithinCap(src))) {
           patch(item.id, { status: "error", error: "Videos must be 60 seconds or less.", canRetry: false });
           return;
@@ -119,8 +130,9 @@ export function useBatchUpload({ pathPrefix, limit }) {
         }
       } else {
         const file = files.upload;
-        const ext = file.name?.includes(".") ? file.name.split(".").pop() : "jpg";
-        mediaUrl = await uploadFileWithProgress(BUCKET, `${pathPrefix}/${uid()}.${ext}`, file, file.type || "image/jpeg", onProgress);
+        const fallbackExt = item.kind === "audio" ? "m4a" : "jpg";
+        const ext = file.name?.includes(".") ? file.name.split(".").pop().toLowerCase() : fallbackExt;
+        mediaUrl = await uploadFileWithProgress(BUCKET, `${pathPrefix}/${uid()}.${ext}`, file, file.type || (item.kind === "audio" ? "audio/mp4" : "image/jpeg"), onProgress);
       }
       if (!mediaUrl) throw new Error("Upload failed.");
       q.files.delete(item.id); // the originals aren't needed again — let them be collected
@@ -146,18 +158,19 @@ export function useBatchUpload({ pathPrefix, limit }) {
     }
   };
 
-  // Returns how the pick was handled so the caller can say so plainly:
-  // { added, overLimit (picked past the batch limit), unsupported }.
-  const addFiles = (fileList) => {
+  // `accept` is which kinds this pick takes ("media" = photos + videos,
+  // "image", or "audio"); `max` caps how many of them are kept. Returns how
+  // the pick was handled so the caller can say so plainly:
+  // { ids (the new items), overLimit (picked past max), unsupported }.
+  const addFiles = (fileList, { accept = "media", max = Infinity } = {}) => {
     const picked = Array.from(fileList || []);
-    const media = picked.filter(isMediaFile);
-    const room = Math.max(0, limit - q.items.length);
-    const accepted = media.slice(0, room);
+    const wanted = picked.filter(ACCEPTS[accept]);
+    const accepted = wanted.slice(0, Math.max(0, max));
     const fresh = accepted.map((file) => {
       const id = uid();
       q.files.set(id, { src: file });
       return {
-        id, seq: q.seq++, kind: isVideoFile(file) ? "video" : "photo", name: file.name || "",
+        id, seq: q.seq++, kind: isAudioFile(file) ? "audio" : isVideoFile(file) ? "video" : "photo", name: file.name || "",
         status: "preparing", progress: 0, error: null, canRetry: false,
         thumbUrl: null, takenOn: "", text: "", cropPos: null, mediaUrl: null, posterUrl: null,
       };
@@ -166,7 +179,7 @@ export function useBatchUpload({ pathPrefix, limit }) {
       commit([...q.items, ...fresh]);
       runPrepare();
     }
-    return { added: fresh.length, overLimit: media.length - accepted.length, unsupported: picked.length - media.length };
+    return { ids: fresh.map((it) => it.id), overLimit: wanted.length - accepted.length, unsupported: picked.length - wanted.length };
   };
 
   const removeItem = (id) => {

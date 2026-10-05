@@ -157,6 +157,8 @@ export const uploadFileWithProgress = async (bucket, path, file, contentType, on
 // extension counts too.
 export const isHeic = (file) => /image\/hei[cf]/i.test(file.type || "") || /\.hei[cf]$/i.test(file.name || "");
 export const isVideoFile = (file) => (file.type || "").startsWith("video/");
+// Voicemails saved from a phone often arrive with an odd or empty type.
+export const isAudioFile = (file) => (file.type || "").startsWith("audio/") || /\.(m4a|mp3|wav|aac|amr|ogg|oga|caf|aiff?)$/i.test(file.name || "");
 export const isMediaFile = (file) => (file.type || "").startsWith("image/") || isVideoFile(file) || isHeic(file);
 
 const PHOTO_MAX_EDGE = 2400;
