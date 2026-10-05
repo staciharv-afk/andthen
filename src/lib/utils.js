@@ -131,3 +131,21 @@ export const notifyStewardInvite = (inviteId) => {
     body: JSON.stringify({ inviteId }),
   }).catch(() => {});
 };
+
+// Start Stripe Checkout to unlock an existing page (api/create-checkout.js).
+// On success the browser is already on its way to Stripe and this resolves
+// to null; otherwise it resolves to a message to show. Never throws.
+export const startPageCheckout = async (memorialId, tier) => {
+  try {
+    const res = await fetch("/api/create-checkout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ memorialId, tier }),
+    });
+    const data = await res.json();
+    if (data.url) { window.location.href = data.url; return null; }
+    return data.error || "Couldn't start checkout. Please try again.";
+  } catch {
+    return "Couldn't start checkout. Please try again.";
+  }
+};

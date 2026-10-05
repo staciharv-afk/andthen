@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef } from "react";
-import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from "../lib/supabase";
-import { uid, fmtDate, timeAgo, fileToDataURL, fmtTime, sendThankYou, notifyCreator, notifyAccessRequest, FREE_MEMORY_LIMIT, memorialUrl } from "../lib/utils";
+import { supabase } from "../lib/supabase";
+import { uid, fmtDate, timeAgo, fileToDataURL, fmtTime, notifyCreator, notifyAccessRequest, FREE_MEMORY_LIMIT, memorialUrl } from "../lib/utils";
 import { trackEvent } from "../lib/analytics";
 import { detectCropPosition } from "../components/CropAdjuster";
 import { MemoryLimitModal } from "../components/MemoryLimitModal";
+import { MediaBatchUploader, ADD_MEDIA_LABEL } from "../components/MediaBatchUploader";
 import { useScrollLock } from "../lib/useScrollLock";
 import { useDotTruncation } from "../lib/useDotTruncation";
+import { shareVideoWithinCap, compressVideo, generateVideoPoster, uploadFileWithProgress } from "../lib/media";
 
 // Reshuffled on every load (see loadMemorial/refreshStories) so a memorial
 // with no new activity still feels alive — visitors see the memories in a
@@ -301,7 +303,7 @@ export function MemorialPage({ inviteCode, showToast, onNavigate, currentUser })
   // comment for the full reasoning.
   const [contributeMounted, setContributeMounted] = useState(false);
   const [showContribute, setShowContribute] = useState(false);
-  const [showBulkUpload, setShowBulkUpload] = useState(false);
+  const batchUploaderRef = useRef();
   const [activeFilter, setActiveFilter] = useState("all");
   // A ?token= from an approved access request. null while unchecked, then
   // true/false once validated against access_requests — an invalid/missing/
@@ -374,7 +376,7 @@ export function MemorialPage({ inviteCode, showToast, onNavigate, currentUser })
       .from("contributions")
       .select("id", { count: "exact", head: true })
       .eq("memorial_id", memorial.id)
-      .neq("status", "rejected");
+      .not("status", "in", "(rejected,held)"); // 'held' = saved past the free limit, not yet on the page
     setFreeContributionCount(count || 0);
     return count || 0;
   };
@@ -403,8 +405,8 @@ export function MemorialPage({ inviteCode, showToast, onNavigate, currentUser })
   };
 
   // Same fetch as loadMemorial, minus the full-page loading spinner — used
-  // after the share/bulk-upload modals close so a memory just added (or a
-  // whole batch, from bulk upload) shows up in the grid right away instead
+  // after the share modal or batch uploader finishes so a memory just added
+  // (or a whole batch) shows up in the grid right away instead
   // of waiting for a manual page reload.
   const refreshStories = async () => {
     const code = codeVerified ? (codeAttempt || new URLSearchParams(window.location.search).get("code")) : null;
@@ -557,6 +559,12 @@ export function MemorialPage({ inviteCode, showToast, onNavigate, currentUser })
           ) : (
             <p className="hero-cta-note">{contributeState === "closed" ? closedNote : "This page isn't open for contributions yet — check back soon."}</p>
           )}
+          {/* The creator's own fast path — many at once, straight onto the
+              page. Shown even at the free limit: the uploader saves what
+              doesn't fit and offers the unlock itself. */}
+          {isOwner && !memorial.closed_to_submissions && (
+            <button type="button" className="hero-cta-media" onClick={() => batchUploaderRef.current?.openPicker()}>{ADD_MEDIA_LABEL}</button>
+          )}
         </div>
       </header>
 
@@ -640,25 +648,22 @@ export function MemorialPage({ inviteCode, showToast, onNavigate, currentUser })
           }}
           onViewAllMemories={() => setShowContribute(false)}
           onSubmitted={refreshStories}
+          isCreator={isOwner}
           contributeToken={tokenValid ? contributeToken : null}
           requireCode={codeRequiredToContribute}
           verifiedCode={codeVerified ? codeAttempt || new URLSearchParams(window.location.search).get("code") : null}
         />
       )}
 
-      {showBulkUpload && (
-        <BulkUploadModal
+      {isOwner && (
+        <MediaBatchUploader
+          ref={batchUploaderRef}
           memorial={memorial}
+          mode="creator"
           showToast={showToast}
-          freeSlotsLeft={memorial.is_paid ? Infinity : Math.max(0, FREE_MEMORY_LIMIT - freeContributionCount)}
-          onClose={async () => {
-            setShowBulkUpload(false);
-            await refreshStories();
-            if ((await refreshFreeContributionCount()) >= FREE_MEMORY_LIMIT) setShowMemoryLimit(true);
-          }}
-          contributeToken={tokenValid ? contributeToken : null}
-          requireCode={codeRequiredToContribute}
-          verifiedCode={codeVerified ? codeAttempt || new URLSearchParams(window.location.search).get("code") : null}
+          creatorRelation={memorial.steward_relation || null}
+          defaultContact={{ name: loadShareDraft(memorial.id)?.name || "" }}
+          onPublished={() => { refreshStories(); refreshFreeContributionCount(); }}
         />
       )}
 
@@ -677,152 +682,6 @@ export function MemorialPage({ inviteCode, showToast, onNavigate, currentUser })
     </div>
   );
 }
-
-const SHARE_MAX_SECONDS = 60;
-
-// Reject videos longer than the cap (read duration without uploading).
-const shareVideoWithinCap = (file) =>
-  new Promise((resolve) => {
-    const v = document.createElement("video");
-    v.preload = "metadata";
-    v.onloadedmetadata = () => { URL.revokeObjectURL(v.src); resolve(v.duration <= SHARE_MAX_SECONDS + 0.5); };
-    v.onerror = () => resolve(true); // unreadable — let it through rather than block
-    v.src = URL.createObjectURL(file);
-  });
-
-// Below this, a phone video's raw size is dominated by resolution/bitrate
-// choices the source device made, not content — worth re-encoding smaller
-// before a slow upload. Above it, re-encoding a already-small file just
-// burns the contributor's battery for no real gain.
-const VIDEO_COMPRESS_THRESHOLD_BYTES = 12 * 1024 * 1024;
-const VIDEO_COMPRESS_MAX_WIDTH = 960;
-const VIDEO_COMPRESS_BITRATE = 2_000_000;
-
-const canCompressVideo = () =>
-  typeof MediaRecorder !== "undefined" &&
-  typeof HTMLVideoElement !== "undefined" &&
-  typeof HTMLVideoElement.prototype.captureStream === "function" &&
-  (MediaRecorder.isTypeSupported?.("video/webm;codecs=vp9,opus") || MediaRecorder.isTypeSupported?.("video/webm;codecs=vp8,opus"));
-
-// Re-encodes an oversized video to a capped resolution/bitrate by playing it
-// muted and redrawing each frame to a smaller canvas while MediaRecorder
-// captures that canvas's stream plus the source's own audio track. This
-// takes roughly the video's real duration to run (it plays through once),
-// which is why it's gated to the 60s share cap and to files worth the
-// trouble. Never throws — any failure (unsupported browser, decode error,
-// output that isn't actually smaller) falls back to the original file so
-// compression can never be the reason an upload doesn't happen.
-const compressVideo = (file, onProgress) => new Promise((resolve) => {
-  if (file.size < VIDEO_COMPRESS_THRESHOLD_BYTES || !canCompressVideo()) { resolve(file); return; }
-
-  const cleanupFns = [];
-  const cleanup = () => cleanupFns.forEach((fn) => fn());
-  const fallback = () => { cleanup(); resolve(file); };
-
-  try {
-    const url = URL.createObjectURL(file);
-    cleanupFns.push(() => URL.revokeObjectURL(url));
-    const video = document.createElement("video");
-    video.muted = true;
-    video.playsInline = true;
-    video.src = url;
-
-    video.onerror = fallback;
-    video.onloadedmetadata = async () => {
-      const scale = Math.min(1, VIDEO_COMPRESS_MAX_WIDTH / video.videoWidth);
-      if (scale >= 1) { fallback(); return; } // already small enough resolution-wise
-
-      try {
-        const canvas = document.createElement("canvas");
-        canvas.width = Math.round(video.videoWidth * scale);
-        canvas.height = Math.round(video.videoHeight * scale);
-        const ctx = canvas.getContext("2d");
-
-        const audioTracks = video.captureStream().getAudioTracks();
-        const combined = new MediaStream([...canvas.captureStream(30).getVideoTracks(), ...audioTracks]);
-        const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp9,opus") ? "video/webm;codecs=vp9,opus" : "video/webm;codecs=vp8,opus";
-        const recorder = new MediaRecorder(combined, { mimeType, videoBitsPerSecond: VIDEO_COMPRESS_BITRATE });
-        const chunks = [];
-        recorder.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
-
-        let raf;
-        const draw = () => { ctx.drawImage(video, 0, 0, canvas.width, canvas.height); raf = requestAnimationFrame(draw); };
-        cleanupFns.push(() => cancelAnimationFrame(raf));
-
-        recorder.onstop = () => {
-          cleanup();
-          const blob = new Blob(chunks, { type: "video/webm" });
-          if (!blob.size || blob.size >= file.size) { resolve(file); return; } // re-encode didn't help
-          resolve(new File([blob], file.name.replace(/\.[^.]+$/, "") + ".webm", { type: "video/webm" }));
-        };
-
-        video.ontimeupdate = () => { if (onProgress && video.duration) onProgress(video.currentTime / video.duration); };
-        video.onended = () => recorder.state !== "inactive" && recorder.stop();
-
-        recorder.start();
-        draw();
-        await video.play();
-      } catch { fallback(); }
-    };
-  } catch { fallback(); }
-});
-
-// Seeks the (already-compressed) video to a point past any lead-in black
-// frame and grabs it as a jpeg, so a video tile never opens on a blank
-// frame. Returns null rather than throwing on any failure — a missing
-// poster just means the tile falls back to showing nothing until played,
-// same as before this existed.
-const SHARE_POSTER_SEEK_RATIO = 0.15;
-const generateVideoPoster = (file, seekSeconds) => new Promise((resolve) => {
-  try {
-    const video = document.createElement("video");
-    video.muted = true;
-    video.playsInline = true;
-    video.preload = "metadata";
-    const url = URL.createObjectURL(file);
-    const done = (result) => { URL.revokeObjectURL(url); resolve(result); };
-
-    video.onerror = () => done(null);
-    video.onloadedmetadata = () => {
-      const t = seekSeconds != null ? seekSeconds : Math.min(video.duration * SHARE_POSTER_SEEK_RATIO, Math.max(0, video.duration - 0.1));
-      video.currentTime = Math.max(0, t);
-    };
-    video.onseeked = () => {
-      try {
-        const canvas = document.createElement("canvas");
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        canvas.getContext("2d").drawImage(video, 0, 0);
-        canvas.toBlob((blob) => done(blob ? new File([blob], "poster.jpg", { type: "image/jpeg" }) : null), "image/jpeg", 0.85);
-      } catch { done(null); }
-    };
-    video.src = url;
-  } catch { resolve(null); }
-});
-
-// supabase-js's storage.upload() has no progress callback (it's a plain
-// fetch under the hood), so a large video upload just spins with no
-// feedback. This hits the same Storage REST endpoint directly via XHR,
-// which does expose upload progress — used only for the video path, where
-// the wait is long enough to need it.
-const uploadFileWithProgress = async (bucket, path, file, contentType, onProgress) => {
-  const { data: sessionData } = await supabase.auth.getSession();
-  const token = sessionData?.session?.access_token || SUPABASE_ANON_KEY;
-
-  await new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open("POST", `${SUPABASE_URL}/storage/v1/object/${bucket}/${path.split("/").map(encodeURIComponent).join("/")}`, true);
-    xhr.setRequestHeader("apikey", SUPABASE_ANON_KEY);
-    xhr.setRequestHeader("Authorization", `Bearer ${token}`);
-    xhr.setRequestHeader("Content-Type", contentType || file.type || "application/octet-stream");
-    xhr.upload.onprogress = (e) => { if (e.lengthComputable && onProgress) onProgress(e.loaded / e.total); };
-    xhr.onload = () => (xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(`Upload failed (${xhr.status})`)));
-    xhr.onerror = () => reject(new Error("Network error during upload"));
-    xhr.send(file);
-  });
-
-  return supabase.storage.from(bucket).getPublicUrl(path).data?.publicUrl;
-};
 
 // Turns a contributor-typed string into a real absolute URL, defaulting to
 // https:// when no scheme was typed (e.g. "site.com/obituary") — the same
@@ -870,7 +729,7 @@ function saveShareDraft(memorialId, draft) {
 // actually guarantees that. The sessionStorage draft below is a secondary,
 // text-only safety net purely for a real page reload — it can't help with
 // attachments either, for the same reason.
-export function ShareMemoryModal({ memorial, showToast, open, onClose, onViewAllMemories, onSubmitted, stories, contributeToken, requireCode, verifiedCode }) {
+export function ShareMemoryModal({ memorial, showToast, open, onClose, onViewAllMemories, onSubmitted, stories, contributeToken, requireCode, verifiedCode, isCreator = false }) {
   useScrollLock(open);
   const subjectType = deriveSubjectType(memorial);
   const livingStatus = deriveLivingStatus(memorial);
@@ -907,6 +766,7 @@ export function ShareMemoryModal({ memorial, showToast, open, onClose, onViewAll
   const [showRequestAccess, setShowRequestAccess] = useState(false);
 
   const photoVideoInputRef = useRef();
+  const batchUploaderRef = useRef();
   const textareaRef = useRef();
   const contentSectionRef = useRef();
   const nameSectionRef = useRef();
@@ -958,6 +818,14 @@ export function ShareMemoryModal({ memorial, showToast, open, onClose, onViewAll
 
   const clearAttachment = () => { setAttachment(null); setCompressingVideo(false); };
 
+  // "Photo or video" takes one attachment for the memory being written.
+  // Picking several there means "share these", so hand them to the batch
+  // uploader instead of quietly dropping all but the first.
+  const handlePhotoVideoPick = (files) => {
+    if (files.length > 1 && canShareMany) batchUploaderRef.current?.addFiles(files);
+    else handlePhotoVideoSelect(files[0]);
+  };
+
   const handlePhotoVideoSelect = async (file) => {
     if (!file) return;
     setLinkOpen(false); setLinkUrl(""); setLinkPreview(null); // mutually exclusive with a link — one primary attachment per memory
@@ -997,6 +865,10 @@ export function ShareMemoryModal({ memorial, showToast, open, onClose, onViewAll
     } catch { setLinkPreview(null); }
     finally { setLinkLoading(false); }
   };
+
+  // Invite-only pages: the batch uploader is only offered to someone who
+  // already has access — it has no access-code field of its own.
+  const canShareMany = !requireCode || !!verifiedCode;
 
   const hasLinkText = linkOpen && linkUrl.trim().length > 0;
   const hasContent = text.trim() || attachment || hasLinkText;
@@ -1239,7 +1111,10 @@ export function ShareMemoryModal({ memorial, showToast, open, onClose, onViewAll
                   <button type="button" className="share-attach-choice" onClick={openLink}>Link</button>
                 </div>
               )}
-              <input ref={photoVideoInputRef} type="file" accept="image/*,video/*" style={{ display: "none" }} onChange={(e) => { handlePhotoVideoSelect(e.target.files[0]); e.target.value = ""; }} />
+              {!attachment && !linkOpen && !compressingVideo && canShareMany && (
+                <button type="button" className="share-attach-choice share-attach-many" onClick={() => batchUploaderRef.current?.openPicker()}>Share photos or videos</button>
+              )}
+              <input ref={photoVideoInputRef} type="file" accept="image/*,video/*" multiple={canShareMany} style={{ display: "none" }} onChange={(e) => { handlePhotoVideoPick(Array.from(e.target.files)); e.target.value = ""; }} />
 
               {errors.content && <p className="share-error">{errors.content}</p>}
             </div>
@@ -1326,6 +1201,24 @@ export function ShareMemoryModal({ memorial, showToast, open, onClose, onViewAll
       {showRequestAccess && (
         <AccessRequestModal memorial={memorial} showToast={showToast} onClose={() => setShowRequestAccess(false)} />
       )}
+
+      {canShareMany && (
+        <MediaBatchUploader
+          ref={batchUploaderRef}
+          memorial={memorial}
+          mode={isCreator ? "creator" : "contributor"}
+          showToast={showToast}
+          relationships={relationships}
+          creatorRelation={isCreator ? memorial.steward_relation || null : null}
+          defaultContact={{ name, relationship, otherRelationshipText }}
+          onContactUsed={(c) => { setName(c.name); if (!isCreator) { setRelationship(c.relationship); setOtherRelationshipText(c.otherRelationshipText); } }}
+          submittedCode={verifiedCode || null}
+          contributeToken={contributeToken}
+          onPublished={() => onSubmitted?.()}
+          // Done with the batch means done with the sheet too — back to the page.
+          onDone={(result) => { if (result) onClose(); }}
+        />
+      )}
     </div>
   );
 }
@@ -1333,9 +1226,8 @@ export function ShareMemoryModal({ memorial, showToast, open, onClose, onViewAll
 // "Ask to add a memory" — the escape hatch for a visitor who hits the access
 // code field inside ShareMemoryModal without actually having the code. A
 // short standalone form (name/email/relationship/note), not the full
-// compose flow — reuses the plain .share-modal-overlay/.share-modal shell
-// (the same one BulkUploadModal still renders with) rather than the
-// full-screen sheet, since this has nowhere near that much content. A 23505
+// compose flow — uses the plain .share-modal-overlay/.share-modal shell
+// rather than the full-screen sheet, since this has nowhere near that much content. A 23505
 // (the visitor already has a pending request on file) reads as a fresh
 // success — same confirmation either way, so asking twice after some days
 // of silence never looks like an error.
@@ -1469,263 +1361,6 @@ function ShareNudge({ memorial, showToast }) {
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-const BULK_MAX_FILES = 40; // sane ceiling per batch — big enough to empty a phone's camera roll, small enough not to choke the browser tab
-const bulkExt = (name, fallback) => (name && name.includes(".") ? name.split(".").pop() : fallback);
-
-// "Add multiple photos & videos" — mainly for a steward populating a brand
-// new page before sharing it broadly (per the design brief, that's the
-// critical case: it should be as close to zero-friction as picking files
-// and clicking one button), but open to anyone who can contribute at all.
-// One name/email signed once for the whole batch — no per-file caption or
-// relationship picker, no question prompts; each accepted file becomes its
-// own ordinary memory (same "contributions" row shape ShareMemoryModal
-// writes), just without text. Deliberately not a rebuild of that modal's
-// question-bank flow — this is the fast path around it.
-function BulkUploadModal({ memorial, showToast, onClose, contributeToken, requireCode, verifiedCode, freeSlotsLeft }) {
-  useScrollLock();
-  const [items, setItems] = useState([]); // { id, file, kind: 'photo'|'video', preview, status, error }
-  const [contributorName, setContributorName] = useState("");
-  const [contributorEmail, setContributorEmail] = useState("");
-  const [accessCodeInput, setAccessCodeInput] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [dragOver, setDragOver] = useState(false);
-  const [attempted, setAttempted] = useState(false); // true once a batch has been run at least once
-  const fileInputRef = useRef();
-
-  // A bare <video src="..."> never paints a frame on its own on iOS Safari
-  // — it just shows blank/black until played — so a video's thumbnail is a
-  // real generated poster image (same helper the single-upload flow already
-  // uses), not the video file itself. Kept on the item and reused at upload
-  // time in uploadOne, rather than regenerated from the compressed file.
-  const addFiles = async (fileList) => {
-    const incoming = Array.from(fileList).filter((f) => f.type.startsWith("image/") || f.type.startsWith("video/"));
-    if (!incoming.length) return;
-    const room = BULK_MAX_FILES - items.length;
-    if (room <= 0) { showToast(`You can add up to ${BULK_MAX_FILES} at a time.`, "error"); return; }
-    const accepted = incoming.slice(0, room);
-    if (incoming.length > accepted.length) showToast(`You can add up to ${BULK_MAX_FILES} at a time — the rest weren't added.`, "error");
-    const withPreviews = await Promise.all(accepted.map(async (file) => {
-      const isVideo = file.type.startsWith("video/");
-      const posterFile = isVideo ? await generateVideoPoster(file) : null;
-      return {
-        id: uid(),
-        file,
-        kind: isVideo ? "video" : "photo",
-        posterFile,
-        preview: isVideo
-          ? (posterFile ? URL.createObjectURL(posterFile) : null)
-          : await fileToDataURL(file),
-        status: "pending", // pending | uploading | done | error | skipped
-        error: null,
-      };
-    }));
-    setItems((cur) => [...cur, ...withPreviews]);
-  };
-
-  const removeItem = (id) => setItems((cur) => cur.filter((it) => it.id !== id));
-
-  const onDrop = (e) => {
-    e.preventDefault();
-    setDragOver(false);
-    addFiles(e.dataTransfer.files);
-  };
-
-  const doneCount = items.filter((it) => it.status === "done").length;
-  const failedCount = items.filter((it) => it.status === "error" || it.status === "skipped").length;
-  const pendingCount = items.filter((it) => it.status === "pending").length;
-
-  const uploadOne = async (item) => {
-    let type, mediaUrl, secondaryMediaUrl = null, cropX = null, cropY = null;
-    if (item.kind === "video") {
-      if (!(await shareVideoWithinCap(item.file))) throw new Error("Over 60 seconds — trim it and try again.");
-      type = "video";
-      const finalFile = await compressVideo(item.file);
-      // Reuse the poster generated back in addFiles (from the original,
-      // uncompressed file) rather than regenerating it from finalFile —
-      // same visual content, no reason to do the work twice.
-      const poster = item.posterFile;
-      const id = uid();
-      const path = `contributions/${memorial.invite_code}/${id}.${bulkExt(finalFile.name, "mp4")}`;
-      mediaUrl = await uploadFileWithProgress("memorial-media", path, finalFile, finalFile.type || "video/mp4");
-      if (poster) {
-        const posterPath = `contributions/${memorial.invite_code}/${id}-poster.jpg`;
-        const { error: posterErr } = await supabase.storage.from("memorial-media").upload(posterPath, poster);
-        if (!posterErr) secondaryMediaUrl = supabase.storage.from("memorial-media").getPublicUrl(posterPath).data?.publicUrl;
-      }
-    } else {
-      type = "photo";
-      const cropPos = await detectCropPosition(item.file);
-      cropX = cropPos.x;
-      cropY = cropPos.y;
-      const path = `contributions/${memorial.invite_code}/${uid()}.${bulkExt(item.file.name, "jpg")}`;
-      const { error: upErr } = await supabase.storage.from("memorial-media").upload(path, item.file);
-      if (upErr) throw upErr;
-      mediaUrl = supabase.storage.from("memorial-media").getPublicUrl(path).data?.publicUrl;
-    }
-
-    const row = {
-      memorial_id: memorial.id,
-      contributor_name: contributorName.trim() || "Someone",
-      contributor_relation: null,
-      contributor_email: contributorEmail.trim() || null,
-      type,
-      subtype: null,
-      tags: [],
-      text: null,
-      media_url: mediaUrl,
-      secondary_media_url: secondaryMediaUrl,
-      status: memorial.require_approval ? "pending" : "approved",
-      crop_x: cropX,
-      crop_y: cropY,
-      link_meta: null,
-      submitted_code: verifiedCode || accessCodeInput.trim() || null,
-    };
-
-    // Pending rows are hidden from anonymous contributors by RLS (same
-    // reasoning as ShareMemoryModal's own insert) — don't ask for them back.
-    if (memorial.require_approval) {
-      const { error } = await supabase.from("contributions").insert(row);
-      if (error) throw error;
-      return null;
-    }
-    const { data: inserted, error } = await supabase.from("contributions").insert(row).select("id");
-    if (error) throw error;
-    return inserted?.[0]?.id || null;
-  };
-
-  const handleSubmit = async () => {
-    if (contributorEmail.trim() && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(contributorEmail.trim())) { showToast("That email doesn't look right.", "error"); return; }
-    if (requireCode && !verifiedCode && !accessCodeInput.trim()) { showToast("Please enter the access code.", "error"); return; }
-    const toRun = items.filter((it) => it.status === "pending" || it.status === "error");
-    if (!toRun.length) { showToast("Choose some photos or videos first.", "error"); return; }
-
-    setAttempted(true);
-    setSubmitting(true);
-    let slotsLeft = freeSlotsLeft;
-    let addedCount = 0;
-    let lastInsertedId = null;
-
-    for (const item of toRun) {
-      if (slotsLeft <= 0) {
-        setItems((cur) => cur.map((it) => (it.id === item.id ? { ...it, status: "skipped", error: "Free limit reached" } : it)));
-        continue;
-      }
-      setItems((cur) => cur.map((it) => (it.id === item.id ? { ...it, status: "uploading", error: null } : it)));
-      try {
-        const insertedId = await uploadOne(item);
-        if (insertedId) lastInsertedId = insertedId;
-        slotsLeft -= 1;
-        addedCount += 1;
-        setItems((cur) => cur.map((it) => (it.id === item.id ? { ...it, status: "done" } : it)));
-      } catch (e) {
-        setItems((cur) => cur.map((it) => (it.id === item.id ? { ...it, status: "error", error: e.message || "Upload failed." } : it)));
-      }
-    }
-
-    if (addedCount > 0) {
-      notifyCreator(memorial.id);
-      if (contributorEmail.trim() && lastInsertedId) sendThankYou(lastInsertedId);
-      trackEvent("memory_submitted", { content_type: "bulk_upload", count: addedCount });
-      if (contributeToken) {
-        supabase.from("access_requests").update({ token_used_at: new Date().toISOString() })
-          .eq("contribute_token", contributeToken).is("token_used_at", null).then(() => {});
-      }
-    }
-    setSubmitting(false);
-    if (addedCount === toRun.length) showToast(`Added ${addedCount} ${addedCount === 1 ? "memory" : "memories"}.`);
-    else if (addedCount > 0) showToast(`Added ${addedCount} of ${toRun.length} — see below for what didn't go through.`, "error");
-    else showToast("Nothing uploaded — see below for details.", "error");
-  };
-
-  return (
-    <div className="share-modal-overlay fade-in" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="share-modal bulk-upload-modal" role="dialog" aria-label={`Add multiple photos or videos of ${memorial.name}`}>
-        <button type="button" className="share-modal-close" aria-label="Close" onClick={onClose}>&times;</button>
-        <div className="share-modal-eyebrow">Add multiple at once</div>
-        <h2>Populate the page in one go</h2>
-
-        <div
-          className={`bulk-drop-zone${dragOver ? " drag-over" : ""}`}
-          onClick={() => fileInputRef.current?.click()}
-          onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-          onDragLeave={() => setDragOver(false)}
-          onDrop={onDrop}
-        >
-          <p>Drag photos &amp; videos here, or click to choose</p>
-          <span className="bulk-drop-zone-hint">You can pick as many as you'd like — up to {BULK_MAX_FILES} at a time.</span>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*,video/*"
-            multiple
-            style={{ display: "none" }}
-            onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }}
-          />
-        </div>
-
-        {items.length > 0 && (
-          <div className="bulk-thumb-grid">
-            {items.map((it) => (
-              <div className={`bulk-thumb bulk-thumb-${it.status}`} key={it.id}>
-                {it.preview ? (
-                  <img src={it.preview} alt="" />
-                ) : (
-                  <span className="bulk-thumb-fallback" aria-hidden="true">{it.kind === "video" ? "🎬" : "🖼️"}</span>
-                )}
-                {it.status === "pending" && (
-                  <button type="button" className="bulk-thumb-remove" aria-label="Remove" onClick={() => removeItem(it.id)}>&times;</button>
-                )}
-                {it.status === "uploading" && <span className="bulk-thumb-status"><span className="spinner" /></span>}
-                {it.status === "done" && <span className="bulk-thumb-status bulk-thumb-check" aria-hidden="true">&#10003;</span>}
-                {(it.status === "error" || it.status === "skipped") && (
-                  <span className="bulk-thumb-status bulk-thumb-error" title={it.error || "Couldn't add this one."}>!</span>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-
-        {items.length > 0 && (
-          <>
-            <div className="share-signature-divider" />
-            <div className="share-signature">
-              <div className="share-signature-field">
-                <label>Your name</label>
-                <input className="share-signature-input" placeholder="Optional" value={contributorName} onChange={(e) => setContributorName(e.target.value)} />
-              </div>
-              <div className="share-signature-field">
-                <label>Your email</label>
-                <input className="share-signature-input" type="email" placeholder="Optional — for a thank-you note" value={contributorEmail} onChange={(e) => setContributorEmail(e.target.value)} />
-              </div>
-              {requireCode && !verifiedCode && (
-                <div className="share-signature-field">
-                  <label>Access code</label>
-                  <input className="share-signature-input" value={accessCodeInput} onChange={(e) => setAccessCodeInput(e.target.value)} />
-                </div>
-              )}
-            </div>
-
-            {attempted && failedCount > 0 && (
-              <p className="bulk-upload-note">
-                {doneCount} added, {failedCount} didn't go through
-                {items.some((it) => it.status === "skipped") ? " (free limit reached — upgrade to add the rest)" : " — remove them or try again"}.
-              </p>
-            )}
-
-            <button type="button" className="btn btn-rust share-submit-btn" onClick={handleSubmit} disabled={submitting || pendingCount + failedCount === 0}>
-              {submitting ? <span className="spinner" /> : `Add ${pendingCount + (attempted ? failedCount : 0)} ${pendingCount + (attempted ? failedCount : 0) === 1 ? "memory" : "memories"}`}
-            </button>
-          </>
-        )}
-
-        {attempted && doneCount > 0 && pendingCount === 0 && failedCount === 0 && (
-          <button type="button" className="btn btn-ghost share-submit-btn" style={{ marginTop: 10 }} onClick={onClose}>Done</button>
-        )}
-      </div>
     </div>
   );
 }

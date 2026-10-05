@@ -482,7 +482,7 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 /* Same reason: the type the sheet otherwise inherits from .memorial-page,
    so it reads identically wherever it's opened. */
 .share-sheet-overlay, .share-modal-overlay { font-family: 'Inter', sans-serif; color: var(--charcoal); }
-.share-sheet-overlay h2, .share-modal-overlay h2 { font-style: italic; }
+.share-sheet-overlay h2, .share-modal-overlay h2 { font-family: 'Playfair Display', serif; font-style: italic; }
 .memorial-page {
   /* --mem-* above is left as-is (values unchanged) — the share-a-memory
      modal (.share-*, .record-btn-idle, .btn-rust override, form-input
@@ -909,29 +909,54 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
   .share-signature-field label { width: auto; }
 }
 
-/* -- "Add multiple photos & videos" entry point + modal — same token
-   family as the rest of the share-a-memory system it sits alongside. -- */
-.bulk-upload-link { display: inline-block; margin: 14px 0; font-family: 'DM Sans', sans-serif; font-size: 0.82rem; color: var(--mem-rose); text-decoration: underline; background: none; border: none; cursor: pointer; }
-.bulk-upload-link:hover { color: #a8434b; }
+/* -- multi-photo uploader (MediaBatchUploader) — a share-sheet with a
+   wider card on desktop so the review grid gets three columns. Reads the
+   same --mem-* tokens as the rest of the share sheet. -- */
+.batch-sheet { max-width: 640px; }
+.batch-sheet .share-sheet-body h2 { margin-bottom: 8px; }
+.batch-sheet.drag-over { outline: 2px dashed var(--mem-rose); outline-offset: -6px; }
+.batch-tray { position: sticky; top: 0; z-index: 2; background: var(--mem-card); padding: 2px 0 12px; }
+.batch-tray-line { display: flex; justify-content: space-between; gap: 12px; font-family: 'DM Sans', sans-serif; font-size: 12.5px; color: var(--mem-ink-soft); margin-bottom: 6px; }
+.batch-tray-failed { color: #c0392b; }
+.batch-tray-bar { height: 4px; border-radius: 2px; background: var(--mem-paper-deep); overflow: hidden; }
+.batch-tray-bar span { display: block; height: 100%; background: var(--sage); transition: width 0.25s ease; }
+.batch-notice { font-size: 13px; color: var(--mem-ink); background: var(--mem-gold-soft); border-radius: 6px; padding: 9px 12px; margin: 0 0 12px; }
+.batch-count { font-family: 'DM Sans', sans-serif; font-size: 13.5px; font-weight: 500; color: var(--mem-ink); margin: 0 0 12px; }
+.batch-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 10px; }
+@media (min-width: 601px) { .batch-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.batch-item { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.batch-thumb { position: relative; aspect-ratio: 1; border-radius: 4px; overflow: hidden; background: var(--mem-paper-deep); }
+.batch-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.batch-thumb-blank { display: block; width: 100%; height: 100%; }
+.batch-thumb-video { position: absolute; left: 8px; bottom: 8px; width: 22px; height: 22px; border-radius: 50%; background: rgba(255,255,255,0.9); }
+.batch-thumb-video::after { content: ''; position: absolute; left: 9px; top: 6px; border-left: 7px solid var(--ink-solid); border-top: 5px solid transparent; border-bottom: 5px solid transparent; }
+.batch-thumb-status { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; background: rgba(26,14,8,0.4); }
+.batch-thumb-error { background: rgba(120,30,22,0.78); color: #fff; font-size: 12px; line-height: 1.3; text-align: center; padding: 8px; }
+.batch-retry { font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 600; color: var(--mem-ink); background: #fff; border: none; border-radius: 999px; padding: 6px 14px; cursor: pointer; }
+.batch-thumb-progress { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: rgba(26,14,8,0.35); }
+.batch-thumb-progress span { display: block; height: 100%; background: #fff; transition: width 0.2s ease; }
+.batch-thumb-remove { position: absolute; top: 4px; right: 4px; width: 28px; height: 28px; border-radius: 50%; border: none; background: rgba(26,14,8,0.65); color: #fff; font-size: 18px; line-height: 1; display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; }
+.batch-story, .batch-date { width: 100%; min-width: 0; border: none; border-bottom: 1px solid rgba(44,36,32,0.18); border-radius: 0; background: none; padding: 4px 0; font-family: 'DM Sans', sans-serif; color: var(--mem-ink); outline: none; }
+.batch-story { font-size: 16px; } /* 16px keeps iOS from zooming the page on focus */
+.batch-date { font-size: 12px; color: var(--mem-ink-soft); min-height: 24px; }
+.batch-story:focus, .batch-date:focus { border-bottom-color: var(--mem-rose); }
+.batch-story::placeholder { color: var(--mem-ink-soft); opacity: 0.65; font-size: 13px; }
+.batch-add-more { display: block; width: 100%; margin: 16px 0 20px; }
+.batch-unlock { background: var(--mem-paper); border-radius: 10px; padding: 18px; margin: 0 0 20px; text-align: center; }
+.batch-unlock p { margin: 0 0 10px; font-size: 15px; color: var(--mem-ink); }
+.batch-unlock .batch-unlock-sub { font-size: 13px; color: var(--mem-ink-soft); margin-bottom: 16px; }
+@media (prefers-reduced-motion: reduce) { .batch-tray-bar span, .batch-thumb-progress span { transition: none; } }
 
-.bulk-upload-modal { max-width: 560px; }
-
-.bulk-drop-zone { border: 1.5px dashed rgba(44,36,32,0.22); border-radius: 8px; padding: 28px 20px; text-align: center; cursor: pointer; transition: border-color 0.15s ease, background 0.15s ease; margin-top: 4px; }
-.bulk-drop-zone:hover, .bulk-drop-zone.drag-over { border-color: var(--mem-rose); background: rgba(193,81,90,0.04); }
-.bulk-drop-zone p { margin: 0 0 4px; font-size: 14px; color: var(--mem-ink); font-weight: 500; }
-.bulk-drop-zone-hint { font-size: 12px; color: var(--mem-ink-soft); }
-
-.bulk-thumb-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 8px; margin-top: 16px; }
-.bulk-thumb { position: relative; aspect-ratio: 1; border-radius: 4px; overflow: hidden; background: var(--mem-paper-deep); }
-.bulk-thumb img, .bulk-thumb video { width: 100%; height: 100%; object-fit: cover; display: block; }
-.bulk-thumb-fallback { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 24px; }
-.bulk-thumb-remove { position: absolute; top: 3px; right: 3px; width: 20px; height: 20px; border-radius: 50%; border: none; background: rgba(26,14,8,0.65); color: #fff; font-size: 14px; line-height: 1; display: flex; align-items: center; justify-content: center; cursor: pointer; }
-.bulk-thumb-status { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(26,14,8,0.45); }
-.bulk-thumb-check { color: #fff; font-size: 20px; font-weight: 700; background: rgba(110,127,92,0.75); }
-.bulk-thumb-error { color: #fff; font-size: 16px; font-weight: 700; background: rgba(192,57,43,0.75); cursor: help; }
-.bulk-thumb-done img, .bulk-thumb-done video { opacity: 0.9; }
-
-.bulk-upload-note { font-size: 12.5px; color: var(--mem-ink-soft); margin: 14px 0 0; }
+/* Entry points to the uploader outside the share sheet. */
+.hero-cta-media { display: block; margin: 12px auto 0; font-family: 'Inter', sans-serif; font-weight: 600; font-size: 0.85rem; background: transparent; color: var(--sage-deep); border: 1.5px solid var(--sage); padding: 10px 22px; border-radius: 999px; cursor: pointer; }
+.hero-cta-media:hover { border-color: var(--sage-deep); }
+.share-attach-many { display: block; width: 100%; margin-top: 10px; }
+.dash-page-card-media { margin-top: 14px; }
+.dash-page-card-media .btn-dash-outline { width: 100%; }
+.dash-held-note { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; grid-column: 1 / -1; margin-bottom: 16px; font-size: 14px; color: var(--bark); }
+.dash-held-note span { flex: 1; min-width: 220px; }
+.first-photos-drop.drag-over { outline: 2px dashed var(--rust); outline-offset: 4px; }
+.first-photos-skip { display: block; margin: 16px auto 0; background: none; border: none; font-family: inherit; font-size: 14px; color: var(--warm-light); text-decoration: underline; cursor: pointer; }
 
 .share-thanks-icon { width: 44px; height: 44px; border-radius: 50%; background: var(--mem-rose); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 20px; margin: 0 auto 18px; }
 .share-thanks-text { text-align: center; font-size: 15px; color: var(--mem-ink-soft); margin-bottom: 24px; }

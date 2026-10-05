@@ -22,10 +22,16 @@ One page per file. Don't put everything back in `app.jsx`.
 - `src/lib/utils.js` — `uid`, `fmtDate`, `timeAgo`, `fileToDataURL`. Import these;
   don't redefine.
 - `src/lib/router.js` — `APP_VIEWS`, `parseLocation`, `routeToUrl`.
+- `src/lib/media.js` — browser-side media helpers: video cap/compress/poster,
+  photo resize + HEIC→JPEG, EXIF date, plain and resumable storage uploads.
+- `src/components/MediaBatchUploader.jsx` + `src/lib/useBatchUpload.js` — the
+  one multi-photo uploader (review grid + background upload queue). Used by
+  `FirstPhotos`, `Dashboard`, `Memorial` and the share-a-memory sheet; mount it
+  and call `ref.openPicker()` rather than building another uploader.
 - `src/styles.js` — the single `STYLES` string. All CSS + brand tokens live here.
 - `src/components/` — `Toast` (`useToast` + `ToastContainer`), `Nav`.
 - `src/pages/` — `Home`, `Auth`, `CreateMemorial` (create + edit), `Dashboard`,
-  `Memorial`.
+  `Memorial`, `FirstPhotos` (the photo step right after a page is created).
 
 ## Conventions
 
@@ -52,6 +58,10 @@ One page per file. Don't put everything back in `app.jsx`.
   rules: anyone may read `approved` contributions and any memorial; anyone may
   insert a contribution to an existing memorial; only a memorial's steward can
   read its pending memories, moderate them, or edit/delete the memorial.
+- Contribution `status` is `pending` / `approved` / `rejected` / `held`. `held`
+  = a creator's uploads saved past the free limit; hidden from the page, not
+  counted toward the limit, and flipped to `approved` by a DB trigger when
+  `is_paid` turns true (`20261004_batch_upload.sql`).
 - If a save mysteriously does nothing, suspect a missing RLS policy before code.
 
 ## Verifying changes
