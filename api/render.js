@@ -15,7 +15,7 @@
 const RESERVED_SLUGS = new Set([
   "login", "create", "dashboard", "edit", "page-settings", "pricing",
   "onboarding", "story", "how-it-works", "admin", "our-promise",
-  "home", "api", "assets",
+  "home", "api", "assets", "partners",
 ]);
 
 const SITE_ORIGIN = "https://www.myandthen.com";
