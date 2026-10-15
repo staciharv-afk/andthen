@@ -58,6 +58,9 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
   const [allMemoriesTab, setAllMemoriesTab] = useState("pending");
   const [savingModeration, setSavingModeration] = useState(false);
   const [savingAccess, setSavingAccess] = useState(false);
+  // Name of the funeral home that comped this page (partner offers A/C —
+  // see 20261016_partner_offers.sql), shown in place of "Upgraded".
+  const [compedBy, setCompedBy] = useState(null);
   const batchUploaderRef = useRef();
   const openShare = () => { setShareMounted(true); setAddingMemory(true); };
 
@@ -79,6 +82,15 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
       window.history.replaceState({}, "", window.location.pathname + (qs ? `?${qs}` : ""));
     }
   }, []);
+
+  useEffect(() => {
+    setCompedBy(null);
+    if (!activeMemorial?.comped_by_partner) return;
+    let cancelled = false;
+    supabase.rpc("comped_partner_name", { p_memorial_id: activeMemorial.id })
+      .then(({ data }) => { if (!cancelled) setCompedBy(data || null); });
+    return () => { cancelled = true; };
+  }, [activeMemorial?.id, activeMemorial?.comped_by_partner]);
 
   // Includes both memorials this user created (steward_id) and ones they've
   // accepted a co-steward invite on (memorial_stewards) — see the
@@ -379,6 +391,7 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
 
         <PageCard
           memorial={activeMemorial}
+          compedBy={compedBy}
           submissions={approved}
           contributorCount={contributorCount}
           contributionGated={contributionGated}
@@ -570,7 +583,9 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
           <div className="dash-section-header"><h2>Page tools</h2></div>
           <div className="dash-card dash-tools-card">
             {activeMemorial.is_paid ? (
-              <div className="dash-tools-row dash-tools-upgraded">✓ Upgraded — photo, video &amp; voice memories are unlocked.</div>
+              <div className="dash-tools-row dash-tools-upgraded">
+                {compedBy ? <>✓ Included by {compedBy}</> : "✓ Upgraded"} — photo, video &amp; voice memories are unlocked.
+              </div>
             ) : (
               <div className="dash-tools-row dash-tools-free">
                 <span><strong>Free plan</strong> — written memories only.</span>
@@ -710,7 +725,7 @@ function StorySwitcher({ memorials, active, onSelect, open, setOpen }) {
   );
 }
 
-function PageCard({ memorial, submissions, contributorCount, contributionGated, onAddMemory, onAddMedia, onShare, onView, onEdit }) {
+function PageCard({ memorial, compedBy, submissions, contributorCount, contributionGated, onAddMemory, onAddMedia, onShare, onView, onEdit }) {
   return (
     <div className="dash-page-card fade-up">
       <div className="dash-page-card-top">
@@ -729,7 +744,7 @@ function PageCard({ memorial, submissions, contributorCount, contributionGated, 
           <div className="dash-chip-row">
             <span className={`dash-chip${memorial.paused ? " dash-chip-warn" : " dash-chip-live"}`}>{memorial.paused ? "Paused" : "Live"}</span>
             <span className="dash-chip">{contributionGated ? "Invite only" : "Open to anyone"}</span>
-            {memorial.is_paid && <span className="dash-chip dash-chip-gold">Upgraded</span>}
+            {memorial.is_paid && <span className="dash-chip dash-chip-gold">{compedBy ? `Included by ${compedBy}` : "Upgraded"}</span>}
           </div>
         </div>
         <div className="dash-page-card-actions">
