@@ -3,6 +3,7 @@ import { PRICING_PLANS } from "../lib/pricingPlans";
 import { EmbeddedCheckoutModal } from "../components/EmbeddedCheckoutModal";
 import { GiftModal } from "../components/GiftModal";
 import { readPendingGiftConfirmation, clearPendingGiftConfirmation } from "../lib/pendingGiftConfirmation";
+import { readReferral } from "../lib/referral";
 
 const BUILD = PRICING_PLANS.find((p) => p.tier === "build");
 
@@ -22,7 +23,15 @@ const UNLOCKS = [
 // `intent` is the nav param — "gift" (from the homepage "Give it as a gift"
 // row) opens the gift modal straight away.
 export function PricingPage({ onNavigate, intent }) {
-  const [showCheckout, setShowCheckout] = useState(false);
+  // ?view=pricing&checkout=1 opens checkout straight away — partner pages
+  // (public/partners/<slug>/) link here so "Start their page" goes right to
+  // paying. Stripped from the URL below, like gift_sent.
+  const [showCheckout, setShowCheckout] = useState(
+    () => new URLSearchParams(window.location.search).get("checkout") === "1"
+  );
+  // Visitors sent by a partner page are pitched the $49 page directly, so
+  // they don't see the five-free-memories offer.
+  const [fromPartner] = useState(() => Boolean(readReferral()));
   const [showGiftModal, setShowGiftModal] = useState(intent === "gift");
   // Set by create-gift-checkout.js's success_url after a gift is paid for.
   // Read once, then strip from the URL so a refresh or a later visit doesn't
@@ -35,6 +44,13 @@ export function PricingPage({ onNavigate, intent }) {
   // before redirecting to Stripe (see pendingGiftConfirmation.js), since
   // Stripe redirects the whole tab and there's no other way to carry it.
   const [giftConfirmation] = useState(() => (giftSent ? readPendingGiftConfirmation() : null));
+
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has("checkout")) return;
+    url.searchParams.delete("checkout");
+    window.history.replaceState(window.history.state, "", url);
+  }, []);
 
   useEffect(() => {
     if (!giftSent) return;
@@ -75,10 +91,16 @@ export function PricingPage({ onNavigate, intent }) {
         <div className="page-wrap">
           <div className="mkt-page-hero">
             <div className="mkt-eyebrow fade-up"><span className="mkt-eyebrow-line" aria-hidden="true" />Pricing</div>
-            <h1 className="mkt-h1 fade-up-2">Start for free. The rest is simple.</h1>
-            <p className="mkt-page-hero-sub fade-up-3">
-              Five memories included, free — no card required. That's five photos, videos, voicemails, or stories, mixed however you like, with every feature unlocked. Start there, and see how it comes together before you pay anything.
-            </p>
+            {fromPartner ? (
+              <h1 className="mkt-h1 fade-up-2">One payment. The rest is simple.</h1>
+            ) : (
+              <>
+                <h1 className="mkt-h1 fade-up-2">Start for free. The rest is simple.</h1>
+                <p className="mkt-page-hero-sub fade-up-3">
+                  Five memories included, free — no card required. That's five photos, videos, voicemails, or stories, mixed however you like, with every feature unlocked. Start there, and see how it comes together before you pay anything.
+                </p>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -87,7 +109,7 @@ export function PricingPage({ onNavigate, intent }) {
       <div className="mkt-section">
         <div className="page-wrap">
           <div className="mkt-section-inner" style={{ paddingTop: 24 }}>
-            <p className="mkt-body mkt-narrow">When you're ready to keep it, one payment unlocks everything — no plans to choose between, and nothing to guess about what you're getting.</p>
+            <p className="mkt-body mkt-narrow">{fromPartner ? "One payment unlocks everything" : "When you're ready to keep it, one payment unlocks everything"} — no plans to choose between, and nothing to guess about what you're getting.</p>
 
             <button
               type="button"
