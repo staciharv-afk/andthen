@@ -2,7 +2,7 @@ export const APP_VIEWS = ["login", "create", "dashboard", "edit", "page-settings
 
 // Slugs a memorial can't use — they'd collide with a real app route or
 // static asset path. Shared with CreateMemorial's slug field validation.
-export const RESERVED_SLUGS = new Set([...APP_VIEWS, "home", "api", "assets"]);
+export const RESERVED_SLUGS = new Set([...APP_VIEWS, "home", "api", "assets", "partners"]);
 
 export function parseLocation() {
   const params = new URLSearchParams(window.location.search);

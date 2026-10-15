@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase, CONFIG_OK, ARRIVED_VIA_MAGIC_LINK } from "./lib/supabase";
 import { uid } from "./lib/utils";
 import { readDraft, clearDraft } from "./lib/onboardingDraft";
+import { captureReferral, referralFields } from "./lib/referral";
 import { savePendingPayment, readPendingPayment, clearPendingPayment } from "./lib/pendingPayment";
 import { readPendingGiftClaim, clearPendingGiftClaim } from "./lib/pendingGiftClaim";
 import { savePendingStewardInvite, readPendingStewardInvite, clearPendingStewardInvite } from "./lib/pendingStewardInvite";
@@ -56,6 +57,7 @@ export default function App() {
     }
 
     initAnalytics();
+    captureReferral();
     const { page, param } = parseLocation();
     window.history.replaceState({ page, param }, "");
 
@@ -201,6 +203,7 @@ export default function App() {
         steward_relation: draft.relation || null,
         steward_id: session.user.id,
         invite_code: uid(),
+        ...referralFields(),
       }).select();
       if (!error && data?.[0]) {
         const unlock = await attachPendingUnlockIfAny(data[0].id);

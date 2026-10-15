@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabase";
 import { uid, fileToDataURL, slugify } from "../lib/utils";
 import { RESERVED_SLUGS } from "../lib/router";
 import { trackEvent } from "../lib/analytics";
+import { referralFields } from "../lib/referral";
 import { CropAdjuster, detectCropPosition } from "../components/CropAdjuster";
 import { readPendingGiftClaim } from "../lib/pendingGiftClaim";
 
@@ -136,6 +137,7 @@ export function CreateMemorialPage({ currentUser, existing, onCreated, onUpdated
         invite_code: inviteCode,
         require_approval: true, // reviewed-by-default; changeable afterward from the page's Settings screen
         slug: cleanSlug,
+        ...referralFields(),
       }).select();
 
       if (err) { setError(err.code === "23505" ? "That page address is already taken — please choose another." : (err.message || "Failed to create your story. Please try again.")); return; }
