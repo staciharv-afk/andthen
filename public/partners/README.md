@@ -12,7 +12,9 @@ file — not part of the React app — served straight from this folder:
 1. Copy an existing folder (e.g. `schoedinger/`) to `public/partners/<slug>/`
    and edit `index.html`.
 2. Point every "Start their page" link at
-   `https://www.myandthen.com/?ref=<slug>`. That `ref` is what ties a signup
+   `https://www.myandthen.com/?view=pricing&checkout=1&ref=<slug>` (write the
+   `&` as `&amp;` in the HTML). `checkout=1` opens the $49 checkout straight
+   away. `ref` is what ties a signup
    back to the funeral home: the app remembers it (`src/lib/referral.js`) and
    saves it as `referral_source` on the memorial the family creates.
 3. Keep `<meta name="robots" content="noindex, nofollow">` in the `<head>`.

@@ -22,7 +22,12 @@ const UNLOCKS = [
 // `intent` is the nav param — "gift" (from the homepage "Give it as a gift"
 // row) opens the gift modal straight away.
 export function PricingPage({ onNavigate, intent }) {
-  const [showCheckout, setShowCheckout] = useState(false);
+  // ?view=pricing&checkout=1 opens checkout straight away — partner pages
+  // (public/partners/<slug>/) link here so "Start their page" goes right to
+  // paying. Stripped from the URL below, like gift_sent.
+  const [showCheckout, setShowCheckout] = useState(
+    () => new URLSearchParams(window.location.search).get("checkout") === "1"
+  );
   const [showGiftModal, setShowGiftModal] = useState(intent === "gift");
   // Set by create-gift-checkout.js's success_url after a gift is paid for.
   // Read once, then strip from the URL so a refresh or a later visit doesn't
@@ -35,6 +40,13 @@ export function PricingPage({ onNavigate, intent }) {
   // before redirecting to Stripe (see pendingGiftConfirmation.js), since
   // Stripe redirects the whole tab and there's no other way to carry it.
   const [giftConfirmation] = useState(() => (giftSent ? readPendingGiftConfirmation() : null));
+
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has("checkout")) return;
+    url.searchParams.delete("checkout");
+    window.history.replaceState(window.history.state, "", url);
+  }, []);
 
   useEffect(() => {
     if (!giftSent) return;
