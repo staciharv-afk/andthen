@@ -15,7 +15,7 @@
 -- is_paid = true directly through the API. The UPDATE side was already locked
 -- down (20260724_rls_cleanup.sql); now INSERT is too.
 --
--- Idempotent. Run in Supabase → SQL Editor.
+-- Idempotent. Applied to production 2026-10-15.
 
 -- 1) partners ---------------------------------------------------------------
 
@@ -42,6 +42,7 @@ revoke all on public.partners from anon, authenticated, public;
 create or replace function public.partners_set_dates()
 returns trigger
 language plpgsql
+set search_path = public
 as $$
 begin
   if new.active and new.activated_at is null then
@@ -125,6 +126,7 @@ create trigger memorials_before_insert
 create or replace function public.memorials_before_update()
 returns trigger
 language plpgsql
+set search_path = public
 as $$
 begin
   if coalesce(auth.role(), '') in ('anon', 'authenticated') and (
