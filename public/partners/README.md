@@ -14,9 +14,9 @@ file — not part of the React app — served straight from this folder:
 2. Point every "Start their page" link at the right URL for the funeral
    home's offer (its row in the `partners` table, see
    `supabase/migrations/20261016_partner_offers.sql`):
-   - **Offer B** (families pay $49):
+   - **Offer B** (families pay $149):
      `https://www.myandthen.com/?view=pricing&checkout=1&ref=<slug>`.
-     `checkout=1` opens the $49 checkout straight away. Write each `&` as
+     `checkout=1` opens the $149 checkout straight away. Write each `&` as
      `&amp;` in the HTML.
    - **Offers A and C** (free to the family):
      `https://www.myandthen.com/?view=onboarding&ref=<slug>`. Never link these

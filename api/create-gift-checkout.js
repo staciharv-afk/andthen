@@ -1,5 +1,5 @@
 // Vercel serverless function — starts a hosted Stripe Checkout for a gifted
-// $49 build fee. Same tier/price as every other checkout entry point (see
+// $149 build fee. Same tier/price as every other checkout entry point (see
 // api/_lib/stripeTiers.js), but for someone who doesn't have — and may never
 // sign up for — a memorial of their own; the recipient is a stranger to us
 // until they claim it, so there's nothing to attach this to yet the way

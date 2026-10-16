@@ -1,7 +1,7 @@
 // Vercel serverless function — starts a Stripe Checkout to upgrade an
 // EXISTING memorial (the Dashboard's "Upgrade" button, for a page still on
 // the free tier). Same one tier as the pre-signup Pricing page
-// (api/start-checkout.js) — "build" ($49 one-time) — built from the shared
+// (api/start-checkout.js) — "build" ($149 one-time) — built from the shared
 // shape in api/_lib/stripeTiers.js, so a creator upgrading later gets
 // identical pricing to one who pays upfront.
 //

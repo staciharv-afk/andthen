@@ -10,7 +10,7 @@ const uidLocal = () => Math.random().toString(36).slice(2, 10);
 // Opened from the Pricing page's gift pill. A single gift-details form that
 // starts a hosted Stripe Checkout via api/create-gift-checkout.js and
 // redirects there. No account needed to buy a gift, same as the pre-signup
-// $49 flow. (Someone buying for themselves just uses the $49 card the pill
+// $149 flow. (Someone buying for themselves just uses the $149 card the pill
 // sits under — no "for me" branch here.)
 //
 // "Add co-stewards" suggests people (e.g. the recipient's siblings) who get
@@ -102,7 +102,7 @@ export function GiftModal({ onClose }) {
     <div className="crop-adjust-overlay fade-in" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="crop-adjust-card gift-modal-card" role="dialog" aria-label="Buy And Then as a gift">
         <h3 className="crop-adjust-title">Send this as a gift</h3>
-        <p className="crop-adjust-sub">We'll email them a link to claim it — no code to forward, nothing for you to remember. It's the same $49 page, everything unlocked, no renewals.</p>
+        <p className="crop-adjust-sub">We'll email them a link to claim it — no code to forward, nothing for you to remember. It's the same $149 page, everything unlocked, no renewals.</p>
         <div className="create-form">
           <div className="form-group">
             <label className="form-label">Who is this page for?</label>
@@ -159,7 +159,7 @@ export function GiftModal({ onClose }) {
 
           <div className="gift-price-summary">
             <div className="gift-price-summary-line">
-              {subjectName.trim() ? `${subjectName.trim()}'s page, forever` : "Their page, forever"} <span>· $49</span>
+              {subjectName.trim() ? `${subjectName.trim()}'s page, forever` : "Their page, forever"} <span>· $149</span>
             </div>
           </div>
 
@@ -167,7 +167,7 @@ export function GiftModal({ onClose }) {
           <div className="crop-adjust-actions gift-modal-actions">
             <button type="button" className="btn btn-ghost" onClick={onClose} disabled={submitting}>Cancel</button>
             <button type="button" className="btn btn-rust" onClick={handleSubmit} disabled={submitting}>
-              {submitting ? <><span className="spinner" /> Starting...</> : "Continue to payment · $49"}
+              {submitting ? <><span className="spinner" /> Starting...</> : "Continue to payment · $149"}
             </button>
           </div>
         </div>

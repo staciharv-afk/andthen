@@ -9,7 +9,7 @@
 // "don't trust the POST, trust Stripe" approach as stripe-webhook.js.
 //
 // The Checkout Session is `mode: "payment"` (see api/_lib/stripeTiers.js) —
-// a single one-time $49 build fee, no subscription ever created.
+// a single one-time $149 build fee, no subscription ever created.
 //
 // Required env vars (Vercel → Settings → Environment Variables):
 //   STRIPE_SECRET_KEY           = Stripe secret key (must be sk_live_… in production)
