@@ -26,8 +26,8 @@ export const TIERS = {
 
 // Required env var (Vercel → Settings → Environment Variables):
 //   STRIPE_BUILD_FEE_PRICE_ID  = the saved Stripe Price for the one-time $149
-//                                build fee. Live: TODO new $149 price (the old $49 one was
-//                                price_1U2jHIE9GhTJqvitkmONphjF — kept, not edited)
+//                                build fee. Live: price_1URGzvE9GhTJqvitCC19KTL3 (the old $49
+//                                price_1U2jHIE9GhTJqvitkmONphjF is kept, not edited)
 //                                (use the matching test-mode price id locally).
 export function stripeProductIdsConfigured() {
   return Boolean(process.env.STRIPE_BUILD_FEE_PRICE_ID);
