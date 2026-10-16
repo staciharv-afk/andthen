@@ -315,7 +315,7 @@ export function DashboardPage({ currentUser, onNavigate, showToast }) {
     }
   };
 
-  // $49 one-time build fee — same tier as the Pricing page, via api/create-checkout.js.
+  // $149 one-time build fee — same tier as the Pricing page, via api/create-checkout.js.
   const handleUpgrade = async (memorialId) => {
     setUpgrading(true);
     try {

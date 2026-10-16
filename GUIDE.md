@@ -220,7 +220,7 @@ logic below.
 
 ### Buying a page as a gift
 
-Someone can pay the $49 for a person who hasn't signed up yet — and may not
+Someone can pay the $149 for a person who hasn't signed up yet — and may not
 even know it's coming.
 
 ```mermaid
@@ -456,7 +456,7 @@ database, or a server function?"* before you say go.
 - **Supabase** — "And Then" project (Pro plan). Holds the database, logins, files.
 - **Vercel** — project `andthen-civ6` (production = myandthen.com). Holds the env vars.
 - **Resend** — `staciharv` workspace; domain `myandthen.com` verified.
-- **Stripe** — three live products (keeper fee $10/yr, build fee $49
+- **Stripe** — three live products (keeper fee $10/yr, build fee $149 (was $49)
   one-time, forever $100 one-time), wired via env vars in Vercel, not
   hardcoded — live mode.
 - **Domain** — Squarespace (DNS on Google nameservers).

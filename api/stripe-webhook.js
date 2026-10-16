@@ -4,7 +4,7 @@
 // 1. checkout.session.completed — unlocks a memorial (is_paid = true) for
 //    the EXISTING post-signup upgrade flow (create-checkout.js,
 //    metadata.memorial_id). The Checkout Session here is `mode: "payment"`
-//    (see api/_lib/stripeTiers.js) — a single one-time $49 build fee, no
+//    (see api/_lib/stripeTiers.js) — a single one-time $149 build fee, no
 //    subscription ever created. Pre-signup checkouts (start-checkout.js)
 //    have no memorial_id yet at this point — they're skipped here and
 //    unlocked instead by attach-presignup-payment.js once the memorial

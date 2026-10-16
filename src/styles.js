@@ -1156,7 +1156,7 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .pricing-path-card-light .pricing-path-body { color: var(--warm-mid); }
 .pricing-path-card-dark .pricing-path-body { color: rgba(253,250,245,0.75); }
 
-/* Gift pill, sitting right under the $49 card — a quiet continuation of it,
+/* Gift pill, sitting right under the $149 card — a quiet continuation of it,
    not a promotional banner, so it borrows the card's own rust token rather
    than introducing a new color. */
 .gift-pill {

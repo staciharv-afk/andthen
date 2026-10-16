@@ -5,7 +5,7 @@
 // Stripe price. Underscore-prefixed directory: Vercel doesn't turn this
 // into a route.
 //
-// "build" ($49 one-time): a single Checkout Session, mode: "payment", no
+// "build" ($149 one-time): a single Checkout Session, mode: "payment", no
 // subscription object ever created — a memorial never gets a
 // stripe_subscription_id and is therefore never touched by the pause-on-
 // lapsed-renewal logic in stripe-webhook.js. That logic (and the
@@ -18,15 +18,16 @@
 // price_data amount). A saved Price is what lets `allow_promotion_codes`
 // work — Stripe rejects promotion codes on price_data line items — and it
 // keeps the amount defined in one place (the Stripe dashboard) instead of
-// duplicated in code. The Price already points at the live $49 build-fee
+// duplicated in code. The Price already points at the live build-fee
 // product, so revenue still rolls up under the right product in Stripe.
 export const TIERS = {
   build: {},
 };
 
 // Required env var (Vercel → Settings → Environment Variables):
-//   STRIPE_BUILD_FEE_PRICE_ID  = the saved Stripe Price for the one-time $49
-//                                build fee. Live: price_1U2jHIE9GhTJqvitkmONphjF
+//   STRIPE_BUILD_FEE_PRICE_ID  = the saved Stripe Price for the one-time $149
+//                                build fee. Live: TODO new $149 price (the old $49 one was
+//                                price_1U2jHIE9GhTJqvitkmONphjF — kept, not edited)
 //                                (use the matching test-mode price id locally).
 export function stripeProductIdsConfigured() {
   return Boolean(process.env.STRIPE_BUILD_FEE_PRICE_ID);

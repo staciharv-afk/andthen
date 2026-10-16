@@ -29,7 +29,7 @@ export function PricingPage({ onNavigate, intent }) {
   const [showCheckout, setShowCheckout] = useState(
     () => new URLSearchParams(window.location.search).get("checkout") === "1"
   );
-  // Visitors sent by a partner page are pitched the $49 page directly, so
+  // Visitors sent by a partner page are pitched the $149 page directly, so
   // they don't see the five-free-memories offer.
   const [fromPartner] = useState(() => Boolean(readReferral()));
   const [showGiftModal, setShowGiftModal] = useState(intent === "gift");
@@ -115,7 +115,7 @@ export function PricingPage({ onNavigate, intent }) {
               type="button"
               className="mkt-pay-card"
               onClick={() => setShowCheckout(true)}
-              aria-label="Pay Once — $49, no renewals ever. Continue to checkout."
+              aria-label="Pay Once — $149, no renewals ever. Continue to checkout."
               style={{ marginTop: 28 }}
             >
               <div className="mkt-pay-card-label">{BUILD.label}</div>
@@ -134,7 +134,7 @@ export function PricingPage({ onNavigate, intent }) {
               Buying this for someone else? Send it as a gift
             </button>
 
-            <div className="mkt-eyebrow" style={{ marginTop: 56 }}><span className="mkt-eyebrow-line" aria-hidden="true" />What $49 unlocks</div>
+            <div className="mkt-eyebrow" style={{ marginTop: 56 }}><span className="mkt-eyebrow-line" aria-hidden="true" />What $149 unlocks</div>
             <div className="mkt-unlocks">
               {UNLOCKS.map(({ label, body }, i) => (
                 <div className={i === UNLOCKS.length - 1 ? "mkt-unlock-full" : undefined} key={label}>

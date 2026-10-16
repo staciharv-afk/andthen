@@ -8,8 +8,8 @@ export const PRICING_PLANS = [
   {
     tier: "build",
     label: "Pay Once",
-    price: "$49",
+    price: "$149",
     sub: "One-time build fee — no renewals, ever.",
-    body: "$49 unlocks unlimited entries and contributors, plus every feature — photo, video, voice, all of it. One payment, no bill after that. Nothing to renew, nothing to miss.",
+    body: "$149 unlocks unlimited entries and contributors, plus every feature — photo, video, voice, all of it. One payment, no bill after that. Nothing to renew, nothing to miss.",
   },
 ];
