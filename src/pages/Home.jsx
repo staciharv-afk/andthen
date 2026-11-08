@@ -16,7 +16,7 @@ const HOME_STEPS = [
 // The emphasized lost/celebrate line — reused verbatim in the hero (as a
 // visually distinct callout) and again below the closing CTA's button, per
 // the brand spec. One string, two render spots, so the wording can't drift.
-const SCOPE_LINE = "For someone you've lost — or someone you want to celebrate while they're still here to see it.";
+const SCOPE_LINE = "For someone you've lost, or someone you want to celebrate while they're still here to see it.";
 
 // Watches a sentinel placed at the end of the hero section and shows a
 // fixed bottom CTA once it's scrolled out of view — mobile only (CSS hides
@@ -264,13 +264,13 @@ export function HomePage({ onNavigate }) {
         <div className="page-wrap">
           <div className="mkt-hero">
             <div>
-              <h1 className="mkt-hero-h1 fade-up-2">Every life deserves<br />to be well told.</h1>
+              <h1 className="mkt-hero-h1 fade-up-2">Gather their stories while everyone is still telling them.</h1>
               <p className="mkt-hero-body fade-up-3">
-                Everyone who loved them remembers something different. <em>And Then</em> brings it all together — into one page that keeps growing.
+                <em>And Then</em> sends each person who knew them a question written for how they knew them. Everything they send back is kept in one place your family owns.
               </p>
               <p className="mkt-callout fade-up-3">{SCOPE_LINE}</p>
               <div className="mkt-cta-group fade-up-4">
-                <button className="mkt-btn mkt-btn-solid" onClick={() => onNavigate("onboarding")}>Try it free</button>
+                <button className="mkt-btn mkt-btn-solid" onClick={() => onNavigate("onboarding")}>Start their page, free</button>
                 <button className="mkt-btn mkt-btn-ghost" onClick={() => onNavigate("how-it-works")}>See how it works</button>
               </div>
             </div>

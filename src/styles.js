@@ -1367,6 +1367,9 @@ textarea.form-input { resize: vertical; min-height: 100px; line-height: 1.6; }
 .mkt-hero { display: grid; grid-template-columns: 1.05fr 1fr; gap: 64px; align-items: center; padding: 72px 0 0; }
 @media (max-width: 900px) { .mkt-hero { grid-template-columns: 1fr; gap: 44px; padding-top: 44px; } }
 .mkt-hero-h1 { font-family: 'Playfair Display', serif; font-weight: 600; font-size: clamp(36px, 4.6vw, 60px); line-height: 1.12; color: var(--charcoal); margin-bottom: 20px; letter-spacing: -0.01em; }
+/* Narrow phones: scale the H1 down a touch so the headline holds at 3 lines
+   and the CTAs stay above the fold (36px wraps to 4 lines under ~375px). */
+@media (max-width: 400px) { .mkt-hero-h1 { font-size: min(36px, 8.8vw); } }
 .mkt-hero-sub { font-family: 'Playfair Display', serif; font-style: italic; font-weight: 400; font-size: clamp(18px, 2.1vw, 26px); line-height: 1.35; color: var(--charcoal); margin-bottom: 22px; }
 .mkt-hero-body { font-size: 16.5px; line-height: 1.65; color: var(--charcoal-muted); max-width: 480px; }
 .mkt-callout { font-family: 'Playfair Display', serif; font-style: italic; font-weight: 500; font-size: clamp(18px, 2vw, 22px); line-height: 1.4; color: var(--charcoal); border-left: 3px solid var(--clay); padding-left: 20px; margin: 28px 0 4px; max-width: 500px; }
